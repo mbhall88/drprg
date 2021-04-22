@@ -1,4 +1,4 @@
-> ⚠️**In early development stage**⚠️
+> ⚠️**In early development stage - do not use**⚠️
 
 👩‍⚕Dr. PRG - **D**rug **R**esistance **P**rediction with **R**eference **G**raphs️👨‍⚕️
 
