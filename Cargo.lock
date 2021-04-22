@@ -240,8 +240,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bio",
+ "csv",
  "env_logger",
  "log",
+ "serde",
+ "serde_derive",
  "structopt",
  "thiserror",
 ]

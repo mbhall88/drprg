@@ -1,11 +1,13 @@
+use crate::panel::panel::PanelRecord;
 use crate::Runner;
 use anyhow::Result;
+use bio::io::fasta;
 use drprg::{dependency_dir, MakePrg, MissingDependencies};
 use log::{debug, info};
+use serde::Deserialize;
 use std::path::PathBuf;
-use structopt::StructOpt;
-use bio::io::fasta;
 use std::process::id;
+use structopt::StructOpt;
 
 #[derive(StructOpt, Debug)]
 pub struct Build {
@@ -38,6 +40,14 @@ impl Runner for Build {
         debug!("Building...");
 
         // get a set of all genes in the panel
+        let mut reader = csv::ReaderBuilder::new()
+            .delimiter(b'\t')
+            .has_headers(false)
+            .from_path(&self.panel_file)?;
+        for result in reader.deserialize() {
+            let record: PanelRecord = result?;
+            println!("{:?}", record);
+        }
         // load fasta index
         let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
         // open vcf ref file handle
@@ -48,7 +58,6 @@ impl Runner for Build {
         // let mut seq: Vec<u8> = vec![];
         // faidx.read(&mut seq);
         // println!("{:?}", seq.into_iter().map(|c| c as char).collect::<String>());
-
 
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
         Ok(())

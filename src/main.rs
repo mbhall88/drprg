@@ -9,6 +9,7 @@ use crate::cli::Command;
 
 mod build;
 mod cli;
+mod panel;
 mod predict;
 
 pub trait Runner {

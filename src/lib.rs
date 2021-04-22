@@ -29,7 +29,8 @@ impl MakePrg {
             }
             None => {
                 debug!("No make_prg executable given. Trying default locations...");
-                let executable = String::from(dependency_dir().join("make_prg").to_string_lossy());
+                let executable =
+                    String::from(dependency_dir().join("make_prg").to_string_lossy());
                 if is_executable(&executable) {
                     debug!("Found make_prg at {}", &executable);
                     Ok(MakePrg { executable })
