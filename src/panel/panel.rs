@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::fmt;
 use std::str::FromStr;
 use thiserror::Error;
+use std::hash::{Hash, Hasher};
 
 /// A collection of custom errors relating to the command line interface for this package.
 #[derive(Error, Debug, PartialEq)]
@@ -13,7 +14,7 @@ pub enum PanelError {
 }
 
 /// An enum representing the panel mutation types we recognise
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Hash)]
 pub enum MutationType {
     Nucleic,
     Amino,
@@ -43,8 +44,8 @@ impl FromStr for MutationType {
 
 impl<'de> Deserialize<'de> for MutationType {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
+        where
+            D: Deserializer<'de>,
     {
         let s = String::deserialize(deserializer)?;
         FromStr::from_str(&s).map_err(de::Error::custom)
@@ -65,10 +66,18 @@ pub struct PanelRecord {
     pub drugs: HashSet<String>,
 }
 
+impl Hash for PanelRecord {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.gene.hash(state);
+        self.mutation.hash(state);
+        self.mutation_type.hash(state);
+    }
+}
+
 /// Allow serde to deserialize the drugs section of the panel
 fn str_to_set<'de, D>(deserializer: D) -> Result<HashSet<String>, D::Error>
-where
-    D: Deserializer<'de>,
+    where
+        D: Deserializer<'de>,
 {
     let s = String::deserialize(deserializer)?;
     Ok(s.split(',').map(|item| item.to_owned()).collect())
