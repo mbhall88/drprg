@@ -14,7 +14,7 @@ use crate::panel::{Panel, PanelRecord};
 use crate::Runner;
 
 static META: &str = "##";
-const VERSION: &'static str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(StructOpt, Debug)]
 pub struct Build {
@@ -134,7 +134,7 @@ impl Runner for Build {
         info!("Building panel index...");
 
         info!("Loading the panel...");
-        let mut panel: Panel = HashSet::new();
+        let mut panel: Panel = HashMap::new();
         let mut genes: HashSet<String> = HashSet::new();
         let mut record_num = 0;
 
@@ -147,7 +147,10 @@ impl Runner for Build {
             record_num += 1;
             let record: PanelRecord = result?;
             genes.insert(record.gene.to_owned());
-            let seen_before = !panel.insert(record);
+            let set_of_records = panel
+                .entry(record.gene.to_owned())
+                .or_insert_with(HashSet::new);
+            let seen_before = !set_of_records.insert(record);
 
             if seen_before {
                 warn!(
@@ -170,24 +173,7 @@ impl Runner for Build {
         }
         info!("Loaded annotations");
 
-        info!("Loading the reference genome index...");
-        let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
-        info!("Loaded the reference genome index");
-        {
-            let gene_refs_path = self.outdir.join("genes.fa");
-            let gene_refs_file = std::fs::File::create(&gene_refs_path)?;
-            let mut writer = fasta::Writer::new(gene_refs_file);
-
-            info!("Creating reference FASTA for genes...");
-            for (gene, gff_record) in &annotations {
-                let seq =
-                    extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
-                writer.write(gene, None, &seq)?;
-            }
-            info!("Reference FASTA for genes written to {:?}", &gene_refs_path);
-        }
-        // create the vcf for the panel. we want a vcf record for each panel record and then at the
-        // same time as writing the vcf record, we can also write the MSA record
+        debug!("Creating VCF header...");
         let mut vcf_header = bcf::header::Header::new();
         vcf_header.push_record(format!("{}source=drprgV{}", META, VERSION).as_bytes());
         // add contigs to vcf header
@@ -196,7 +182,32 @@ impl Runner for Build {
                 + (&self.padding * 2) as u64;
             vcf_header.push_record(&*vcf_contig_field(gene, length));
         }
-        // bcf::Writer::from_stdout(&vcf_header, true, bcf::Format::VCF);
+        todo!("Add INFO fields for panel data - i.e. Variant, drugs etc.");
+        debug!("VCF header created");
+
+        let panel_vcf_path = self.outdir.join("panel.bcf");
+        let mut vcf_writer = bcf::Writer::from_path(
+            panel_vcf_path,
+            &vcf_header,
+            false,
+            bcf::Format::BCF,
+        )?;
+        debug!("Loading the reference genome index...");
+        let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
+        debug!("Loaded the reference genome index");
+        {
+            let gene_refs_path = self.outdir.join("genes.fa");
+            let gene_refs_file = std::fs::File::create(&gene_refs_path)?;
+            let mut fa_writer = fasta::Writer::new(gene_refs_file);
+
+            for (gene, gff_record) in &annotations {
+                let seq =
+                    extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
+                fa_writer.write(gene, None, &seq)?;
+                let panel_records_for_gene = &panel[gene];
+                todo!("loop over panel records and create a vcf record for each");
+            }
+        }
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
         Ok(())
     }
