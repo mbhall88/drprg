@@ -6,11 +6,15 @@ use std::path::PathBuf;
 use anyhow::Result;
 use bio::io::{fasta, gff};
 use log::{debug, info, warn};
+use rust_htslib::bcf;
 use structopt::StructOpt;
 use thiserror::Error;
 
 use crate::panel::{Panel, PanelRecord};
 use crate::Runner;
+
+static META: &str = "##";
+const VERSION: &'static str = env!("CARGO_PKG_VERSION");
 
 #[derive(StructOpt, Debug)]
 pub struct Build {
@@ -166,11 +170,10 @@ impl Runner for Build {
         }
         info!("Loaded annotations");
 
+        info!("Loading the reference genome index...");
+        let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
+        info!("Loaded the reference genome index");
         {
-            info!("Loading the reference genome index...");
-            let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
-            info!("Loaded the reference genome index");
-
             let gene_refs_path = self.outdir.join("genes.fa");
             let gene_refs_file = std::fs::File::create(&gene_refs_path)?;
             let mut writer = fasta::Writer::new(gene_refs_file);
@@ -183,10 +186,26 @@ impl Runner for Build {
             }
             info!("Reference FASTA for genes written to {:?}", &gene_refs_path);
         }
-
+        // create the vcf for the panel. we want a vcf record for each panel record and then at the
+        // same time as writing the vcf record, we can also write the MSA record
+        let mut vcf_header = bcf::header::Header::new();
+        vcf_header.push_record(format!("{}source=drprgV{}", META, VERSION).as_bytes());
+        // add contigs to vcf header
+        for (gene, gff_record) in &annotations {
+            let length: u64 = (gff_record.end() + 1) - gff_record.start()
+                + (&self.padding * 2) as u64;
+            vcf_header.push_record(&*vcf_contig_field(gene, length));
+        }
+        // bcf::Writer::from_stdout(&vcf_header, true, bcf::Format::VCF);
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
         Ok(())
     }
+}
+
+fn vcf_contig_field(id: &str, length: u64) -> Vec<u8> {
+    format!("{}contig=<ID={},length={}>", META, id, length)
+        .as_bytes()
+        .to_owned()
 }
 
 #[cfg(test)]
@@ -356,6 +375,17 @@ mod tests {
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"TAGGCTGAAAACCCC";
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_vcf_contig_field() {
+        let id = "chr1";
+        let length = 33;
+
+        let actual = vcf_contig_field(id, length);
+        let expected = b"##contig=<ID=chr1,length=33>";
+
         assert_eq!(actual, expected)
     }
 }
