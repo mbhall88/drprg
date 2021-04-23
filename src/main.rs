@@ -7,7 +7,7 @@ use structopt::StructOpt;
 pub use crate::cli::Cli;
 use crate::cli::Command;
 
-mod build;
+mod builder;
 mod cli;
 mod panel;
 mod predict;

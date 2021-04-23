@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for MutationType {
 }
 
 /// An object containing the data in a row of the panel file
-#[derive(Debug, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Deserialize)]
 pub struct PanelRecord {
     /// The gene the mutation is within
     pub gene: String,
@@ -75,6 +75,16 @@ impl Hash for PanelRecord {
         self.mutation_type.hash(state);
     }
 }
+
+impl PartialEq for PanelRecord {
+    fn eq(&self, other: &Self) -> bool {
+        self.gene == other.gene
+            && self.mutation == other.mutation
+            && self.mutation_type == other.mutation_type
+    }
+}
+
+impl Eq for PanelRecord {}
 
 /// Allow serde to deserialize the drugs section of the panel
 fn str_to_set<'de, D>(deserializer: D) -> Result<HashSet<String>, D::Error>

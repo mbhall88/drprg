@@ -1,7 +1,7 @@
-use crate::build::build::Build;
-use crate::predict::predict::Predict;
-use std::path::PathBuf;
 use structopt::StructOpt;
+
+use crate::builder::Build;
+use crate::predict::Predict;
 
 // https://docs.rs/structopt/0.3.21/structopt/#subcommands
 /// Drug Resistance Prediction with Reference Graphs
