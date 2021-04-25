@@ -164,6 +164,24 @@ impl PartialEq for PanelRecord {
 
 impl Eq for PanelRecord {}
 
+impl PanelRecord {
+    /// Generate the header entries for the panel record INFO fields
+    pub fn vcf_header_entries() -> Vec<&'static [u8]> {
+        vec![
+            b"##INFO=<ID=GENE,Number=1,Type=String,Description=\"Gene the variant occurs in\">",
+            b"##INFO=<ID=VAR,Number=1,Type=String,Description=\"The variant describing reference, position, alternate on the gene\">",
+            b"##INFO=<ID=RES,Number=1,Type=String,Description=\"Residue the variant describes (i.e. Nucleic/Amino)\">",
+            b"##INFO=<ID=DRUGS,Number=.,Type=String,Description=\"Drugs this variant causes resistance to\">",
+        ]
+    }
+    /// Generate VCF INFO fields for this panel record
+    pub fn vcf_info(&self) -> Vec<Vec<u8>> {
+        let fields: Vec<Vec<u8>> = Vec::new();
+        todo!("add fields");
+        fields
+    }
+}
+
 /// Allow serde to deserialize the drugs section of the panel
 fn str_to_set<'de, D>(deserializer: D) -> Result<HashSet<String>, D::Error>
 where
@@ -353,5 +371,16 @@ mod tests {
         let result: Result<PanelRecord, csv::Error> =
             reader.deserialize().next().unwrap();
         assert!(result.is_err())
+    }
+
+    #[test]
+    fn panel_record_vcf_header_entries() {
+        let actual = PanelRecord::vcf_header_entries();
+        let expected = vec![
+            "##INFO=<ID=GENE,Number=1,Type=String,Description=\"Gene the variant occurs in\">".as_bytes(),
+            "##INFO=<ID=VAR,Number=1,Type=String,Description=\"The variant describing reference, position, alternate on the gene\">".as_bytes(),
+            "##INFO=<ID=RES,Number=1,Type=String,Description=\"Residue the variant describes (i.e. Nucleic/Amino)\">".as_bytes(),
+            "##INFO=<ID=DRUGS,Number=.,Type=String,Description=\"Drugs this variant causes resistance to\">".as_bytes(),
+        ];
     }
 }

@@ -182,7 +182,9 @@ impl Runner for Build {
                 + (&self.padding * 2) as u64;
             vcf_header.push_record(&*vcf_contig_field(gene, length));
         }
-        todo!("Add INFO fields for panel data - i.e. Variant, drugs etc.");
+        for entry in PanelRecord::vcf_header_entries() {
+            vcf_header.push_record(entry);
+        }
         debug!("VCF header created");
 
         let panel_vcf_path = self.outdir.join("panel.bcf");
