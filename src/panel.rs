@@ -148,7 +148,7 @@ impl Eq for PanelRecord {}
 
 impl PanelRecord {
     /// The unique name for this record, which is the joining of the gene and variant
-    fn name(&self) -> String {
+    pub fn name(&self) -> String {
         format!("{}_{}", self.gene, self.variant)
     }
     /// The reference allele for the variant this record describes
@@ -171,7 +171,7 @@ impl PanelRecord {
             b"##INFO=<ID=RES,Number=1,Type=String,Description=\"Residue the variant describes (i.e. Nucleic/Amino)\">",
             b"##INFO=<ID=DRUGS,Number=.,Type=String,Description=\"Drugs this variant causes resistance to\">",
             br#"##INFO=<ID=PAD,Number=1,Type=Integer,Description="Number of bases added to start and end of gene">"#,
-            br#"##INFO=<ID=ST,Number=1,Type=Character,Description="Strand the gene is on">"#,
+            br#"##INFO=<ID=ST,Number=1,Type=String,Description="Strand the gene is on">"#,
         ]
     }
     pub fn to_vcf(
@@ -212,7 +212,8 @@ impl PanelRecord {
             .map_err(|_| {
                 PanelError::SetVcfFieldFailed("RES".to_owned(), self.name())
             })?;
-        let drugs: Vec<&[u8]> = self.drugs.iter().map(|d| d.as_bytes()).collect();
+        let mut drugs: Vec<&[u8]> = self.drugs.iter().map(|d| d.as_bytes()).collect();
+        drugs.sort();
         record
             .push_info_string(b"DRUGS", drugs.as_slice())
             .map_err(|_| {
@@ -427,7 +428,7 @@ mod tests {
             "##INFO=<ID=RES,Number=1,Type=String,Description=\"Residue the variant describes (i.e. Nucleic/Amino)\">".as_bytes(),
             "##INFO=<ID=DRUGS,Number=.,Type=String,Description=\"Drugs this variant causes resistance to\">".as_bytes(),
             br#"##INFO=<ID=PAD,Number=1,Type=Integer,Description="Number of bases added to start and end of gene">"#,
-            br#"##INFO=<ID=ST,Number=1,Type=Character,Description="Strand the gene is on">"#,
+            br#"##INFO=<ID=ST,Number=1,Type=String,Description="Strand the gene is on">"#,
         ];
         assert_eq!(actual, expected)
     }
@@ -538,7 +539,7 @@ mod tests {
         }
         let tmpfile = NamedTempFile::new().unwrap();
         let tmppath = tmpfile.path();
-        let mut vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
         let mut vcf_record = vcf.empty_record();
 
         record.to_vcf(&mut vcf_record, padding).unwrap();

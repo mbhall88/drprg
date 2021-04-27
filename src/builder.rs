@@ -3,16 +3,17 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek};
 use std::path::PathBuf;
 
-use anyhow::Result;
+use anyhow::{anyhow, Context, Result};
 use bio::io::{fasta, gff};
 use log::{debug, info, warn};
 use rust_htslib::bcf;
 use structopt::StructOpt;
 use thiserror::Error;
 
-use crate::panel::{Panel, PanelRecord};
+use crate::panel::{Panel, PanelError, PanelRecord};
 use crate::Runner;
 use bio::alphabets::dna::revcomp;
+use std::any::Any;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -227,8 +228,27 @@ impl Runner for Build {
                 let panel_records_for_gene = &panel[gene];
                 for panel_record in panel_records_for_gene {
                     let mut vcf_record = vcf_writer.empty_record();
-                    panel_record.to_vcf(&mut vcf_record, self.padding)?;
-                    // todo: add strand to vcf record
+                    match panel_record.to_vcf(&mut vcf_record, self.padding) {
+                        Err(PanelError::PosOutOfRange(pos, gene)) => {
+                            warn!(
+                                "Position {} is out of range for gene {} [Skipping]",
+                                pos, gene
+                            );
+                            continue;
+                        }
+                        Err(e) => return Err(anyhow!(e)),
+                        _ => (),
+                    }
+                    // we use unwrap as we have already confirmed above that the strand is + or -
+                    let strand =
+                        gff_record.strand().unwrap().strand_symbol().to_owned();
+                    vcf_record
+                        .push_info_string(b"ST", &[strand.as_bytes()])
+                        .context(format!(
+                            "Couldn't set INFO field ST for {}",
+                            panel_record.name()
+                        ))?;
+                    vcf_writer.write(&vcf_record)?;
                 }
             }
         }
