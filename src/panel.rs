@@ -262,8 +262,23 @@ fn amino_to_codons(amino_acid: u8) -> Vec<&'static [u8]> {
         b'L' => vec![b"TTA", b"TTG", b"CTT", b"CTC", b"CTA", b"CTG"], // (Leu/L) Leucine
         b'I' => vec![b"ATT", b"ATC", b"ATA"], // (Ile/I) Isoleucine
         b'M' => vec![b"ATG"],         // (Met/M) Methionine
-        // todo: fill in the rest
-        // todo: write tests
+        b'V' => vec![b"GTT", b"GTC", b"GTA", b"GTG"], // (Val/V) Valine
+        b'S' => vec![b"TCT", b"TCC", b"TCA", b"TCG", b"AGT", b"AGC"], // (Ser/S) Serine
+        b'P' => vec![b"CCT", b"CCC", b"CCA", b"CCG"], // (Pro/P) Proline
+        b'T' => vec![b"ACT", b"ACC", b"ACA", b"ACG"], // (Thr/T) Threonine
+        b'A' => vec![b"GCT", b"GCC", b"GCA", b"GCG"], // (Ala/A) Alanine
+        b'Y' => vec![b"TAT", b"TAC"], // (Tyr/Y) Tyrosine
+        b'H' => vec![b"CAT", b"CAC"], // (His/H) Histidine
+        b'Q' => vec![b"CAA", b"CAG"], // (Gln/Q) Glutamine
+        b'N' => vec![b"AAT", b"AAC"], // (Asn/N) Asparagine
+        b'K' => vec![b"AAA", b"AAG"], // (Lys/K) Lysine
+        b'D' => vec![b"GAT", b"GAC"], // (Asp/D) Aspartic acid
+        b'E' => vec![b"GAA", b"GAG"], // (Glu/E) Glutamic acid
+        b'C' => vec![b"TGT", b"TGC"], // (Cys/C) Cysteine
+        b'W' => vec![b"TGG"],         // (Trp/W) Tryptophan
+        b'R' => vec![b"CGT", b"CGC", b"CGA", b"CGG", b"AGA", b"AGG"], // (Arg/R) Arginine
+        b'G' => vec![b"GGT", b"GGC", b"GGA", b"GGG"],                 // (Gly/G) Glycine
+        b'*' => vec![b"TGA", b"TAA", b"TAG"], // Stop/Termination
         _ => vec![],
     }
 }
@@ -580,5 +595,28 @@ mod tests {
         let actual = vcf_record.info(b"DRUGS").string().unwrap().unwrap();
         let expected = &[b"d1", b"d2"];
         assert_eq!(actual.deref(), expected)
+    }
+
+    #[test]
+    fn amino_to_codons_serine() {
+        let actual = amino_to_codons(b'S');
+        let expected = vec![b"TCT", b"TCC", b"TCA", b"TCG", b"AGT", b"AGC"];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn amino_to_codons_stop() {
+        let actual = amino_to_codons(b'*');
+        let expected = vec![b"TGA", b"TAA", b"TAG"];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn amino_to_codons_unknown() {
+        let actual = amino_to_codons(b'Z');
+
+        assert!(actual.is_empty())
     }
 }
