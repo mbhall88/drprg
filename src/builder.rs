@@ -224,7 +224,11 @@ impl Runner for Build {
             for (gene, gff_record) in &annotations {
                 let seq =
                     extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
-                fa_writer.write(gene, None, &seq)?;
+                fa_writer.write(
+                    gene,
+                    Some(&format!("padding={}", self.padding)),
+                    &seq,
+                )?;
                 let panel_records_for_gene = &panel[gene];
                 for panel_record in panel_records_for_gene {
                     let mut vcf_record = vcf_writer.empty_record();

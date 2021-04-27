@@ -9,6 +9,10 @@ use serde::{de, Deserialize, Deserializer};
 use thiserror::Error;
 
 pub(crate) type Panel = HashMap<String, HashSet<PanelRecord>>;
+lazy_static! {
+    static ref VARIANT_REGEX: Regex =
+        Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z]+)$").unwrap();
+}
 
 /// A collection of custom errors relating to the command line interface for this package.
 #[derive(Error, Debug, PartialEq)]
@@ -28,6 +32,9 @@ pub enum PanelError {
     /// Failed to set a VCF field
     #[error("Failed to set the VCF field {0} for {1}")]
     SetVcfFieldFailed(String, String),
+    /// Reference allele of the panel record does not match the reference sequence
+    #[error("Reference allele for {0} does not match the reference sequence")]
+    RefDoesNotMatch(String),
 }
 
 /// An enum representing the panel residue types we recognise
@@ -87,10 +94,6 @@ impl FromStr for Variant {
     type Err = PanelError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        lazy_static! {
-            static ref VARIANT_REGEX: Regex =
-                Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z]+)$").unwrap();
-        }
         let caps = VARIANT_REGEX.captures(s);
         match caps {
             // we use len==4 since every regex has at least one capture group - the full match
@@ -155,6 +158,13 @@ impl PanelRecord {
     fn ref_allele(&self) -> &[u8] {
         self.variant.reference.as_bytes()
     }
+    /// Returns all possible reference alleles; converting amino acids to all codons if necessary
+    fn all_ref_alleles(&self) -> Vec<&[u8]> {
+        match self.residue {
+            Residue::Nucleic => vec![self.ref_allele()],
+            Residue::Amino => amino_to_codons((self.ref_allele()[0])),
+        }
+    }
     /// The position of the variant within the gene/protein
     fn pos(&self) -> i64 {
         self.variant.pos
@@ -174,6 +184,18 @@ impl PanelRecord {
             br#"##INFO=<ID=ST,Number=1,Type=String,Description="Strand the gene is on">"#,
         ]
     }
+    /// Check the panel reference allele matches the reference sequence, If it does, output the DNA
+    /// version of the reference.
+    ///
+    /// # Errors
+    /// Returns a [`PanelError::RefDoesNotMatch`] if no reference allele matches the reference sequence.
+    fn check_ref(&self, refseq: &Vec<u8>, padding: u32) -> Result<&[u8], PanelError> {
+        let pos = self.pos() + padding as i64;
+        let ref_alleles = self.all_ref_alleles();
+        Ok(b"dummy")
+    }
+
+    /// Fill a VCF `record` with information about this panel record.
     pub fn to_vcf(
         &self,
         record: &mut bcf::Record,
@@ -219,7 +241,7 @@ impl PanelRecord {
             .map_err(|_| {
                 PanelError::SetVcfFieldFailed("DRUGS".to_owned(), self.name())
             })?;
-        // todo: set ref
+        // todo: check and set ref
         // todo: set alts
         Ok(())
     }
@@ -232,6 +254,18 @@ where
 {
     let s = String::deserialize(deserializer)?;
     Ok(s.split(',').map(|item| item.to_owned()).collect())
+}
+
+fn amino_to_codons(amino_acid: u8) -> Vec<&'static [u8]> {
+    match amino_acid {
+        b'F' => vec![b"TTT", b"TTC"], // (Phe/F) Phenylalanine
+        b'L' => vec![b"TTA", b"TTG", b"CTT", b"CTC", b"CTA", b"CTG"], // (Leu/L) Leucine
+        b'I' => vec![b"ATT", b"ATC", b"ATA"], // (Ile/I) Isoleucine
+        b'M' => vec![b"ATG"],         // (Met/M) Methionine
+        // todo: fill in the rest
+        // todo: write tests
+        _ => vec![],
+    }
 }
 
 #[cfg(test)]
