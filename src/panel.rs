@@ -35,6 +35,9 @@ pub enum PanelError {
     /// Reference allele of the panel record does not match the reference sequence
     #[error("Reference allele for {0} does not match the reference sequence")]
     RefDoesNotMatch(String),
+    /// Got more than one amino acid in variant
+    #[error("No support for multiple amino acid allele variants [{0}]")]
+    MultiAminoAlleleNotSupported(String),
 }
 
 /// An enum representing the panel residue types we recognise
@@ -159,10 +162,16 @@ impl PanelRecord {
         self.variant.reference.as_bytes()
     }
     /// Returns all possible reference alleles; converting amino acids to all codons if necessary
-    fn all_ref_alleles(&self) -> Vec<&[u8]> {
+    fn all_ref_alleles(&self) -> Result<Vec<&[u8]>, PanelError> {
         match self.residue {
-            Residue::Nucleic => vec![self.ref_allele()],
-            Residue::Amino => amino_to_codons((self.ref_allele()[0])),
+            Residue::Nucleic => Ok(vec![self.ref_allele()]),
+            Residue::Amino => {
+                if self.ref_allele().len() > 1 {
+                    Err(PanelError::MultiAminoAlleleNotSupported(self.name()))
+                } else {
+                    Ok(amino_to_codons(self.ref_allele()[0]))
+                }
+            }
         }
     }
     /// The position of the variant within the gene/protein
@@ -618,5 +627,47 @@ mod tests {
         let actual = amino_to_codons(b'Z');
 
         assert!(actual.is_empty())
+    }
+
+    #[test]
+    fn all_ref_alleles_nucleic_returns_self() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("CC3A").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_ref_alleles().unwrap();
+        let expected = vec![b"CC"];
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_ref_alleles_amino_returns_codons() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C3A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_ref_alleles().unwrap();
+        let expected = vec![b"TGT", b"TGC"];
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_ref_alleles_multi_amino_returns_err() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("CW3A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_ref_alleles().unwrap_err();
+        let expected = PanelError::MultiAminoAlleleNotSupported("G_CW3A".to_string());
+        assert_eq!(actual, expected)
     }
 }
