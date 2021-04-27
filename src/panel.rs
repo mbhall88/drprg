@@ -4,6 +4,7 @@ use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
 use regex::Regex;
+use rust_htslib::bcf;
 use serde::{de, Deserialize, Deserializer};
 use thiserror::Error;
 
@@ -18,6 +19,15 @@ pub enum PanelError {
     /// The variant string is not in the correct format
     #[error("The variant is not in the correct format [<STR><INT><STR>]: {0}")]
     IncorrectVariantFormat(String),
+    /// The record's gene is not in the VCF header
+    #[error("Gene {0} is not in the VCF header")]
+    GeneNotInHeader(String),
+    /// Variant position is out of range for the gene and padding used
+    #[error("The variant position {0} is out of range based on the padding and gene start for {1}")]
+    PosOutOfRange(i64, String),
+    /// Failed to set a VCF field
+    #[error("Failed to set the VCF field {0} for {1}")]
+    SetVcfFieldFailed(String, String),
 }
 
 /// An enum representing the panel residue types we recognise
@@ -104,34 +114,6 @@ impl<'de> Deserialize<'de> for Variant {
     }
 }
 
-/// An object for working with panel mutations
-#[derive(Debug)]
-pub struct Mutation {
-    residue: Residue,
-    name: String,
-    reference: String,
-    new: String,
-    pos: i64,
-}
-
-impl Mutation {
-    /// Create a mutation from a [`PanelRecord`].
-    pub fn from_record(record: &PanelRecord) -> Self {
-        let name = format!("{}_{}", record.gene, record.variant);
-        let residue = record.residue.to_owned();
-        let reference = record.variant.reference.to_owned();
-        let pos = record.variant.pos;
-        let new = record.variant.new.to_owned();
-        Mutation {
-            residue,
-            name,
-            reference,
-            new,
-            pos,
-        }
-    }
-}
-
 /// An object containing the data in a row of the panel file
 #[derive(Debug, Deserialize)]
 pub struct PanelRecord {
@@ -165,6 +147,22 @@ impl PartialEq for PanelRecord {
 impl Eq for PanelRecord {}
 
 impl PanelRecord {
+    /// The unique name for this record, which is the joining of the gene and variant
+    fn name(&self) -> String {
+        format!("{}_{}", self.gene, self.variant)
+    }
+    /// The reference allele for the variant this record describes
+    fn ref_allele(&self) -> &[u8] {
+        self.variant.reference.as_bytes()
+    }
+    /// The position of the variant within the gene/protein
+    fn pos(&self) -> i64 {
+        self.variant.pos
+    }
+    /// The alternate allele the variant describes
+    fn alt_allele(&self) -> &[u8] {
+        self.variant.new.as_bytes()
+    }
     /// Generate the header entries for the panel record INFO fields
     pub fn vcf_header_entries() -> Vec<&'static [u8]> {
         vec![
@@ -172,13 +170,57 @@ impl PanelRecord {
             b"##INFO=<ID=VAR,Number=1,Type=String,Description=\"The variant describing reference, position, alternate on the gene\">",
             b"##INFO=<ID=RES,Number=1,Type=String,Description=\"Residue the variant describes (i.e. Nucleic/Amino)\">",
             b"##INFO=<ID=DRUGS,Number=.,Type=String,Description=\"Drugs this variant causes resistance to\">",
+            br#"##INFO=<ID=PAD,Number=1,Type=Integer,Description="Number of bases added to start and end of gene">"#,
+            br#"##INFO=<ID=ST,Number=1,Type=Character,Description="Strand the gene is on">"#,
         ]
     }
-    /// Generate VCF INFO fields for this panel record
-    pub fn vcf_info(&self) -> Vec<Vec<u8>> {
-        let fields: Vec<Vec<u8>> = Vec::new();
-        todo!("add fields");
-        fields
+    pub fn to_vcf(
+        &self,
+        record: &mut bcf::Record,
+        padding: u32,
+    ) -> Result<(), PanelError> {
+        let pos = self.pos() + (padding as i64) - 1; // rust htslib works with 0-based pos
+        if pos < 0 {
+            return Err(PanelError::PosOutOfRange(self.pos(), self.gene.to_owned()));
+        }
+        let rid = match record.header().name2rid(self.gene.as_bytes()) {
+            Ok(i) => i,
+            Err(_) => return Err(PanelError::GeneNotInHeader(self.gene.to_owned())),
+        };
+        record.set_rid(Some(rid));
+        record.set_pos(pos);
+        record
+            .set_id(self.name().as_bytes())
+            .map_err(|_| PanelError::SetVcfFieldFailed("ID".to_owned(), self.name()))?;
+        record
+            .push_info_integer(b"PAD", [padding as i32].as_ref())
+            .map_err(|_| {
+                PanelError::SetVcfFieldFailed("PAD".to_owned(), self.name())
+            })?;
+        record
+            .push_info_string(b"GENE", &[self.gene.as_bytes()])
+            .map_err(|_| {
+                PanelError::SetVcfFieldFailed("GENE".to_owned(), self.name())
+            })?;
+        record
+            .push_info_string(b"VAR", &[self.variant.to_string().as_bytes()])
+            .map_err(|_| {
+                PanelError::SetVcfFieldFailed("VAR".to_owned(), self.name())
+            })?;
+        record
+            .push_info_string(b"RES", &[self.residue.to_string().as_bytes()])
+            .map_err(|_| {
+                PanelError::SetVcfFieldFailed("RES".to_owned(), self.name())
+            })?;
+        let drugs: Vec<&[u8]> = self.drugs.iter().map(|d| d.as_bytes()).collect();
+        record
+            .push_info_string(b"DRUGS", drugs.as_slice())
+            .map_err(|_| {
+                PanelError::SetVcfFieldFailed("DRUGS".to_owned(), self.name())
+            })?;
+        // todo: set ref
+        // todo: set alts
+        Ok(())
     }
 }
 
@@ -196,6 +238,9 @@ mod tests {
     use std::iter::FromIterator;
 
     use super::*;
+    use rust_htslib::bcf::{Format, Header, Writer};
+    use std::ops::Deref;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn mutation_type_display() {
@@ -381,6 +426,124 @@ mod tests {
             "##INFO=<ID=VAR,Number=1,Type=String,Description=\"The variant describing reference, position, alternate on the gene\">".as_bytes(),
             "##INFO=<ID=RES,Number=1,Type=String,Description=\"Residue the variant describes (i.e. Nucleic/Amino)\">".as_bytes(),
             "##INFO=<ID=DRUGS,Number=.,Type=String,Description=\"Drugs this variant causes resistance to\">".as_bytes(),
+            br#"##INFO=<ID=PAD,Number=1,Type=Integer,Description="Number of bases added to start and end of gene">"#,
+            br#"##INFO=<ID=ST,Number=1,Type=Character,Description="Strand the gene is on">"#,
         ];
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_name_getter() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("K1S").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        assert_eq!(record.name(), "gene_K1S")
+    }
+
+    #[test]
+    fn panel_record_ref_allele_getter() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("K1S").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        assert_eq!(record.ref_allele(), b"K")
+    }
+
+    #[test]
+    fn panel_record_alt_allele_getter() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("K1S").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        assert_eq!(record.alt_allele(), b"S")
+    }
+
+    #[test]
+    fn panel_record_pos_getter() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("K1S").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        assert_eq!(record.pos(), 1)
+    }
+
+    #[test]
+    fn panel_record_to_vcf_pos_out_of_range() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("A-1T").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+        let padding = 0;
+        let mut header = Header::new();
+        header.push_record(br#"##contig=<ID=gene,length=10>"#);
+        let tmpfile = NamedTempFile::new().unwrap();
+        let tmppath = tmpfile.path();
+        let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let mut vcf_record = vcf.empty_record();
+
+        let actual = record.to_vcf(&mut vcf_record, padding).unwrap_err();
+        let expected = PanelError::PosOutOfRange(-1, "gene".to_string());
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_to_vcf_gene_not_in_header() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("A1T").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+        let padding = 0;
+        let mut header = Header::new();
+        header.push_record(r#"##contig=<ID=foo,length=10>"#.as_bytes());
+        let tmpfile = NamedTempFile::new().unwrap();
+        let tmppath = tmpfile.path();
+        let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let mut vcf_record = vcf.empty_record();
+
+        let actual = record.to_vcf(&mut vcf_record, padding).unwrap_err();
+        let expected = PanelError::GeneNotInHeader("gene".to_string());
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_to_vcf_with_two_drugs() {
+        let record = PanelRecord {
+            gene: "gene".to_string(),
+            variant: Variant::from_str("A1T").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: HashSet::from_iter(vec!["d1".to_string(), "d2".to_string()]),
+        };
+        let padding = 0;
+        let mut header = Header::new();
+        header.push_record(r#"##contig=<ID=gene,length=10>"#.as_bytes());
+        for entry in PanelRecord::vcf_header_entries() {
+            header.push_record(entry);
+        }
+        let tmpfile = NamedTempFile::new().unwrap();
+        let tmppath = tmpfile.path();
+        let mut vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let mut vcf_record = vcf.empty_record();
+
+        record.to_vcf(&mut vcf_record, padding).unwrap();
+        let actual = vcf_record.info(b"DRUGS").string().unwrap().unwrap();
+        let expected = &[b"d1", b"d2"];
+        assert_eq!(actual.deref(), expected)
     }
 }

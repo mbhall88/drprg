@@ -12,6 +12,7 @@ use thiserror::Error;
 
 use crate::panel::{Panel, PanelRecord};
 use crate::Runner;
+use bio::alphabets::dna::revcomp;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -50,6 +51,9 @@ pub enum BuildError {
     /// Couldn't fetch a gene
     #[error("Couldn't fetch contig {0} with start {1} and end {2}")]
     FetchError(String, u64, u64),
+    /// GFF record doesn't have a strand
+    #[error("No strand information in GFF for {0}")]
+    MissingStrand(String),
 }
 
 fn load_annotations_for_genes<R>(
@@ -118,13 +122,27 @@ where
         ));
     } else {
         let mut seq: Vec<u8> = Vec::with_capacity((end - start) as usize);
+        let is_rev = match record.strand() {
+            Some(strand) => strand.strand_symbol() == "-",
+            _ => {
+                return Err(BuildError::MissingStrand(
+                    record.attributes().get("gene").unwrap().to_string(),
+                ))
+            }
+        };
         match faidx.read(&mut seq) {
             Err(_) => Err(BuildError::FetchError(
                 record.seqname().to_string(),
                 start,
                 end,
             )),
-            Ok(_) => Ok(seq.to_owned()),
+            Ok(_) => {
+                if is_rev {
+                    Ok(revcomp(seq))
+                } else {
+                    Ok(seq.to_owned())
+                }
+            }
         }
     }
 }
@@ -207,7 +225,11 @@ impl Runner for Build {
                     extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
                 fa_writer.write(gene, None, &seq)?;
                 let panel_records_for_gene = &panel[gene];
-                todo!("loop over panel records and create a vcf record for each");
+                for panel_record in panel_records_for_gene {
+                    let mut vcf_record = vcf_writer.empty_record();
+                    panel_record.to_vcf(&mut vcf_record, self.padding)?;
+                    // todo: add strand to vcf record
+                }
             }
         }
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
@@ -354,6 +376,38 @@ mod tests {
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"GTAGGCTGAAAACCCC";
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn extract_gene_from_index_on_reverse_strand() {
+        let padding = 0;
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t-\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let record = reader.records().next().unwrap().unwrap();
+        const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
+        const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
+        let mut faidx =
+            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+
+        let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
+        let expected = revcomp(b"GTAGGCTGAAAACCCC");
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn extract_gene_from_index_no_strand() {
+        let padding = 0;
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t.\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let record = reader.records().next().unwrap().unwrap();
+        const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
+        const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
+        let mut faidx =
+            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+
+        let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap_err();
+        let expected = BuildError::MissingStrand("dnaA".to_string());
         assert_eq!(actual, expected)
     }
 
