@@ -13,7 +13,6 @@ use thiserror::Error;
 use crate::panel::{Panel, PanelError, PanelRecord};
 use crate::Runner;
 use bio::alphabets::dna::revcomp;
-use std::any::Any;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -232,7 +231,7 @@ impl Runner for Build {
                 let panel_records_for_gene = &panel[gene];
                 for panel_record in panel_records_for_gene {
                     let mut vcf_record = vcf_writer.empty_record();
-                    match panel_record.to_vcf(&mut vcf_record, self.padding) {
+                    match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
                         Err(PanelError::PosOutOfRange(pos, gene)) => {
                             warn!(
                                 "Position {} is out of range for gene {} [Skipping]",

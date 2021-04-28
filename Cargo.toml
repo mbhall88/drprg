@@ -19,6 +19,7 @@ csv = "1.1"
 rust-htslib = "0.36"
 regex = "1"
 lazy_static = "1.4"
+bstr = "0.2"
 
 [dev-dependencies]
 tempfile = "3"

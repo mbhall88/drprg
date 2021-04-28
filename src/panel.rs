@@ -3,6 +3,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 
+use bstr::ByteSlice;
 use regex::Regex;
 use rust_htslib::bcf;
 use serde::{de, Deserialize, Deserializer};
@@ -178,6 +179,13 @@ impl PanelRecord {
     fn pos(&self) -> i64 {
         self.variant.pos
     }
+    /// The position within the gene. That is, it converts protein position to DNA position.
+    fn gene_pos(&self) -> i64 {
+        match self.residue {
+            Residue::Nucleic => self.pos(),
+            Residue::Amino => 3 * self.pos() - 2,
+        }
+    }
     /// The alternate allele the variant describes
     fn alt_allele(&self) -> &[u8] {
         self.variant.new.as_bytes()
@@ -198,19 +206,36 @@ impl PanelRecord {
     ///
     /// # Errors
     /// Returns a [`PanelError::RefDoesNotMatch`] if no reference allele matches the reference sequence.
-    fn check_ref(&self, refseq: &Vec<u8>, padding: u32) -> Result<&[u8], PanelError> {
-        let pos = self.pos() + padding as i64;
-        let ref_alleles = self.all_ref_alleles();
-        Ok(b"dummy")
+    fn check_ref<'a>(
+        &self,
+        refseq: &'a [u8],
+        padding: u32,
+    ) -> Result<&'a [u8], PanelError> {
+        let ref_alleles = self.all_ref_alleles()?;
+        if ref_alleles.is_empty() {
+            return Err(PanelError::RefDoesNotMatch(self.name()));
+        }
+        let ref_len = ref_alleles[0].len();
+        let start = (self.gene_pos() - 1 + padding as i64) as usize;
+        let end = start + ref_len;
+        let expected_ref: &[u8] = &refseq[start..end];
+        match ref_alleles
+            .iter()
+            .position(|&allele| allele == expected_ref)
+        {
+            Some(_) => Ok(expected_ref.as_bytes()),
+            None => Err(PanelError::RefDoesNotMatch(self.name())),
+        }
     }
 
     /// Fill a VCF `record` with information about this panel record.
     pub fn to_vcf(
         &self,
         record: &mut bcf::Record,
+        refseq: &[u8],
         padding: u32,
     ) -> Result<(), PanelError> {
-        let pos = self.pos() + (padding as i64) - 1; // rust htslib works with 0-based pos
+        let pos = self.gene_pos() + (padding as i64) - 1; // rust htslib works with 0-based pos
         if pos < 0 {
             return Err(PanelError::PosOutOfRange(self.pos(), self.gene.to_owned()));
         }
@@ -250,7 +275,8 @@ impl PanelRecord {
             .map_err(|_| {
                 PanelError::SetVcfFieldFailed("DRUGS".to_owned(), self.name())
             })?;
-        // todo: check and set ref
+        let ref_allele = self.check_ref(&refseq, padding)?;
+
         // todo: set alts
         Ok(())
     }
@@ -295,11 +321,12 @@ fn amino_to_codons(amino_acid: u8) -> Vec<&'static [u8]> {
 #[cfg(test)]
 mod tests {
     use std::iter::FromIterator;
+    use std::ops::Deref;
+
+    use rust_htslib::bcf::{Format, Header, Writer};
+    use tempfile::NamedTempFile;
 
     use super::*;
-    use rust_htslib::bcf::{Format, Header, Writer};
-    use std::ops::Deref;
-    use tempfile::NamedTempFile;
 
     #[test]
     fn mutation_type_display() {
@@ -504,6 +531,51 @@ mod tests {
     }
 
     #[test]
+    fn panel_record_gene_pos_for_nucleic_is_same() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C6A").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+
+        let actual = record.gene_pos();
+        let expected = 6;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_gene_pos_for_amino_is_adjusted() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C6A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.gene_pos();
+        let expected = 16;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_gene_pos_for_first_amino_is_one() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C1A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.gene_pos();
+        let expected = 1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
     fn panel_record_ref_allele_getter() {
         let record = PanelRecord {
             gene: "gene".to_string(),
@@ -555,7 +627,9 @@ mod tests {
         let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
         let mut vcf_record = vcf.empty_record();
 
-        let actual = record.to_vcf(&mut vcf_record, padding).unwrap_err();
+        let actual = record
+            .to_vcf(&mut vcf_record, &vec![], padding)
+            .unwrap_err();
         let expected = PanelError::PosOutOfRange(-1, "gene".to_string());
         assert_eq!(actual, expected)
     }
@@ -576,7 +650,9 @@ mod tests {
         let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
         let mut vcf_record = vcf.empty_record();
 
-        let actual = record.to_vcf(&mut vcf_record, padding).unwrap_err();
+        let actual = record
+            .to_vcf(&mut vcf_record, &vec![], padding)
+            .unwrap_err();
         let expected = PanelError::GeneNotInHeader("gene".to_string());
         assert_eq!(actual, expected)
     }
@@ -599,8 +675,9 @@ mod tests {
         let tmppath = tmpfile.path();
         let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
         let mut vcf_record = vcf.empty_record();
+        let refseq = b"A".to_vec();
 
-        record.to_vcf(&mut vcf_record, padding).unwrap();
+        record.to_vcf(&mut vcf_record, &refseq, padding).unwrap();
         let actual = vcf_record.info(b"DRUGS").string().unwrap().unwrap();
         let expected = &[b"d1", b"d2"];
         assert_eq!(actual.deref(), expected)
@@ -668,6 +745,91 @@ mod tests {
 
         let actual = record.all_ref_alleles().unwrap_err();
         let expected = PanelError::MultiAminoAlleleNotSupported("G_CW3A".to_string());
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_nucleic_ref_matches() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("CC1A").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+        let refseq = b"AACCTTGG".to_vec();
+        let padding = 2;
+
+        let actual = record.check_ref(&refseq, padding).unwrap();
+        let expected = b"CC";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_nucleic_ref_does_not_match() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("CC2A").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+        let refseq = b"AACCTTGG".to_vec();
+        let padding = 2;
+
+        let actual = record.check_ref(&refseq, padding).unwrap_err();
+        let expected = PanelError::RefDoesNotMatch(record.name());
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_amino_ref_matches() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("C2A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+        let refseq = b"AACCTTGTGCAGG".to_vec();
+        let padding = 2;
+
+        let actual = record.check_ref(&refseq, padding).unwrap();
+        let expected = b"TGT";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_amino_ref_does_not_match() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("C2A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+        let refseq = b"AACCTTGAGCAGG".to_vec();
+        let padding = 2;
+
+        let actual = record.check_ref(&refseq, padding).unwrap_err();
+        let expected = PanelError::RefDoesNotMatch(record.name());
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_unknown_amino_ref_does_not_match() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("Z2A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+        let refseq = b"AACCTTGAGCAGG".to_vec();
+        let padding = 2;
+
+        let actual = record.check_ref(&refseq, padding).unwrap_err();
+        let expected = PanelError::RefDoesNotMatch(record.name());
+
         assert_eq!(actual, expected)
     }
 }

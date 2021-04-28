@@ -286,6 +286,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bio",
+ "bstr",
  "csv",
  "env_logger",
  "lazy_static",
