@@ -13,7 +13,9 @@ pub(crate) type Panel = HashMap<String, HashSet<PanelRecord>>;
 lazy_static! {
     static ref VARIANT_REGEX: Regex =
         Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z]+)$").unwrap();
+    static ref NUCLEOTIDES: Vec<&'static [u8]> = vec![b"A", b"C", b"G", b"T"];
 }
+static AMINO_ACIDS: &[u8] = b"ACDEFGHIKLMNPQRSTVWY";
 
 /// A collection of custom errors relating to the command line interface for this package.
 #[derive(Error, Debug, PartialEq)]
@@ -39,6 +41,9 @@ pub enum PanelError {
     /// Got more than one amino acid in variant
     #[error("No support for multiple amino acid allele variants [{0}]")]
     MultiAminoAlleleNotSupported(String),
+    /// Represents all other htslib errors
+    #[error(transparent)]
+    BcfError(#[from] rust_htslib::errors::Error),
 }
 
 /// An enum representing the panel residue types we recognise
@@ -190,6 +195,37 @@ impl PanelRecord {
     fn alt_allele(&self) -> &[u8] {
         self.variant.new.as_bytes()
     }
+    /// Returns all possible alternate alleles; converting amino acids into codons if necessary.
+    fn all_alt_alleles(&self) -> Result<Vec<&[u8]>, PanelError> {
+        if !self.alt_allele().contains(&b'X') {
+            match self.residue {
+                Residue::Nucleic => Ok(vec![self.alt_allele()]),
+                Residue::Amino => {
+                    if self.alt_allele().len() > 1 {
+                        Err(PanelError::MultiAminoAlleleNotSupported(self.name()))
+                    } else {
+                        Ok(amino_to_codons(self.alt_allele()[0]))
+                    }
+                }
+            }
+        } else if self.alt_allele().len() > 1 {
+            Err(PanelError::MultiAminoAlleleNotSupported(self.name()))
+        } else {
+            match self.residue {
+                Residue::Nucleic => Ok(NUCLEOTIDES
+                    .iter()
+                    .filter(|c| *c != &self.ref_allele())
+                    .map(|c| c.to_owned())
+                    .collect()),
+                Residue::Amino => Ok(AMINO_ACIDS
+                    .iter()
+                    .filter(|&c| *c != self.ref_allele()[0])
+                    .map(|c| amino_to_codons(*c))
+                    .flatten()
+                    .collect()),
+            }
+        }
+    }
     /// Generate the header entries for the panel record INFO fields
     pub fn vcf_header_entries() -> Vec<&'static [u8]> {
         vec![
@@ -276,8 +312,10 @@ impl PanelRecord {
                 PanelError::SetVcfFieldFailed("DRUGS".to_owned(), self.name())
             })?;
         let ref_allele = self.check_ref(&refseq, padding)?;
-
-        // todo: set alts
+        let alt_alleles = self.all_alt_alleles()?;
+        let mut alleles = vec![ref_allele];
+        alleles.extend(alt_alleles);
+        record.set_alleles(&*alleles)?;
         Ok(())
     }
 }
@@ -830,6 +868,96 @@ mod tests {
         let actual = record.check_ref(&refseq, padding).unwrap_err();
         let expected = PanelError::RefDoesNotMatch(record.name());
 
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_alt_alleles_nucleic_not_x_returns_alt_only() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("A1T").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_alt_alleles().unwrap();
+        let expected = vec![b"T"];
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_alt_alleles_amino_not_x_returns_alt_only() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("A1T").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_alt_alleles().unwrap();
+        let expected = vec![b"ACT", b"ACC", b"ACA", b"ACG"];
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_alt_alleles_multi_amino_not_x_returns_error() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("A1TT").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_alt_alleles().unwrap_err();
+        let expected = PanelError::MultiAminoAlleleNotSupported(record.name());
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_alt_alleles_nucleic_x_returns_all_others() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("A1X").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_alt_alleles().unwrap();
+        let expected = vec![b"C", b"G", b"T"];
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_alt_alleles_amino_x_returns_all_others() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("A1X").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let mut actual = record.all_alt_alleles().unwrap();
+        let mut expected = vec![];
+        AMINO_ACIDS
+            .iter()
+            .filter(|c| *c != &b'A')
+            .for_each(|c| expected.extend(amino_to_codons(*c)));
+        expected.sort();
+        actual.sort();
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn all_alt_alleles_multi_amino_with_x_returns_error() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("A1RX").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.all_alt_alleles().unwrap_err();
+        let expected = PanelError::MultiAminoAlleleNotSupported(record.name());
         assert_eq!(actual, expected)
     }
 }
