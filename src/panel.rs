@@ -44,6 +44,9 @@ pub enum PanelError {
     /// Represents all other htslib errors
     #[error(transparent)]
     BcfError(#[from] rust_htslib::errors::Error),
+    /// Got a negative position for an amino acid
+    #[error("Negative positions are not allowed for protein residues [{0}]")]
+    NegativeAminoPosition(String),
 }
 
 /// An enum representing the panel residue types we recognise
@@ -185,11 +188,24 @@ impl PanelRecord {
         self.variant.pos
     }
     /// The position within the gene. That is, it converts protein position to DNA position.
-    fn gene_pos(&self) -> i64 {
-        match self.residue {
-            Residue::Nucleic => self.pos(),
-            Residue::Amino => 3 * self.pos() - 2,
-        }
+    fn gene_pos(&self) -> Result<i64, PanelError> {
+        let pos = match self.residue {
+            Residue::Nucleic => {
+                if self.pos() < 1 {
+                    self.pos() + 1
+                } else {
+                    self.pos()
+                }
+            }
+            Residue::Amino => {
+                if self.pos() < 1 {
+                    return Err(PanelError::NegativeAminoPosition(self.name()));
+                } else {
+                    3 * self.pos() - 2
+                }
+            }
+        };
+        Ok(pos)
     }
     /// The alternate allele the variant describes
     fn alt_allele(&self) -> &[u8] {
@@ -252,7 +268,7 @@ impl PanelRecord {
             return Err(PanelError::RefDoesNotMatch(self.name()));
         }
         let ref_len = ref_alleles[0].len();
-        let start = (self.gene_pos() - 1 + padding as i64) as usize;
+        let start = (self.gene_pos()? - 1 + padding as i64) as usize;
         let end = start + ref_len;
         let expected_ref: &[u8] = &refseq[start..end];
         match ref_alleles
@@ -271,7 +287,7 @@ impl PanelRecord {
         refseq: &[u8],
         padding: u32,
     ) -> Result<(), PanelError> {
-        let pos = self.gene_pos() + (padding as i64) - 1; // rust htslib works with 0-based pos
+        let pos = self.gene_pos()? + (padding as i64) - 1; // rust htslib works with 0-based pos
         if pos < 0 {
             return Err(PanelError::PosOutOfRange(self.pos(), self.gene.to_owned()));
         }
@@ -577,7 +593,7 @@ mod tests {
             drugs: Default::default(),
         };
 
-        let actual = record.gene_pos();
+        let actual = record.gene_pos().unwrap();
         let expected = 6;
 
         assert_eq!(actual, expected)
@@ -592,7 +608,7 @@ mod tests {
             drugs: Default::default(),
         };
 
-        let actual = record.gene_pos();
+        let actual = record.gene_pos().unwrap();
         let expected = 16;
 
         assert_eq!(actual, expected)
@@ -607,8 +623,53 @@ mod tests {
             drugs: Default::default(),
         };
 
-        let actual = record.gene_pos();
+        let actual = record.gene_pos().unwrap();
         let expected = 1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_gene_pos_for_negative_one_is_adjusted_to_zero() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C-1A").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+
+        let actual = record.gene_pos().unwrap();
+        let expected = 0;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_gene_pos_for_negative_is_adjusted() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C-12A").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+
+        let actual = record.gene_pos().unwrap();
+        let expected = -11;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn panel_record_gene_pos_negative_amino_returns_err() {
+        let record = PanelRecord {
+            gene: "".to_string(),
+            variant: Variant::from_str("C-12A").unwrap(),
+            residue: Residue::Amino,
+            drugs: Default::default(),
+        };
+
+        let actual = record.gene_pos().unwrap_err();
+        let expected = PanelError::NegativeAminoPosition(record.name());
 
         assert_eq!(actual, expected)
     }
@@ -816,6 +877,40 @@ mod tests {
 
         let actual = record.check_ref(&refseq, padding).unwrap_err();
         let expected = PanelError::RefDoesNotMatch(record.name());
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_nucleic_ref_negative_pos() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("T-12C").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+        let refseq = b"ACGTATGGTGGACGTATGCGGGCGTTGATC".to_vec();
+        let padding = 15;
+
+        let actual = record.check_ref(&refseq, padding).unwrap();
+        let expected = b"T";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn check_ref_nucleic_ref_negative_pos_multiple_bases() {
+        let record = PanelRecord {
+            gene: "G".to_string(),
+            variant: Variant::from_str("TTT-12C").unwrap(),
+            residue: Residue::Nucleic,
+            drugs: Default::default(),
+        };
+        let refseq = b"ACGTTTGGTGGACGTATGCGGGCGTTGATC".to_vec();
+        let padding = 15;
+
+        let actual = record.check_ref(&refseq, padding).unwrap();
+        let expected = b"TTT";
 
         assert_eq!(actual, expected)
     }

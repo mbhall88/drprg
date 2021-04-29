@@ -149,6 +149,11 @@ where
 
 impl Runner for Build {
     fn run(&self) -> Result<()> {
+        if !self.outdir.exists() {
+            info!("Outdir doesn't exist - creating...");
+            std::fs::create_dir(&self.outdir)
+                .context(format!("Failed to create {:?}", &self.outdir))?;
+        }
         info!("Building panel index...");
 
         info!("Loading the panel...");
@@ -207,7 +212,7 @@ impl Runner for Build {
 
         let panel_vcf_path = self.outdir.join("panel.bcf");
         let mut vcf_writer = bcf::Writer::from_path(
-            panel_vcf_path,
+            &panel_vcf_path,
             &vcf_header,
             false,
             bcf::Format::BCF,
@@ -215,46 +220,71 @@ impl Runner for Build {
         debug!("Loading the reference genome index...");
         let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
         debug!("Loaded the reference genome index");
-        {
-            let gene_refs_path = self.outdir.join("genes.fa");
-            let gene_refs_file = std::fs::File::create(&gene_refs_path)?;
-            let mut fa_writer = fasta::Writer::new(gene_refs_file);
+        let gene_refs_path = self.outdir.join("genes.fa");
+        let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
+        let premsa_dir = self.outdir.join("premsa");
+        if !premsa_dir.exists() {
+            debug!("Pre-MSA directory doesn't exist - creating...");
+            std::fs::create_dir(&premsa_dir)
+                .context(format!("Failed to create {:?}", &premsa_dir))?;
+        }
 
-            for (gene, gff_record) in &annotations {
-                let seq =
-                    extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
-                fa_writer.write(
-                    gene,
-                    Some(&format!("padding={}", self.padding)),
-                    &seq,
-                )?;
-                let panel_records_for_gene = &panel[gene];
-                for panel_record in panel_records_for_gene {
-                    let mut vcf_record = vcf_writer.empty_record();
-                    match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
-                        Err(PanelError::PosOutOfRange(pos, gene)) => {
-                            warn!(
-                                "Position {} is out of range for gene {} [Skipping]",
-                                pos, gene
-                            );
-                            continue;
-                        }
-                        Err(e) => return Err(anyhow!(e)),
-                        _ => (),
+        info!("Converting the panel to a VCF...");
+        for (gene, gff_record) in &annotations {
+            let seq = extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
+            fa_writer.write(gene, Some(&format!("padding={}", self.padding)), &seq)?;
+            let premsa_path = premsa_dir.join(format!("{}.premsa.fa", gene));
+            let mut premsa_writer = fasta::Writer::to_file(premsa_path)?;
+            premsa_writer.write(
+                gene,
+                Some(&format!("padding={}", self.padding)),
+                &seq,
+            )?;
+
+            let panel_records_for_gene = &panel[gene];
+            for panel_record in panel_records_for_gene {
+                let mut vcf_record = vcf_writer.empty_record();
+                match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
+                    Err(PanelError::PosOutOfRange(pos, gene)) => {
+                        warn!(
+                            "Position {} is out of range for gene {} [Skipping]",
+                            pos, gene
+                        );
+                        continue;
                     }
-                    // we use unwrap as we have already confirmed above that the strand is + or -
-                    let strand =
-                        gff_record.strand().unwrap().strand_symbol().to_owned();
-                    vcf_record
-                        .push_info_string(b"ST", &[strand.as_bytes()])
-                        .context(format!(
-                            "Couldn't set INFO field ST for {}",
-                            panel_record.name()
-                        ))?;
-                    vcf_writer.write(&vcf_record)?;
+                    Err(e) => return Err(anyhow!(e)),
+                    _ => (),
+                }
+                // we use unwrap as we have already confirmed above that the strand is + or -
+                let strand = gff_record.strand().unwrap().strand_symbol().to_owned();
+                vcf_record
+                    .push_info_string(b"ST", &[strand.as_bytes()])
+                    .context(format!(
+                        "Couldn't set INFO field ST for {}",
+                        panel_record.name()
+                    ))?;
+                vcf_writer.write(&vcf_record)?;
+
+                let s: usize = vcf_record.pos() as usize;
+                let e: usize = s + vcf_record.inner().rlen as usize;
+                for (i, allele) in vcf_record.alleles()[1..].iter().enumerate() {
+                    // todo: create mutated seq
+                    let mutated_seq =
+                        [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
+                            .concat();
+                    // todo: write mutated seq
+                    premsa_writer.write(
+                        &format!("{}_{}", panel_record.name(), i),
+                        None,
+                        &mutated_seq,
+                    )?;
                 }
             }
         }
+        info!(
+            "Panel successfully converted to a VCF at {:?}",
+            panel_vcf_path
+        );
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
         Ok(())
     }
