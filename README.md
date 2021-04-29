@@ -20,6 +20,10 @@ build a custom panel, you will need [`make_prg`][makeprg] (prototype) and
 $ make deps
 # pandora only
 $ make pandora
+# make_prg only
+$ make makeprg
+# mafft only
+$ make mafft
 ```
 
 By default, the external dependencies will be downloaded to `src/ext`. This can be
