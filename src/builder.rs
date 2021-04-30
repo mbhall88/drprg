@@ -268,11 +268,9 @@ impl Runner for Build {
                 let s: usize = vcf_record.pos() as usize;
                 let e: usize = s + vcf_record.inner().rlen as usize;
                 for (i, allele) in vcf_record.alleles()[1..].iter().enumerate() {
-                    // todo: create mutated seq
                     let mutated_seq =
                         [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
                             .concat();
-                    // todo: write mutated seq
                     premsa_writer.write(
                         &format!("{}_{}", panel_record.name(), i),
                         None,
@@ -285,7 +283,12 @@ impl Runner for Build {
             "Panel successfully converted to a VCF at {:?}",
             panel_vcf_path
         );
+        // todo: run mafft on premsas
+        // todo: remove premsas
+        // todo: run make prg on msas
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
+        // todo: combine prgs
+        // todo: index prg with pandora
         Ok(())
     }
 }
