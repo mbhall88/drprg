@@ -8,7 +8,7 @@ use crate::predict::Predict;
 #[derive(StructOpt, Debug)]
 pub struct Cli {
     /// Use verbose output
-    #[structopt(short, global = true)]
+    #[structopt(short, long, global = true)]
     pub verbose: bool,
     #[structopt(subcommand)] // Note that we mark a field as a subcommand
     pub(crate) cmd: Command,

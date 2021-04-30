@@ -1,6 +1,10 @@
 use std::path::PathBuf;
 
-use log::debug;
+use bstr::ByteSlice;
+use log::{debug, error};
+use std::ffi::OsStr;
+use std::fs::File;
+use std::process::Command;
 use thiserror::Error;
 
 const MAKE_PRG_BIN: &str = "make_prg";
@@ -8,10 +12,16 @@ const MAFFT_BIN: &str = "mafft/bin/mafft";
 
 /// A collection of custom errors relating to the working with files for this package.
 #[derive(Error, Debug)]
-pub enum MissingDependencies {
+pub enum DependencyError {
     /// Indicates that the path provided is not executable
     #[error("{0} is not executable or in $PATH")]
     NotExecutable(String),
+    /// Generic I/O error for external dependencies
+    #[error("File I/O failed in external dependency")]
+    FileIOError { source: std::io::Error },
+    /// Represents all other cases of `std::io::Error`.
+    #[error(transparent)]
+    ProcessError(#[from] std::io::Error),
 }
 
 pub struct MakePrg {
@@ -20,16 +30,16 @@ pub struct MakePrg {
 
 impl MakePrg {
     /// Creates a MakePrg object from a path or from default if None given
-    pub fn from_path(path: &Option<PathBuf>) -> Result<MakePrg, MissingDependencies> {
+    pub fn from_path(path: &Option<PathBuf>) -> Result<MakePrg, DependencyError> {
         let default = dependency_dir().join(MAKE_PRG_BIN);
         let executable = from_path_or(&path, &default);
         match (path, executable) {
             (_, Some(exec)) => Ok(Self { executable: exec }),
-            (Some(p), None) => Err(MissingDependencies::NotExecutable(String::from(
+            (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
                 p.to_string_lossy(),
             ))),
             (None, None) => {
-                Err(MissingDependencies::NotExecutable(MAKE_PRG_BIN.to_owned()))
+                Err(DependencyError::NotExecutable(MAKE_PRG_BIN.to_owned()))
             }
         }
     }
@@ -42,17 +52,52 @@ pub struct MultipleSeqAligner {
 impl MultipleSeqAligner {
     pub fn from_path(
         path: &Option<PathBuf>,
-    ) -> Result<MultipleSeqAligner, MissingDependencies> {
+    ) -> Result<MultipleSeqAligner, DependencyError> {
         let default = dependency_dir().join(MAFFT_BIN);
         let executable = from_path_or(&path, &default);
         match (path, executable) {
             (_, Some(exec)) => Ok(Self { executable: exec }),
-            (Some(p), None) => Err(MissingDependencies::NotExecutable(String::from(
+            (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
                 p.to_string_lossy(),
             ))),
-            (None, None) => Err(MissingDependencies::NotExecutable(
+            (None, None) => Err(DependencyError::NotExecutable(
                 default.file_name().unwrap().to_string_lossy().to_string(),
             )),
+        }
+    }
+
+    pub fn run_with<I, S>(
+        &self,
+        input: &PathBuf,
+        output: &PathBuf,
+        args: I,
+    ) -> Result<(), DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let ostream = File::create(output)
+            .map_err(|source| DependencyError::FileIOError { source })?;
+        let result = Command::new(&self.executable)
+            .args(args)
+            .arg(input)
+            .stdout(ostream)
+            .output();
+        match result {
+            Ok(out) if out.status.success() => Ok(()),
+            Ok(out) => {
+                error!(
+                    "Failed to run MAFFT with sterr:\n{}",
+                    out.stderr.to_str_lossy()
+                );
+                Err(DependencyError::ProcessError(
+                    std::io::Error::from_raw_os_error(out.status.code().unwrap_or(129)),
+                ))
+            }
+            Err(e) => {
+                error!("Failed to run MAFFT with sterr:\n");
+                Err(DependencyError::ProcessError(e))
+            }
         }
     }
 }
@@ -100,9 +145,7 @@ pub fn dependency_dir() -> PathBuf {
 /// executable file
 pub fn is_executable(program: &str) -> bool {
     let cmd = format!("command -v {}", program);
-    let result = std::process::Command::new("sh")
-        .args(&["-c", &cmd])
-        .output();
+    let result = Command::new("sh").args(&["-c", &cmd]).output();
     match result {
         Ok(output) => output.status.success(),
         _ => false,
