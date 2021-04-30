@@ -1,9 +1,10 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use log::debug;
 use thiserror::Error;
 
 const MAKE_PRG_BIN: &str = "make_prg";
+const MAFFT_BIN: &str = "mafft/bin/mafft";
 
 /// A collection of custom errors relating to the working with files for this package.
 #[derive(Error, Debug)]
@@ -23,7 +24,7 @@ impl MakePrg {
         let default = dependency_dir().join(MAKE_PRG_BIN);
         let executable = from_path_or(&path, &default);
         match (path, executable) {
-            (_, Some(exec)) => Ok(MakePrg { executable: exec }),
+            (_, Some(exec)) => Ok(Self { executable: exec }),
             (Some(p), None) => Err(MissingDependencies::NotExecutable(String::from(
                 p.to_string_lossy(),
             ))),
@@ -36,6 +37,24 @@ impl MakePrg {
 
 pub struct MultipleSeqAligner {
     executable: String,
+}
+
+impl MultipleSeqAligner {
+    pub fn from_path(
+        path: &Option<PathBuf>,
+    ) -> Result<MultipleSeqAligner, MissingDependencies> {
+        let default = dependency_dir().join(MAFFT_BIN);
+        let executable = from_path_or(&path, &default);
+        match (path, executable) {
+            (_, Some(exec)) => Ok(Self { executable: exec }),
+            (Some(p), None) => Err(MissingDependencies::NotExecutable(String::from(
+                p.to_string_lossy(),
+            ))),
+            (None, None) => Err(MissingDependencies::NotExecutable(
+                default.file_name().unwrap().to_string_lossy().to_string(),
+            )),
+        }
+    }
 }
 
 /// Check if an (optional) path is executable, and return it as a String. If no path is given, test

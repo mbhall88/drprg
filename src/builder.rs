@@ -13,6 +13,7 @@ use thiserror::Error;
 use crate::panel::{Panel, PanelError, PanelRecord};
 use crate::Runner;
 use bio::alphabets::dna::revcomp;
+use drprg::MultipleSeqAligner;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -25,6 +26,9 @@ pub struct Build {
     /// Path to make_prg executable. Will try in src/ext or $PATH if not given
     #[structopt(short = "m", long = "makeprg", parse(from_os_str))]
     pub makeprg_exec: Option<PathBuf>,
+    /// Path to MAFFT executable. Will try in src/ext or $PATH if not given
+    #[structopt(short = "M", long = "mafft", parse(from_os_str))]
+    pub mafft_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
     #[structopt(short = "a", long = "gff", parse(from_os_str))]
     pub gff_file: PathBuf,
@@ -284,6 +288,7 @@ impl Runner for Build {
             panel_vcf_path
         );
         // todo: run mafft on premsas
+        let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
         // todo: remove premsas
         // todo: run make prg on msas
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
