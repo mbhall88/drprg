@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use bstr::ByteSlice;
 use log::{debug, error};
@@ -18,7 +18,7 @@ pub enum DependencyError {
     NotExecutable(String),
     /// Generic I/O error for external dependencies
     #[error("File I/O failed in external dependency")]
-    FileIOError { source: std::io::Error },
+    FileError { source: std::io::Error },
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     ProcessError(#[from] std::io::Error),
@@ -68,8 +68,8 @@ impl MultipleSeqAligner {
 
     pub fn run_with<I, S>(
         &self,
-        input: &PathBuf,
-        output: &PathBuf,
+        input: &Path,
+        output: &Path,
         args: I,
     ) -> Result<(), DependencyError>
     where
@@ -77,7 +77,7 @@ impl MultipleSeqAligner {
         S: AsRef<OsStr>,
     {
         let ostream = File::create(output)
-            .map_err(|source| DependencyError::FileIOError { source })?;
+            .map_err(|source| DependencyError::FileError { source })?;
         let result = Command::new(&self.executable)
             .args(args)
             .arg(input)
@@ -104,7 +104,7 @@ impl MultipleSeqAligner {
 
 /// Check if an (optional) path is executable, and return it as a String. If no path is given, test
 /// if the given default (or its file name) is executable and return it as a String if it is.
-fn from_path_or(path: &Option<PathBuf>, default: &PathBuf) -> Option<String> {
+fn from_path_or(path: &Option<PathBuf>, default: &Path) -> Option<String> {
     match path {
         Some(p) => {
             let executable = String::from(p.to_string_lossy());
