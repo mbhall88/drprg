@@ -20,6 +20,7 @@ rust-htslib = "0.36"
 regex = "1"
 lazy_static = "1.4"
 bstr = "0.2"
+rayon = "1.5"
 
 [dev-dependencies]
 tempfile = "3"

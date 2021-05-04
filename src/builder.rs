@@ -3,17 +3,17 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek};
 use std::path::{Path, PathBuf};
 
+use crate::panel::{Panel, PanelError, PanelRecord};
+use crate::Runner;
 use anyhow::{anyhow, Context, Result};
+use bio::alphabets::dna::revcomp;
 use bio::io::{fasta, gff};
+use drprg::MultipleSeqAligner;
 use log::{debug, info, warn};
+use rayon::prelude::*;
 use rust_htslib::bcf;
 use structopt::StructOpt;
 use thiserror::Error;
-
-use crate::panel::{Panel, PanelError, PanelRecord};
-use crate::Runner;
-use bio::alphabets::dna::revcomp;
-use drprg::MultipleSeqAligner;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -44,9 +44,6 @@ pub struct Build {
     /// Directory to place output
     #[structopt(short = "o", long = "outdir", default_value = ".")]
     pub outdir: PathBuf,
-    /// Number of threads to use, or provide to external dependencies such as pandora
-    #[structopt(short, long, global = true, default_value = "1")]
-    pub threads: u8,
     /// Keep all temporary files that would otherwise be deleted
     #[structopt(long = "keep")]
     pub keep_tmp: bool,
@@ -302,7 +299,7 @@ impl Runner for Build {
             std::fs::create_dir(&msa_dir)
                 .context(format!("Failed to create {:?}", &msa_dir))?;
         }
-        for gene in genes {
+        genes.par_iter().try_for_each(|gene| {
             debug!("Running MSA for {}", gene);
             let premsa_path = premsa_dir.join(format!("{}.premsa.fa", gene));
             // safe to unwrap here as we know it is a file
@@ -310,15 +307,10 @@ impl Runner for Build {
                 .with_extension("")
                 .with_extension("msa.fa");
             let msa_path = msa_dir.join(filename);
-            mafft.run_with(
-                &premsa_path,
-                &msa_path,
-                &["--auto", "--thread", &self.threads.to_string()],
-            )?;
-            debug!("MSA file {:?} written", msa_path);
-        }
+            mafft.run_with(&premsa_path, &msa_path, &["--auto", "--thread", "-1"])
+        })?;
         info!("Successfully generated MSAs");
-        // todo: remove premsas
+
         if !self.keep_tmp {
             debug!("Removing pre-MSA directory...");
             std::fs::remove_dir_all(premsa_dir)
@@ -326,6 +318,7 @@ impl Runner for Build {
         }
         // todo: run make prg on msas
         // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
+
         // todo: combine prgs
         // todo: index prg with pandora
         Ok(())

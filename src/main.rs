@@ -34,6 +34,12 @@ fn main() -> Result<()> {
         .init();
     debug!("{:?}", args);
 
+    // set the global default number of threads for rayon
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(args.threads as usize)
+        .build_global()
+        .unwrap();
+
     let subcmd: Box<dyn Runner> = match args.cmd {
         Command::Predict(cmd) => Box::new(cmd),
         Command::Build(cmd) => Box::new(cmd),
