@@ -1,19 +1,22 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-use crate::panel::{Panel, PanelError, PanelRecord};
-use crate::Runner;
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna::revcomp;
 use bio::io::{fasta, gff};
-use drprg::MultipleSeqAligner;
 use log::{debug, info, warn};
 use rayon::prelude::*;
 use rust_htslib::bcf;
 use structopt::StructOpt;
 use thiserror::Error;
+
+use drprg::MakePrg;
+use drprg::MultipleSeqAligner;
+
+use crate::panel::{Panel, PanelError, PanelRecord};
+use crate::Runner;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -42,7 +45,7 @@ pub struct Build {
     #[structopt(short = "P", long = "padding", default_value = "100")]
     pub padding: u32,
     /// Directory to place output
-    #[structopt(short = "o", long = "outdir", default_value = ".")]
+    #[structopt(short = "o", long = "outdir", default_value = ".", parse(from_os_str))]
     pub outdir: PathBuf,
     /// Keep all temporary files that would otherwise be deleted
     #[structopt(long = "keep")]
@@ -156,10 +159,11 @@ where
 
 impl Runner for Build {
     fn run(&self) -> Result<()> {
-        if !self.outdir.exists() {
+        let outdir = self.outdir.canonicalize()?;
+        if !outdir.exists() {
             info!("Outdir doesn't exist - creating...");
-            std::fs::create_dir(&self.outdir)
-                .context(format!("Failed to create {:?}", &self.outdir))?;
+            std::fs::create_dir(&outdir)
+                .context(format!("Failed to create {:?}", &outdir))?;
         }
         info!("Building panel index...");
 
@@ -217,7 +221,7 @@ impl Runner for Build {
         }
         debug!("VCF header created");
 
-        let panel_vcf_path = self.outdir.join("panel.bcf");
+        let panel_vcf_path = outdir.join("panel.bcf");
         let mut vcf_writer = bcf::Writer::from_path(
             &panel_vcf_path,
             &vcf_header,
@@ -227,9 +231,9 @@ impl Runner for Build {
         debug!("Loading the reference genome index...");
         let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
         debug!("Loaded the reference genome index");
-        let gene_refs_path = self.outdir.join("genes.fa");
+        let gene_refs_path = outdir.join("genes.fa");
         let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
-        let premsa_dir = self.outdir.join("premsa");
+        let premsa_dir = outdir.join("premsa");
         if !premsa_dir.exists() {
             debug!("Pre-MSA directory doesn't exist - creating...");
             std::fs::create_dir(&premsa_dir)
@@ -240,7 +244,7 @@ impl Runner for Build {
         for (gene, gff_record) in &annotations {
             let seq = extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
             fa_writer.write(gene, Some(&format!("padding={}", self.padding)), &seq)?;
-            let premsa_path = premsa_dir.join(format!("{}.premsa.fa", gene));
+            let premsa_path = premsa_dir.join(format!("{}.fa", gene));
             let mut premsa_writer = fasta::Writer::to_file(premsa_path)?;
             premsa_writer.write(
                 gene,
@@ -291,22 +295,21 @@ impl Runner for Build {
             panel_vcf_path
         );
 
-        info!("Generating multiple sequence alignments for all genes and their variants...");
+        info!("Generating multiple sequence alignments and PRGs for all genes and their variants...");
         let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
-        let msa_dir = self.outdir.join("msa");
+
+        let msa_dir = outdir.join("msa");
         if !msa_dir.exists() {
             debug!("MSA directory doesn't exist - creating...");
             std::fs::create_dir(&msa_dir)
                 .context(format!("Failed to create {:?}", &msa_dir))?;
         }
+
         genes.par_iter().try_for_each(|gene| {
             debug!("Running MSA for {}", gene);
-            let premsa_path = premsa_dir.join(format!("{}.premsa.fa", gene));
+            let premsa_path = premsa_dir.join(format!("{}.fa", gene));
             // safe to unwrap here as we know it is a file
-            let filename = Path::new(premsa_path.file_name().unwrap())
-                .with_extension("")
-                .with_extension("msa.fa");
-            let msa_path = msa_dir.join(filename);
+            let msa_path = msa_dir.join(format!("{}.fa", gene));
             mafft.run_with(&premsa_path, &msa_path, &["--auto", "--thread", "-1"])
         })?;
         info!("Successfully generated MSAs");
@@ -316,9 +319,20 @@ impl Runner for Build {
             std::fs::remove_dir_all(premsa_dir)
                 .context("Failed to remove the pre-MSA directory")?;
         }
-        // todo: run make prg on msas
-        // let makeprg = MakePrg::from_arg(&self.makeprg_exec)?;
 
+        info!("Building PRG for genes...");
+        let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
+        let prg_path = outdir.join("dr.prg");
+        debug!(
+            "Using {} threads for make_prg",
+            rayon::current_num_threads()
+        );
+        makeprg.run_with(
+            &msa_dir,
+            &prg_path,
+            &["-t", &rayon::current_num_threads().to_string()],
+        )?;
+        info!("Successfully created panel PRG");
         // todo: combine prgs
         // todo: index prg with pandora
         Ok(())

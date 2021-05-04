@@ -43,6 +43,49 @@ impl MakePrg {
             }
         }
     }
+    /// Run make_prg with the provided input, output and arguments
+    pub fn run_with<I, S>(
+        &self,
+        input: &Path,
+        output: &Path,
+        args: I,
+    ) -> Result<(), DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
+        let prefix = "dr";
+        let cmd_output = Command::new(&self.executable)
+            .current_dir(&dir)
+            .arg("from_msa")
+            .args(args)
+            .args(&["-o", prefix, "-i"])
+            .arg(input)
+            .output()
+            .map_err(DependencyError::ProcessError)?;
+
+        if !cmd_output.status.success() {
+            error!(
+                "Failed to run make_prg with sterr:\n{}",
+                cmd_output.stderr.to_str_lossy()
+            );
+            Err(DependencyError::ProcessError(
+                std::io::Error::from_raw_os_error(
+                    cmd_output.status.code().unwrap_or(129),
+                ),
+            ))
+        } else {
+            let tmp_prefix = &dir.path().join(prefix);
+            let tmp_prg = tmp_prefix.with_extension("prg.fa");
+            let tmp_update_ds = tmp_prefix.with_extension("update_DS");
+            std::fs::rename(tmp_prg, output)
+                .map_err(|source| DependencyError::FileError { source })?;
+            std::fs::rename(tmp_update_ds, output.with_extension("update_DS"))
+                .map_err(|source| DependencyError::FileError { source })?;
+            Ok(())
+        }
+    }
 }
 
 pub struct MultipleSeqAligner {
@@ -65,7 +108,7 @@ impl MultipleSeqAligner {
             )),
         }
     }
-
+    /// Run the multiple sequence aligner with the provided input, output and arguments
     pub fn run_with<I, S>(
         &self,
         input: &Path,

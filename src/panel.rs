@@ -726,9 +726,7 @@ mod tests {
         let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
         let mut vcf_record = vcf.empty_record();
 
-        let actual = record
-            .to_vcf(&mut vcf_record, &vec![], padding)
-            .unwrap_err();
+        let actual = record.to_vcf(&mut vcf_record, &[], padding).unwrap_err();
         let expected = PanelError::PosOutOfRange(-1, "gene".to_string());
         assert_eq!(actual, expected)
     }
@@ -749,9 +747,7 @@ mod tests {
         let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
         let mut vcf_record = vcf.empty_record();
 
-        let actual = record
-            .to_vcf(&mut vcf_record, &vec![], padding)
-            .unwrap_err();
+        let actual = record.to_vcf(&mut vcf_record, &[], padding).unwrap_err();
         let expected = PanelError::GeneNotInHeader("gene".to_string());
         assert_eq!(actual, expected)
     }

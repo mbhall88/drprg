@@ -10,8 +10,7 @@ pub struct Cli {
     /// Use verbose output
     #[structopt(short, long, global = true)]
     pub verbose: bool,
-    /// Number of threads to use, or provide to external dependencies such as pandora. Set to 0 to
-    /// select the number automatically
+    /// Number of threads to use. Use 0 to select the number automatically
     #[structopt(short, long, global = true, default_value = "1")]
     pub threads: u8,
     #[structopt(subcommand)] // Note that we mark a field as a subcommand
