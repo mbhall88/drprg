@@ -12,8 +12,8 @@ use rust_htslib::bcf;
 use structopt::StructOpt;
 use thiserror::Error;
 
-use drprg::MakePrg;
 use drprg::MultipleSeqAligner;
+use drprg::{MakePrg, Pandora};
 
 use crate::panel::{Panel, PanelError, PanelRecord};
 use crate::Runner;
@@ -25,31 +25,37 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Build {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
     #[structopt(short = "p", long = "pandora", parse(from_os_str), global = true)]
-    pub pandora_exec: Option<PathBuf>,
+    pandora_exec: Option<PathBuf>,
     /// Path to make_prg executable. Will try in src/ext or $PATH if not given
     #[structopt(short = "m", long = "makeprg", parse(from_os_str))]
-    pub makeprg_exec: Option<PathBuf>,
+    makeprg_exec: Option<PathBuf>,
     /// Path to MAFFT executable. Will try in src/ext or $PATH if not given
     #[structopt(short = "M", long = "mafft", parse(from_os_str))]
-    pub mafft_exec: Option<PathBuf>,
+    mafft_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
     #[structopt(short = "a", long = "gff", parse(from_os_str))]
-    pub gff_file: PathBuf,
+    gff_file: PathBuf,
     /// Panel to build index from
     #[structopt(short = "i", long = "panel", parse(from_os_str))]
-    pub panel_file: PathBuf,
+    panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
     #[structopt(short = "f", long = "fasta", parse(from_os_str))]
-    pub reference_file: PathBuf,
+    reference_file: PathBuf,
     /// Number of bases of padding to add to start and end of each gene
     #[structopt(short = "P", long = "padding", default_value = "100")]
-    pub padding: u32,
+    padding: u32,
     /// Directory to place output
     #[structopt(short = "o", long = "outdir", default_value = ".", parse(from_os_str))]
-    pub outdir: PathBuf,
+    outdir: PathBuf,
     /// Keep all temporary files that would otherwise be deleted
     #[structopt(long = "keep")]
-    pub keep_tmp: bool,
+    keep_tmp: bool,
+    /// Minimum number of consecutive characters which must be identical for a match in make_prg
+    #[structopt(short = "-l", long = "--match-len", default_value = "7")]
+    match_len: u32,
+    /// Force overwriting existing files. Use this if you want to build from scratch
+    #[structopt(short = "F", long)]
+    force: bool,
 }
 
 /// A collection of custom errors relating to the build component of this package
@@ -159,12 +165,15 @@ where
 
 impl Runner for Build {
     fn run(&self) -> Result<()> {
-        let outdir = self.outdir.canonicalize()?;
-        if !outdir.exists() {
+        if !self.outdir.exists() {
             info!("Outdir doesn't exist - creating...");
-            std::fs::create_dir(&outdir)
-                .context(format!("Failed to create {:?}", &outdir))?;
+            std::fs::create_dir(&self.outdir)
+                .context(format!("Failed to create {:?}", &self.outdir))?;
         }
+        let outdir = self
+            .outdir
+            .canonicalize()
+            .context("Failed to canonicalize outdir")?;
         info!("Building panel index...");
 
         info!("Loading the panel...");
@@ -238,6 +247,10 @@ impl Runner for Build {
             debug!("Pre-MSA directory doesn't exist - creating...");
             std::fs::create_dir(&premsa_dir)
                 .context(format!("Failed to create {:?}", &premsa_dir))?;
+        } else {
+            warn!("Existing pre-MSA directory found. Removing...");
+            std::fs::remove_dir_all(&premsa_dir)
+                .context(format!("Failed to remove {:?}", &premsa_dir))?;
         }
 
         info!("Converting the panel to a VCF...");
@@ -303,6 +316,10 @@ impl Runner for Build {
             debug!("MSA directory doesn't exist - creating...");
             std::fs::create_dir(&msa_dir)
                 .context(format!("Failed to create {:?}", &msa_dir))?;
+        } else {
+            warn!("Existing MSA directory found. Removing...");
+            std::fs::remove_dir_all(&msa_dir)
+                .context(format!("Failed to remove {:?}", &msa_dir))?;
         }
 
         genes.par_iter().try_for_each(|gene| {
@@ -323,18 +340,21 @@ impl Runner for Build {
         info!("Building PRG for genes...");
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
         let prg_path = outdir.join("dr.prg");
-        debug!(
-            "Using {} threads for make_prg",
-            rayon::current_num_threads()
-        );
+
         makeprg.run_with(
             &msa_dir,
             &prg_path,
-            &["-t", &rayon::current_num_threads().to_string()],
+            &[
+                "-t",
+                &rayon::current_num_threads().to_string(),
+                "--min_match_length",
+                &self.match_len.to_string(),
+            ],
         )?;
         info!("Successfully created panel PRG");
-        // todo: combine prgs
         // todo: index prg with pandora
+        let pandora = Pandora::from_path(&self.pandora_exec)?;
+
         Ok(())
     }
 }

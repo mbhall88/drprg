@@ -9,6 +9,7 @@ use thiserror::Error;
 
 const MAKE_PRG_BIN: &str = "make_prg";
 const MAFFT_BIN: &str = "mafft/bin/mafft";
+const PANDORA_BIN: &str = "pandora";
 
 /// A collection of custom errors relating to the working with files for this package.
 #[derive(Error, Debug)]
@@ -43,7 +44,7 @@ impl MakePrg {
             }
         }
     }
-    /// Run make_prg with the provided input, output and arguments
+    /// Run make_prg with the provided input, output and additional arguments
     pub fn run_with<I, S>(
         &self,
         input: &Path,
@@ -84,6 +85,26 @@ impl MakePrg {
             std::fs::rename(tmp_update_ds, output.with_extension("update_DS"))
                 .map_err(|source| DependencyError::FileError { source })?;
             Ok(())
+        }
+    }
+}
+
+pub struct Pandora {
+    executable: String,
+}
+
+impl Pandora {
+    pub fn from_path(path: &Option<PathBuf>) -> Result<Pandora, DependencyError> {
+        let default = dependency_dir().join(PANDORA_BIN);
+        let executable = from_path_or(&path, &default);
+        match (path, executable) {
+            (_, Some(exec)) => Ok(Self { executable: exec }),
+            (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
+                p.to_string_lossy(),
+            ))),
+            (None, None) => Err(DependencyError::NotExecutable(
+                default.file_name().unwrap().to_string_lossy().to_string(),
+            )),
         }
     }
 }
