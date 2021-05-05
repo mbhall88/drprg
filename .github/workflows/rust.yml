@@ -14,14 +14,12 @@ jobs:
         run: cargo fmt -- --check
 
   lint:
-    needs: format
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Lint
         run: cargo clippy --all-features --all-targets -- -D warnings
   test:
-    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -31,7 +29,6 @@ jobs:
         run: cargo test --verbose
 
   coverage:
-    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -51,9 +48,6 @@ jobs:
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1.0.2
-        with:
-          fail_ci_if_error: true
-          verbose: true
 
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
