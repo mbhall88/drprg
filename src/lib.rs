@@ -107,6 +107,34 @@ impl Pandora {
             )),
         }
     }
+
+    /// Run pandora index with the provided input and arguments
+    pub fn index_with<I, S>(&self, input: &Path, args: I) -> Result<(), DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let cmd_output = Command::new(&self.executable)
+            .arg("index")
+            .args(args)
+            .arg(input)
+            .output()
+            .map_err(DependencyError::ProcessError)?;
+
+        if !cmd_output.status.success() {
+            error!(
+                "Failed to run pandora index with sterr:\n{}",
+                cmd_output.stderr.to_str_lossy()
+            );
+            Err(DependencyError::ProcessError(
+                std::io::Error::from_raw_os_error(
+                    cmd_output.status.code().unwrap_or(129),
+                ),
+            ))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 pub struct MultipleSeqAligner {
@@ -185,7 +213,7 @@ fn from_path_or(path: &Option<PathBuf>, default: &Path) -> Option<String> {
                 default_fname
             );
             if is_executable(&default.to_string_lossy()) {
-                debug!("Found make_prg at {}", &default.to_string_lossy());
+                debug!("Found {} at {}", default_fname, &default.to_string_lossy());
                 Some(String::from(default.to_string_lossy()))
             } else if is_executable(&*default_fname) {
                 debug!("Found {} on PATH", default_fname);

@@ -250,7 +250,8 @@ impl Runner for Build {
         } else {
             warn!("Existing pre-MSA directory found. Removing...");
             std::fs::remove_dir_all(&premsa_dir)
-                .context(format!("Failed to remove {:?}", &premsa_dir))?;
+                .and_then(|_| std::fs::create_dir(&premsa_dir))
+                .context(format!("Failed to remove and recreate {:?}", &premsa_dir))?;
         }
 
         info!("Converting the panel to a VCF...");
@@ -319,7 +320,8 @@ impl Runner for Build {
         } else {
             warn!("Existing MSA directory found. Removing...");
             std::fs::remove_dir_all(&msa_dir)
-                .context(format!("Failed to remove {:?}", &msa_dir))?;
+                .and_then(|_| std::fs::create_dir(&msa_dir))
+                .context(format!("Failed to remove and recreate {:?}", &msa_dir))?;
         }
 
         genes.par_iter().try_for_each(|gene| {
@@ -340,21 +342,21 @@ impl Runner for Build {
         info!("Building PRG for genes...");
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
         let prg_path = outdir.join("dr.prg");
-
-        makeprg.run_with(
-            &msa_dir,
-            &prg_path,
-            &[
-                "-t",
-                &rayon::current_num_threads().to_string(),
-                "--min_match_length",
-                &self.match_len.to_string(),
-            ],
-        )?;
+        let make_prg_args = &[
+            "-t",
+            &rayon::current_num_threads().to_string(),
+            "--min_match_length",
+            &self.match_len.to_string(),
+        ];
+        makeprg.run_with(&msa_dir, &prg_path, make_prg_args)?;
         info!("Successfully created panel PRG");
-        // todo: index prg with pandora
-        let pandora = Pandora::from_path(&self.pandora_exec)?;
 
+        info!("Indexing PRG with pandora...");
+        let pandora = Pandora::from_path(&self.pandora_exec)?;
+        let pandora_args = &["-t", &rayon::current_num_threads().to_string()];
+        pandora.index_with(&prg_path, pandora_args)?;
+        info!("PRG indexed successfully");
+        info!("Panel index built");
         Ok(())
     }
 }
