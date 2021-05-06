@@ -154,11 +154,11 @@ impl Runner for Build {
             debug!("Loaded the reference genome index");
             let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
             if !premsa_dir.exists() {
-                debug!("Pre-MSA directory doesn't exist - creating...");
+                debug!("Pre-MSA directory doesn't exist...creating...");
                 std::fs::create_dir(&premsa_dir)
                     .context(format!("Failed to create {:?}", &premsa_dir))?;
-            } else {
-                warn!("Existing pre-MSA directory found. Removing...");
+            } else if self.force {
+                debug!("Existing pre-MSA directory found...removing...");
                 std::fs::remove_dir_all(&premsa_dir)
                     .and_then(|_| std::fs::create_dir(&premsa_dir))
                     .context(format!(
