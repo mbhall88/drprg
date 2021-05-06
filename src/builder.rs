@@ -85,6 +85,24 @@ impl Build {
         }
         Ok(panel)
     }
+
+    fn create_vcf_header(
+        &self,
+        annotations: &HashMap<String, gff::Record>,
+    ) -> bcf::Header {
+        let mut header = bcf::Header::new();
+        header.push_record(format!("{}source=drprgV{}", META, VERSION).as_bytes());
+        // add contigs to vcf header
+        for (gene, gff_record) in annotations {
+            let length: u64 = (gff_record.end() + 1) - gff_record.start()
+                + (&self.padding * 2) as u64;
+            header.push_record(&*vcf_contig_field(gene, length));
+        }
+        for entry in PanelRecord::vcf_header_entries() {
+            header.push_record(entry);
+        }
+        header
+    }
 }
 
 impl Runner for Build {
@@ -103,7 +121,7 @@ impl Runner for Build {
         info!("Loading the panel...");
         let panel: Panel = self.load_panel()?;
         let genes: HashSet<String> = panel.keys().map(|k| k.to_owned()).collect();
-        info!("Loaded {} panel record(s)", panel.len());
+        info!("Loaded panel");
 
         info!("Loading genome annotation for panel genes...");
         debug!("Panel genes: {:?}", genes);
@@ -118,17 +136,7 @@ impl Runner for Build {
         info!("Loaded annotations");
 
         debug!("Creating VCF header...");
-        let mut vcf_header = bcf::header::Header::new();
-        vcf_header.push_record(format!("{}source=drprgV{}", META, VERSION).as_bytes());
-        // add contigs to vcf header
-        for (gene, gff_record) in &annotations {
-            let length: u64 = (gff_record.end() + 1) - gff_record.start()
-                + (&self.padding * 2) as u64;
-            vcf_header.push_record(&*vcf_contig_field(gene, length));
-        }
-        for entry in PanelRecord::vcf_header_entries() {
-            vcf_header.push_record(entry);
-        }
+        let vcf_header = self.create_vcf_header(&annotations);
         debug!("VCF header created");
 
         let panel_vcf_path = outdir.join("panel.bcf");
@@ -738,5 +746,37 @@ mod tests {
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
+    }
+
+    #[test]
+    fn create_vcf_header() {
+        let builder = Build {
+            pandora_exec: None,
+            makeprg_exec: None,
+            mafft_exec: None,
+            gff_file: Default::default(),
+            panel_file: PathBuf::from("foobar"),
+            reference_file: Default::default(),
+            padding: 0,
+            outdir: Default::default(),
+            keep_tmp: false,
+            match_len: 0,
+            force: false,
+        };
+        const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Name=dnaA;gene=dnaA\n";
+        let reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let genes = HashSet::from_iter(vec!["dnaA".to_string()]);
+        let annotations = load_annotations_for_genes(reader, &genes);
+        let tmp = tempfile::NamedTempFile::new().unwrap();
+
+        let header = builder.create_vcf_header(&annotations);
+
+        let writer =
+            bcf::Writer::from_path(tmp.path(), &header, false, bcf::Format::VCF)
+                .unwrap();
+        let view = writer.header();
+
+        assert_eq!(view.contig_count(), 1);
+        assert_eq!(view.rid2name(0).unwrap(), b"dnaA")
     }
 }
