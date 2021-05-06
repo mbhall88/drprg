@@ -250,6 +250,18 @@ pub fn is_executable(program: &str) -> bool {
     }
 }
 
+pub trait PathExt {
+    fn add_extension(&self, extension: &OsStr) -> PathBuf;
+}
+
+impl PathExt for Path {
+    fn add_extension(&self, extension: &OsStr) -> PathBuf {
+        let mut s = self.as_os_str().to_os_string();
+        s.push(extension);
+        PathBuf::from(s)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -306,6 +318,35 @@ mod tests {
         let default = PathBuf::from("/XZY/ls");
         let actual = from_path_or(&path, &default).unwrap();
         let expected = String::from("ls");
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn add_extension_empty_input() {
+        let path = Path::new("foo.bar");
+
+        let actual = path.add_extension("".as_ref());
+
+        assert_eq!(actual, path)
+    }
+
+    #[test]
+    fn add_extension_one_extension() {
+        let path = Path::new("foo.bar");
+
+        let actual = path.add_extension(".baz".as_ref());
+        let expected = PathBuf::from("foo.bar.baz");
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn add_extension_no_extension() {
+        let path = Path::new("foo");
+
+        let actual = path.add_extension(".baz".as_ref());
+        let expected = PathBuf::from("foo.baz");
+
         assert_eq!(actual, expected)
     }
 }
