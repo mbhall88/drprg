@@ -8,7 +8,7 @@
 
 [TOC]:#
 
-# Table of Contents
+## Table of Contents
 - [Install](#install)
   - [Container](#container)
   - [Conda](#conda)
@@ -21,7 +21,34 @@
 
 ### Container
 
-<!--todo-->
+[![Docker Repository on Quay](https://quay.io/repository/mbhall88/drprg/status "Docker Repository on Quay")](https://quay.io/repository/mbhall88/drprg)
+
+A Docker container is available for all commits/branches/versions. To view the available
+tags, visit <https://quay.io/repository/mbhall88/drprg?tab=tags>
+
+For example, to use the latest commit on the `main` branch, the URI is
+
+```
+$ TAG="latest"
+$ URI="quay.io/mbhall88/drprg:$TAG"
+```
+
+#### Docker
+
+To run `drprg` using the above container with Docker
+
+```
+$ docker pull "$URI"
+$ docker run -it "$URI" drprg --help
+```
+
+#### Singularity
+
+To run `drprg` using the above container with [Singularity]
+
+```
+$ singularity exec "docker://$URI" drprg --help
+```
 
 ### Conda
 
@@ -104,3 +131,4 @@ OPTIONS:
 [mafft]: https://mafft.cbrc.jp/alignment/software/
 [makeprg]: https://github.com/leoisl/make_prg/releases/tag/v0.2.0_prototype
 [mykrobe]: https://github.com/Mykrobe-tools/mykrobe
+[Singularity]: https://sylabs.io/
