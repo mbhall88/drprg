@@ -58,115 +58,39 @@ pub struct Build {
     force: bool,
 }
 
-/// A collection of custom errors relating to the build component of this package
-#[derive(Error, Debug, PartialEq)]
-pub enum BuildError {
-    /// Contig is missing from the FASTA index
-    #[error("Contig {0} is missing from the reference genome index")]
-    MissingContig(String),
-    /// Couldn't fetch a gene
-    #[error("Couldn't fetch contig {0} with start {1} and end {2}")]
-    FetchError(String, u64, u64),
-    /// GFF record doesn't have a strand
-    #[error("No strand information in GFF for {0}")]
-    MissingStrand(String),
-}
+impl Build {
+    fn load_panel(&self) -> Result<Panel, anyhow::Error> {
+        let mut panel: Panel = HashMap::new();
+        let mut n_records = 0;
 
-fn load_annotations_for_genes<R>(
-    mut reader: gff::Reader<R>,
-    genes: &HashSet<String>,
-) -> HashMap<String, gff::Record>
-where
-    R: std::io::Read,
-{
-    let mut records = reader.records();
-    let mut annotations: HashMap<String, gff::Record> = HashMap::new();
+        let mut reader = csv::ReaderBuilder::new()
+            .delimiter(b'\t')
+            .has_headers(false)
+            .from_path(&self.panel_file)?;
 
-    while let Some(Ok(record)) = records.next() {
-        if record.feature_type() != "gene" {
-            continue;
-        }
+        for result in reader.deserialize() {
+            n_records += 1;
+            let record: PanelRecord = result?;
+            let set_of_records = panel
+                .entry(record.gene.to_owned())
+                .or_insert_with(HashSet::new);
+            let seen_before = !set_of_records.insert(record);
 
-        if let Some(g) = record.attributes().get("gene") {
-            if genes.contains(g) {
-                annotations.insert(g.to_string(), record.to_owned());
+            if seen_before {
+                warn!(
+                    "Duplicate panel record detected in record number {}",
+                    n_records
+                )
             }
         }
-    }
-    annotations
-}
-
-fn extract_gene_from_index<R>(
-    record: &gff::Record,
-    faidx: &mut fasta::IndexedReader<R>,
-    padding: u32,
-) -> Result<Vec<u8>, BuildError>
-where
-    R: Read + Seek,
-{
-    let mut contig_len: u64 = 0;
-    for contig in faidx.index.sequences() {
-        if contig.name == record.seqname() {
-            contig_len = contig.len;
-            break;
-        }
-    }
-    if contig_len == 0 {
-        return Err(BuildError::MissingContig(record.seqname().to_string()));
-    }
-
-    // GFF3 start is 1-based, inclusive. We want to make it 0-based, inclusive
-    let start: u64 = max(
-        (*record.start() as isize - padding as isize - 1) as isize,
-        0,
-    ) as u64;
-    // GFF3 end is 1-based, inclusive. We want to make it 0-based, exclusive
-    let end: u64 = min(record.end() + padding as u64, contig_len);
-    if start > end {
-        return Err(BuildError::FetchError(
-            record.seqname().to_string(),
-            start,
-            end,
-        ));
-    }
-
-    if faidx.fetch(record.seqname(), start, end).is_err() {
-        return Err(BuildError::FetchError(
-            record.seqname().to_string(),
-            start,
-            end,
-        ));
-    } else {
-        let mut seq: Vec<u8> = Vec::with_capacity((end - start) as usize);
-        let is_rev = match record.strand() {
-            Some(strand) => strand.strand_symbol() == "-",
-            _ => {
-                return Err(BuildError::MissingStrand(
-                    record.attributes().get("gene").unwrap().to_string(),
-                ))
-            }
-        };
-        match faidx.read(&mut seq) {
-            Err(_) => Err(BuildError::FetchError(
-                record.seqname().to_string(),
-                start,
-                end,
-            )),
-            Ok(_) => {
-                if is_rev {
-                    Ok(revcomp(seq))
-                } else {
-                    Ok(seq.to_owned())
-                }
-            }
-        }
+        Ok(panel)
     }
 }
 
 impl Runner for Build {
     fn run(&self) -> Result<()> {
         if !self.outdir.exists() {
-            info!("Outdir doesn't exist - creating...");
+            info!("Outdir doesn't exist...creating...");
             std::fs::create_dir(&self.outdir)
                 .context(format!("Failed to create {:?}", &self.outdir))?;
         }
@@ -177,31 +101,8 @@ impl Runner for Build {
         info!("Building panel index...");
 
         info!("Loading the panel...");
-        let mut panel: Panel = HashMap::new();
-        let mut genes: HashSet<String> = HashSet::new();
-        let mut record_num = 0;
-
-        let mut panel_reader = csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .has_headers(false)
-            .from_path(&self.panel_file)?;
-
-        for result in panel_reader.deserialize() {
-            record_num += 1;
-            let record: PanelRecord = result?;
-            genes.insert(record.gene.to_owned());
-            let set_of_records = panel
-                .entry(record.gene.to_owned())
-                .or_insert_with(HashSet::new);
-            let seen_before = !set_of_records.insert(record);
-
-            if seen_before {
-                warn!(
-                    "Duplicate panel record detected in record number {}",
-                    record_num
-                )
-            }
-        }
+        let panel: Panel = self.load_panel()?;
+        let genes: HashSet<String> = panel.keys().map(|k| k.to_owned()).collect();
         info!("Loaded {} panel record(s)", panel.len());
 
         info!("Loading genome annotation for panel genes...");
@@ -361,6 +262,111 @@ impl Runner for Build {
     }
 }
 
+/// A collection of custom errors relating to the build component of this package
+#[derive(Error, Debug, PartialEq)]
+pub enum BuildError {
+    /// Contig is missing from the FASTA index
+    #[error("Contig {0} is missing from the reference genome index")]
+    MissingContig(String),
+    /// Couldn't fetch a gene
+    #[error("Couldn't fetch contig {0} with start {1} and end {2}")]
+    FetchError(String, u64, u64),
+    /// GFF record doesn't have a strand
+    #[error("No strand information in GFF for {0}")]
+    MissingStrand(String),
+}
+
+fn load_annotations_for_genes<R>(
+    mut reader: gff::Reader<R>,
+    genes: &HashSet<String>,
+) -> HashMap<String, gff::Record>
+where
+    R: std::io::Read,
+{
+    let mut records = reader.records();
+    let mut annotations: HashMap<String, gff::Record> = HashMap::new();
+
+    while let Some(Ok(record)) = records.next() {
+        if record.feature_type() != "gene" {
+            continue;
+        }
+
+        if let Some(g) = record.attributes().get("gene") {
+            if genes.contains(g) {
+                annotations.insert(g.to_string(), record.to_owned());
+            }
+        }
+    }
+    annotations
+}
+
+fn extract_gene_from_index<R>(
+    record: &gff::Record,
+    faidx: &mut fasta::IndexedReader<R>,
+    padding: u32,
+) -> Result<Vec<u8>, BuildError>
+where
+    R: Read + Seek,
+{
+    let mut contig_len: u64 = 0;
+    for contig in faidx.index.sequences() {
+        if contig.name == record.seqname() {
+            contig_len = contig.len;
+            break;
+        }
+    }
+    if contig_len == 0 {
+        return Err(BuildError::MissingContig(record.seqname().to_string()));
+    }
+
+    // GFF3 start is 1-based, inclusive. We want to make it 0-based, inclusive
+    let start: u64 = max(
+        (*record.start() as isize - padding as isize - 1) as isize,
+        0,
+    ) as u64;
+    // GFF3 end is 1-based, inclusive. We want to make it 0-based, exclusive
+    let end: u64 = min(record.end() + padding as u64, contig_len);
+    if start > end {
+        return Err(BuildError::FetchError(
+            record.seqname().to_string(),
+            start,
+            end,
+        ));
+    }
+
+    if faidx.fetch(record.seqname(), start, end).is_err() {
+        return Err(BuildError::FetchError(
+            record.seqname().to_string(),
+            start,
+            end,
+        ));
+    } else {
+        let mut seq: Vec<u8> = Vec::with_capacity((end - start) as usize);
+        let is_rev = match record.strand() {
+            Some(strand) => strand.strand_symbol() == "-",
+            _ => {
+                return Err(BuildError::MissingStrand(
+                    record.attributes().get("gene").unwrap().to_string(),
+                ))
+            }
+        };
+        match faidx.read(&mut seq) {
+            Err(_) => Err(BuildError::FetchError(
+                record.seqname().to_string(),
+                start,
+                end,
+            )),
+            Ok(_) => {
+                if is_rev {
+                    Ok(revcomp(seq))
+                } else {
+                    Ok(seq.to_owned())
+                }
+            }
+        }
+    }
+}
+
 fn vcf_contig_field(id: &str, length: u64) -> Vec<u8> {
     format!("{}contig=<ID={},length={}>", META, id, length)
         .as_bytes()
@@ -374,6 +380,9 @@ mod tests {
     use bio::io::fasta::IndexedReader;
 
     use super::*;
+    use crate::panel::{Residue, Variant};
+    use std::io::Write;
+    use std::str::FromStr;
 
     #[test]
     fn load_annotations_when_no_genes_in_common_returns_empty() {
@@ -578,5 +587,156 @@ mod tests {
         let expected = b"##contig=<ID=chr1,length=33>";
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn load_panel_single_record() {
+        let gene = "pncA";
+        let variant = "G6T";
+        let residue = "DNA";
+        let drugs = "Drug1";
+        let contents: &str = &[gene, variant, residue, drugs].join("\t");
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
+        let builder = Build {
+            pandora_exec: None,
+            makeprg_exec: None,
+            mafft_exec: None,
+            gff_file: Default::default(),
+            panel_file: PathBuf::from(file.path()),
+            reference_file: Default::default(),
+            padding: 0,
+            outdir: Default::default(),
+            keep_tmp: false,
+            match_len: 0,
+            force: false,
+        };
+
+        let actual = builder.load_panel().unwrap();
+        let expected = HashMap::from_iter(vec![(
+            gene.to_string(),
+            HashSet::from_iter(vec![PanelRecord {
+                gene: gene.to_string(),
+                variant: Variant::from_str(variant).unwrap(),
+                residue: Residue::from_str(residue).unwrap(),
+                drugs: HashSet::from_iter(vec![drugs.to_string()]),
+            }]),
+        )]);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn load_panel_duplicate_record() {
+        let gene = "pncA";
+        let variant = "G6T";
+        let residue = "DNA";
+        let drugs = "Drug1";
+        let contents: &str = &[gene, variant, residue, drugs].join("\t");
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
+        let builder = Build {
+            pandora_exec: None,
+            makeprg_exec: None,
+            mafft_exec: None,
+            gff_file: Default::default(),
+            panel_file: PathBuf::from(file.path()),
+            reference_file: Default::default(),
+            padding: 0,
+            outdir: Default::default(),
+            keep_tmp: false,
+            match_len: 0,
+            force: false,
+        };
+
+        let actual = builder.load_panel().unwrap();
+        let expected = HashMap::from_iter(vec![(
+            gene.to_string(),
+            HashSet::from_iter(vec![PanelRecord {
+                gene: gene.to_string(),
+                variant: Variant::from_str(variant).unwrap(),
+                residue: Residue::from_str(residue).unwrap(),
+                drugs: HashSet::from_iter(vec![drugs.to_string()]),
+            }]),
+        )]);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn load_panel_wrong_delimiter() {
+        let gene = "pncA";
+        let variant = "G6T";
+        let residue = "DNA";
+        let drugs = "Drug1";
+        let contents: &str = &[gene, variant, residue, drugs].join(",");
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
+        let builder = Build {
+            pandora_exec: None,
+            makeprg_exec: None,
+            mafft_exec: None,
+            gff_file: Default::default(),
+            panel_file: PathBuf::from(file.path()),
+            reference_file: Default::default(),
+            padding: 0,
+            outdir: Default::default(),
+            keep_tmp: false,
+            match_len: 0,
+            force: false,
+        };
+
+        let actual = builder.load_panel();
+        assert!(actual.is_err())
+    }
+
+    #[test]
+    fn load_panel_has_header() {
+        let header: &str = &["gene", "variant", "residue", "drugs"].join("\t");
+        let gene = "pncA";
+        let variant = "G6T";
+        let residue = "DNA";
+        let drugs = "Drug1";
+        let contents: &str = &[gene, variant, residue, drugs].join("\t");
+        let mut file = tempfile::NamedTempFile::new().unwrap();
+        file.write_all(header.as_bytes()).unwrap();
+        file.write_all(contents.as_bytes()).unwrap();
+        let builder = Build {
+            pandora_exec: None,
+            makeprg_exec: None,
+            mafft_exec: None,
+            gff_file: Default::default(),
+            panel_file: PathBuf::from(file.path()),
+            reference_file: Default::default(),
+            padding: 0,
+            outdir: Default::default(),
+            keep_tmp: false,
+            match_len: 0,
+            force: false,
+        };
+
+        let actual = builder.load_panel();
+        assert!(actual.is_err())
+    }
+
+    #[test]
+    fn load_panel_path_doesnt_exist() {
+        let builder = Build {
+            pandora_exec: None,
+            makeprg_exec: None,
+            mafft_exec: None,
+            gff_file: Default::default(),
+            panel_file: PathBuf::from("foobar"),
+            reference_file: Default::default(),
+            padding: 0,
+            outdir: Default::default(),
+            keep_tmp: false,
+            match_len: 0,
+            force: false,
+        };
+
+        let actual = builder.load_panel();
+        assert!(actual.is_err())
     }
 }
