@@ -45,10 +45,11 @@ impl MakePrg {
         }
     }
     /// Run make_prg with the provided input, output and additional arguments
-    pub fn run_with<I, S>(
+    pub fn from_msas_with<I, S>(
         &self,
         input: &Path,
-        output: &Path,
+        output_prg: &Path,
+        output_update_ds: &Path,
         args: I,
     ) -> Result<(), DependencyError>
     where
@@ -85,9 +86,9 @@ impl MakePrg {
             // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
             // not on the same "mount" as the local filesystem see more info at
             // https://doc.rust-lang.org/std/fs/fn.rename.html#platform-specific-behavior
-            std::fs::copy(tmp_prg, output)
+            std::fs::copy(tmp_prg, output_prg)
                 .map_err(|source| DependencyError::FileError { source })?;
-            std::fs::copy(tmp_update_ds, output.with_extension("update_DS"))
+            std::fs::copy(tmp_update_ds, output_update_ds)
                 .map_err(|source| DependencyError::FileError { source })?;
 
             Ok(())
