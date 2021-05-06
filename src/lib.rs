@@ -77,13 +77,19 @@ impl MakePrg {
                 ),
             ))
         } else {
+            debug!("make_prg successfully ran. Cleaning up temporary files...");
             let tmp_prefix = &dir.path().join(prefix);
             let tmp_prg = tmp_prefix.with_extension("prg.fa");
             let tmp_update_ds = tmp_prefix.with_extension("update_DS");
-            std::fs::rename(tmp_prg, output)
+
+            // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
+            // not on the same "mount" as the local filesystem see more info at
+            // https://doc.rust-lang.org/std/fs/fn.rename.html#platform-specific-behavior
+            std::fs::copy(tmp_prg, output)
                 .map_err(|source| DependencyError::FileError { source })?;
-            std::fs::rename(tmp_update_ds, output.with_extension("update_DS"))
+            std::fs::copy(tmp_update_ds, output.with_extension("update_DS"))
                 .map_err(|source| DependencyError::FileError { source })?;
+
             Ok(())
         }
     }
