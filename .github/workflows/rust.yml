@@ -23,8 +23,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: src/ext
+          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/Makefile') }}
+
+      - name: Install external dependecies
+        run: |
+          if [ ! -d "src/ext" ]; then
+            make deps
+          fi
+
+      - uses: actions/cache@v2
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Build
         run: cargo build --verbose
+       
       - name: Run tests
         run: cargo test --verbose
 
@@ -33,6 +54,17 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
+
+      - uses: actions/cache@v2
+        with:
+          path: src/ext
+          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/Makefile') }}
+
+      - name: Install external dependecies
+        run: |
+          if [ ! -d "src/ext" ]; then
+            make deps
+          fi
 
       - name: Install stable toolchain
         uses: actions-rs/toolchain@v1
