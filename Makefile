@@ -4,7 +4,7 @@ MAFFT_SRC := $(EXTDIR)/mafft
 
 # URLs
 PANDORA_URL := "https://github.com/rmcolq/pandora/releases/download/0.9.0-rc2/pandora-linux-precompiled-v0.9.0-rc2"
-MAKEPRG_URL := "https://github.com/leoisl/make_prg/releases/download/v0.2.0_prototype/make_prg_0.2.0_prototype"
+MAKEPRG_URL := "https://github.com/leoisl/make_prg/releases/download/v0.2.0/make_prg_0.2.0"
 MAFFT_URL := "https://mafft.cbrc.jp/alignment/software/mafft-7.475-without-extensions-src.tgz"
 
 # binary names
