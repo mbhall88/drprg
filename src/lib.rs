@@ -58,40 +58,46 @@ impl MakePrg {
     {
         let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
         let prefix = "dr";
-        let cmd_output = Command::new(&self.executable)
+        let cmd_result = Command::new(&self.executable)
             .current_dir(&dir)
             .arg("from_msa")
             .args(args)
             .args(&["-o", prefix, "-i"])
             .arg(input)
-            .output()
-            .map_err(DependencyError::ProcessError)?;
+            .output();
 
-        if !cmd_output.status.success() {
-            error!(
-                "Failed to run make_prg with sterr:\n{}",
-                cmd_output.stderr.to_str_lossy()
-            );
-            Err(DependencyError::ProcessError(
-                std::io::Error::from_raw_os_error(
-                    cmd_output.status.code().unwrap_or(129),
-                ),
-            ))
-        } else {
-            debug!("make_prg successfully ran. Cleaning up temporary files...");
-            let tmp_prefix = &dir.path().join(prefix);
-            let tmp_prg = tmp_prefix.with_extension("prg.fa");
-            let tmp_update_ds = tmp_prefix.with_extension("update_DS");
+        match cmd_result {
+            Ok(cmd_output) if !cmd_output.status.success() => {
+                error!(
+                    "Failed to run make_prg with sterr:\n{}",
+                    cmd_output.stderr.to_str_lossy()
+                );
+                Err(DependencyError::ProcessError(
+                    std::io::Error::from_raw_os_error(
+                        cmd_output.status.code().unwrap_or(129),
+                    ),
+                ))
+            }
+            Ok(_) => {
+                debug!("make_prg successfully ran. Cleaning up temporary files...");
+                let tmp_prefix = &dir.path().join(prefix);
+                let tmp_prg = tmp_prefix.with_extension("prg.fa");
+                let tmp_update_ds = tmp_prefix.with_extension("update_DS");
 
-            // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
-            // not on the same "mount" as the local filesystem see more info at
-            // https://doc.rust-lang.org/std/fs/fn.rename.html#platform-specific-behavior
-            std::fs::copy(tmp_prg, output_prg)
-                .map_err(|source| DependencyError::FileError { source })?;
-            std::fs::copy(tmp_update_ds, output_update_ds)
-                .map_err(|source| DependencyError::FileError { source })?;
+                // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
+                // not on the same "mount" as the local filesystem see more info at
+                // https://doc.rust-lang.org/std/fs/fn.rename.html#platform-specific-behavior
+                std::fs::copy(tmp_prg, output_prg)
+                    .map_err(|source| DependencyError::FileError { source })?;
+                std::fs::copy(tmp_update_ds, output_update_ds)
+                    .map_err(|source| DependencyError::FileError { source })?;
 
-            Ok(())
+                Ok(())
+            }
+            Err(err) => {
+                error!("make_prg failed to run with error: {}", err.to_string());
+                Err(DependencyError::ProcessError(err))
+            }
         }
     }
 }
@@ -207,11 +213,7 @@ fn from_path_or(path: &Option<PathBuf>, default: &Path) -> Option<String> {
     match path {
         Some(p) => {
             let executable = String::from(p.to_string_lossy());
-            if is_executable(&executable) {
-                Some(executable)
-            } else {
-                None
-            }
+            is_executable(&executable)
         }
         None => {
             let default_fname = default.file_name()?.to_string_lossy();
@@ -219,15 +221,8 @@ fn from_path_or(path: &Option<PathBuf>, default: &Path) -> Option<String> {
                 "No {} executable given. Trying default locations...",
                 default_fname
             );
-            if is_executable(&default.to_string_lossy()) {
-                debug!("Found {} at {}", default_fname, &default.to_string_lossy());
-                Some(String::from(default.to_string_lossy()))
-            } else if is_executable(&*default_fname) {
-                debug!("Found {} on PATH", default_fname);
-                Some(String::from(default_fname))
-            } else {
-                None
-            }
+            is_executable(&default.to_string_lossy())
+                .or_else(|| is_executable(&*default_fname))
         }
     }
 }
@@ -242,12 +237,19 @@ pub fn dependency_dir() -> PathBuf {
 
 /// Checks whether the program is executable. If it is, it returns the full path to the
 /// executable file
-pub fn is_executable(program: &str) -> bool {
-    let cmd = format!("command -v {}", program);
+pub fn is_executable(program: &str) -> Option<String> {
+    let cmd = format!("realpath $(command -v {})", program);
     let result = Command::new("sh").args(&["-c", &cmd]).output();
     match result {
-        Ok(output) => output.status.success(),
-        _ => false,
+        Ok(output) => {
+            let abspath = output.stdout.trim().to_str_lossy().to_string();
+            if abspath.is_empty() {
+                None
+            } else {
+                Some(abspath)
+            }
+        }
+        _ => None,
     }
 }
 
@@ -270,13 +272,24 @@ mod tests {
     #[test]
     fn path_is_executable() {
         let program = "ls";
-        assert!(is_executable(program))
+        assert_eq!(is_executable(program), Some("/bin/ls".to_string()))
     }
 
     #[test]
     fn path_is_not_executable() {
         let program = "foobar";
-        assert!(!is_executable(program))
+        assert!(is_executable(program).is_none())
+    }
+
+    #[test]
+    fn path_is_executable_resolves_full_path() {
+        let program = "src/ext/pandora";
+        let expected = Path::new(program)
+            .canonicalize()
+            .unwrap()
+            .to_string_lossy()
+            .to_string();
+        assert_eq!(is_executable(program), Some(expected))
     }
 
     #[test]
@@ -318,7 +331,7 @@ mod tests {
         let path = None;
         let default = PathBuf::from("/XZY/ls");
         let actual = from_path_or(&path, &default).unwrap();
-        let expected = String::from("ls");
+        let expected = String::from("/bin/ls");
         assert_eq!(actual, expected)
     }
 
