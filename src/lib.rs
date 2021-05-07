@@ -272,7 +272,9 @@ mod tests {
     #[test]
     fn path_is_executable() {
         let program = "ls";
-        assert_eq!(is_executable(program), Some("/bin/ls".to_string()))
+        let executable = is_executable(program).unwrap();
+
+        assert!(Path::new(&executable).is_absolute())
     }
 
     #[test]
@@ -297,7 +299,10 @@ mod tests {
         let path = Some(PathBuf::from("/bin/ls"));
         let default = PathBuf::from("DEFAULT");
         let actual = from_path_or(&path, &default).unwrap();
-        assert_eq!(actual, String::from(path.unwrap().to_string_lossy()))
+
+        let path = Path::new(&actual);
+        assert!(path.is_absolute());
+        assert_eq!(path.file_name().unwrap(), "ls")
     }
 
     #[test]
@@ -321,8 +326,9 @@ mod tests {
         let path = None;
         let default = PathBuf::from("/bin/ls");
         let actual = from_path_or(&path, &default).unwrap();
-        let expected = String::from(default.to_str().unwrap());
-        assert_eq!(actual, expected)
+        let path = Path::new(&actual);
+        assert!(path.is_absolute());
+        assert_eq!(path.file_name().unwrap(), "ls")
     }
 
     #[test]
@@ -331,8 +337,9 @@ mod tests {
         let path = None;
         let default = PathBuf::from("/XZY/ls");
         let actual = from_path_or(&path, &default).unwrap();
-        let expected = String::from("/bin/ls");
-        assert_eq!(actual, expected)
+        let path = Path::new(&actual);
+        assert!(path.is_absolute());
+        assert_eq!(path.file_name().unwrap(), "ls")
     }
 
     #[test]
