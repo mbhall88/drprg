@@ -835,4 +835,81 @@ mod tests {
 
         assert_eq!(sorted1, sorted2);
     }
+
+    #[test]
+    fn build_runner_outdir_doesnt_exist() {
+        let outdir = std::env::temp_dir().join("foooo");
+        if outdir.exists() {
+            std::fs::remove_dir_all(&outdir).unwrap();
+        }
+        let builder = Build {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
+            mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
+            gff_file: ANNOTATION.parse().unwrap(),
+            panel_file: PANEL.parse().unwrap(),
+            reference_file: REF.parse().unwrap(),
+            padding: 100,
+            outdir: outdir.to_owned(),
+            match_len: 5,
+            force: false,
+        };
+        let result = builder.run();
+        assert!(result.is_ok());
+
+        let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
+        let mut file2 =
+            std::fs::File::open(format!("{}/dr.prg", outdir.to_string_lossy()))
+                .unwrap();
+
+        let mut contents = String::new();
+        file1.read_to_string(&mut contents).unwrap();
+        let mut other = String::new();
+        file2.read_to_string(&mut other).unwrap();
+
+        let mut sorted1 = contents.as_bytes().to_owned();
+        sorted1.sort_unstable();
+
+        let mut sorted2 = other.as_bytes().to_owned();
+        sorted2.sort_unstable();
+
+        assert_eq!(sorted1, sorted2);
+    }
+
+    #[test]
+    fn build_runner_with_force() {
+        let outdir = tempfile::tempdir().unwrap();
+        let builder = Build {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
+            mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
+            gff_file: ANNOTATION.parse().unwrap(),
+            panel_file: PANEL.parse().unwrap(),
+            reference_file: REF.parse().unwrap(),
+            padding: 100,
+            outdir: PathBuf::from(outdir.path()),
+            match_len: 5,
+            force: true,
+        };
+        let result = builder.run();
+        assert!(result.is_ok());
+
+        let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
+        let mut file2 =
+            std::fs::File::open(format!("{}/dr.prg", outdir.path().to_string_lossy()))
+                .unwrap();
+
+        let mut contents = String::new();
+        file1.read_to_string(&mut contents).unwrap();
+        let mut other = String::new();
+        file2.read_to_string(&mut other).unwrap();
+
+        let mut sorted1 = contents.as_bytes().to_owned();
+        sorted1.sort_unstable();
+
+        let mut sorted2 = other.as_bytes().to_owned();
+        sorted2.sort_unstable();
+
+        assert_eq!(sorted1, sorted2);
+    }
 }
