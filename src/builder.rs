@@ -24,13 +24,28 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 #[derive(StructOpt, Debug)]
 pub struct Build {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
-    #[structopt(short = "p", long = "pandora", parse(from_os_str), global = true)]
+    #[structopt(
+        short = "p",
+        long = "pandora",
+        parse(from_os_str),
+        hidden_short_help = true
+    )]
     pandora_exec: Option<PathBuf>,
     /// Path to make_prg executable. Will try in src/ext or $PATH if not given
-    #[structopt(short = "m", long = "makeprg", parse(from_os_str))]
+    #[structopt(
+        short = "m",
+        long = "makeprg",
+        parse(from_os_str),
+        hidden_short_help = true
+    )]
     makeprg_exec: Option<PathBuf>,
     /// Path to MAFFT executable. Will try in src/ext or $PATH if not given
-    #[structopt(short = "M", long = "mafft", parse(from_os_str))]
+    #[structopt(
+        short = "M",
+        long = "mafft",
+        parse(from_os_str),
+        hidden_short_help = true
+    )]
     mafft_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
     #[structopt(short = "a", long = "gff", parse(from_os_str))]
@@ -45,7 +60,7 @@ pub struct Build {
     #[structopt(short = "P", long = "padding", default_value = "100")]
     padding: u32,
     /// Directory to place output
-    #[structopt(short = "o", long = "outdir", default_value = ".", parse(from_os_str))]
+    #[structopt(short, long, default_value = ".", parse(from_os_str))]
     outdir: PathBuf,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
     #[structopt(short = "-l", long = "--match-len", default_value = "7")]
