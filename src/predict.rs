@@ -1,9 +1,9 @@
+use anyhow::{Context, Result};
+use log::info;
 use std::path::PathBuf;
-
-use anyhow::Result;
-use log::debug;
 use structopt::StructOpt;
 
+use crate::cli::check_path_exists;
 use crate::Runner;
 
 #[derive(StructOpt, Debug)]
@@ -17,12 +17,12 @@ pub struct Predict {
     )]
     pandora_exec: Option<PathBuf>,
     /// Directory containing the index (produced by `drprg build`)
-    #[structopt(short = "x", long, required = true, parse(from_os_str))]
+    #[structopt(short = "x", long, required = true, parse(try_from_os_str = check_path_exists))]
     index: PathBuf,
     /// Sample reads to predict resistance from
     ///
     /// Both fasta and fastq are accepted, along with compressed or uncompressed.
-    #[structopt(short, long, required = true, parse(from_os_str))]
+    #[structopt(short, long, required = true, parse(try_from_os_str = check_path_exists))]
     input: PathBuf,
     /// Directory to place output
     #[structopt(short, long, default_value = ".", parse(from_os_str))]
@@ -31,7 +31,17 @@ pub struct Predict {
 
 impl Runner for Predict {
     fn run(&self) -> Result<()> {
-        debug!("Predicting...");
+        if !self.outdir.exists() {
+            info!("Outdir doesn't exist...creating...");
+            std::fs::create_dir(&self.outdir)
+                .context(format!("Failed to create {:?}", &self.outdir))?;
+        }
+        let _outdir = self
+            .outdir
+            .canonicalize()
+            .context("Failed to canonicalize outdir")?;
+
+        // todo: check all necessary index files exist
         Ok(())
     }
 }

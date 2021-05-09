@@ -7,13 +7,20 @@ const ANNOTATION: &str = "tests/cases/ann.gff3";
 const REF: &str = "tests/cases/ref.fa";
 
 #[test]
-fn build_invalid_panel_file() -> Result<(), Box<dyn std::error::Error>> {
+fn build_paths_dont_exist() -> Result<(), Box<dyn std::error::Error>> {
     let sub = "build";
     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
-    cmd.args(&[sub, "-i file/doesnt/exist", "-a", "gff", "-f", "fa"]);
+    cmd.args(&[
+        sub,
+        "-i file/doesnt/exist",
+        "-a",
+        "fake.path",
+        "-f",
+        "abcdefg",
+    ]);
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("No such file"));
+        .stderr(predicate::str::contains("Invalid value"));
 
     Ok(())
 }

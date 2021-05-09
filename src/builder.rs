@@ -15,6 +15,7 @@ use thiserror::Error;
 use drprg::{MakePrg, Pandora};
 use drprg::{MultipleSeqAligner, PathExt};
 
+use crate::cli::check_path_exists;
 use crate::panel::{Panel, PanelError, PanelRecord};
 use crate::Runner;
 
@@ -48,13 +49,13 @@ pub struct Build {
     )]
     mafft_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
-    #[structopt(short = "a", long = "gff", parse(from_os_str))]
+    #[structopt(short = "a", long = "gff", parse(try_from_os_str = check_path_exists))]
     gff_file: PathBuf,
     /// Panel to build index from
-    #[structopt(short = "i", long = "panel", parse(from_os_str))]
+    #[structopt(short = "i", long = "panel", parse(try_from_os_str = check_path_exists))]
     panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
-    #[structopt(short = "f", long = "fasta", parse(from_os_str))]
+    #[structopt(short = "f", long = "fasta", parse(try_from_os_str = check_path_exists))]
     reference_file: PathBuf,
     /// Number of bases of padding to add to start and end of each gene
     #[structopt(short = "P", long = "padding", default_value = "100")]
