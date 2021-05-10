@@ -9,6 +9,7 @@ use bio::io::{fasta, gff};
 use log::{debug, info, warn};
 use rayon::prelude::*;
 use rust_htslib::bcf;
+use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
@@ -23,6 +24,7 @@ static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(StructOpt, Debug)]
+#[structopt(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Build {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
     #[structopt(
@@ -420,14 +422,15 @@ fn vcf_contig_field(id: &str, length: u64) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Write;
     use std::iter::FromIterator;
+    use std::str::FromStr;
 
     use bio::io::fasta::IndexedReader;
 
-    use super::*;
     use crate::panel::{Residue, Variant};
-    use std::io::Write;
-    use std::str::FromStr;
+
+    use super::*;
 
     const PANEL: &str = "tests/cases/panel.tsv";
     const ANNOTATION: &str = "tests/cases/ann.gff3";

@@ -255,6 +255,7 @@ pub fn is_executable(program: &str) -> Option<String> {
 
 pub trait PathExt {
     fn add_extension(&self, extension: &OsStr) -> PathBuf;
+    fn file_prefix(&self) -> Option<&str>;
 }
 
 impl PathExt for Path {
@@ -262,6 +263,24 @@ impl PathExt for Path {
         let mut s = self.as_os_str().to_os_string();
         s.push(extension);
         PathBuf::from(s)
+    }
+    /// Extracts the prefix (non-extension(s)) portion of [`self.file_name`]. This is a "left"
+    /// variant of `file_stem` - meaning it takes the portion of the file name before the *first* `.`
+    ///
+    /// The prefix is:
+    ///
+    /// * [`None`], if there is no file name;
+    /// * The entire file name if there is no embedded `.`;
+    /// * The entire file name if the file name begins with `.` and has no other `.`s within;
+    /// * Otherwise, the portion of the file name before the first `.`
+    fn file_prefix(&self) -> Option<&str> {
+        let stem = self.file_stem()?;
+        let s = stem.to_str()?;
+        if let Some(i) = s.find('.') {
+            Some(&s[..i])
+        } else {
+            Some(s)
+        }
     }
 }
 
@@ -367,6 +386,36 @@ mod tests {
 
         let actual = path.add_extension(".baz".as_ref());
         let expected = PathBuf::from("foo.baz");
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn file_prefix_no_file_ext() {
+        let path = Path::new("dir/foo");
+
+        let actual = path.file_prefix().unwrap();
+        let expected = OsStr::new("foo");
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn file_prefix_one_ext() {
+        let path = Path::new("dir/foo.txt");
+
+        let actual = path.file_prefix().unwrap();
+        let expected = OsStr::new("foo");
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn file_prefix_two_ext() {
+        let path = Path::new("dir/foo.tar.gz");
+
+        let actual = path.file_prefix().unwrap();
+        let expected = OsStr::new("foo");
 
         assert_eq!(actual, expected)
     }

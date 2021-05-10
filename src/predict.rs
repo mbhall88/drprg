@@ -1,11 +1,14 @@
-use anyhow::{Context, Result};
-use log::info;
 use std::path::PathBuf;
+
+use anyhow::{Context, Result};
+use log::{debug, info};
+use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
 use crate::cli::check_path_exists;
 use crate::Runner;
+use drprg::PathExt;
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -16,6 +19,7 @@ pub enum PredictError {
 }
 
 #[derive(StructOpt, Debug)]
+#[structopt(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Predict {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
     #[structopt(
@@ -36,6 +40,23 @@ pub struct Predict {
     /// Directory to place output
     #[structopt(short, long, default_value = ".", parse(from_os_str))]
     outdir: PathBuf,
+    /// Identifier to use for the sample
+    ///
+    /// If not provided, this will be set to the input reads file path prefix
+    #[structopt(short, long)]
+    sample: Option<String>,
+    /// Attempt to discover novel variants (i.e. variants not in the panel)
+    ///
+    /// If a novel variant is discovered, a prediciton of "unknown" is returned for the drug(s)
+    /// associated with that gene
+    #[structopt(short = "u", long = "unknown")]
+    discover: bool,
+    /// Require all resistance-associated sites to be genotyped
+    ///
+    /// If a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
+    /// "failed" is returned for the drug(s) associated with that site.
+    #[structopt(short = "f", long = "failed")]
+    require_genotype: bool,
 }
 
 impl Runner for Predict {
@@ -51,6 +72,17 @@ impl Runner for Predict {
             .context("Failed to canonicalize outdir")?;
 
         self.validate_index()?;
+        debug!("Index is valid");
+
+        // todo: run pandora discover (if flag provided)
+        if self.discover {
+            todo!("run pandora discover");
+        }
+
+        // todo: run pandora map
+
+        // todo: generate prediction from pandora map output
+
         Ok(())
     }
 }
@@ -80,6 +112,13 @@ impl Predict {
         self.index.join("dr.update_DS")
     }
 
+    fn sample_name(&self) -> &str {
+        match &self.sample {
+            Some(s) => s.as_str(),
+            None => self.input.file_prefix().unwrap(),
+        }
+    }
+
     fn validate_index(&self) -> Result<(), PredictError> {
         let expected_paths = &[
             self.index_prg_path(),
@@ -100,8 +139,45 @@ impl Predict {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use std::fs::File;
+
+    use super::*;
+
+    #[test]
+    fn sample_name_no_sample() {
+        let predictor = Predict {
+            pandora_exec: None,
+            index: Default::default(),
+            input: PathBuf::from("foo/sample1.fq.gz"),
+            outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
+        };
+
+        let actual = predictor.sample_name();
+        let expected = "sample1";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn sample_name_with_sample() {
+        let predictor = Predict {
+            pandora_exec: None,
+            index: Default::default(),
+            input: PathBuf::from("foo/sample1.fq.gz"),
+            outdir: Default::default(),
+            sample: Some("sample2".to_string()),
+            discover: false,
+            require_genotype: false,
+        };
+
+        let actual = predictor.sample_name();
+        let expected = "sample2";
+
+        assert_eq!(actual, expected)
+    }
 
     #[test]
     fn index_prg_path() {
@@ -110,6 +186,9 @@ mod tests {
             index: PathBuf::from("foo"),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
 
         let actual = predictor.index_prg_path();
@@ -125,6 +204,9 @@ mod tests {
             index: PathBuf::from("foo"),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
 
         let actual = predictor.index_prg_index_path();
@@ -137,9 +219,12 @@ mod tests {
     fn index_prg_update_path() {
         let predictor = Predict {
             pandora_exec: None,
+            sample: None,
             index: PathBuf::from("foo"),
             input: Default::default(),
             outdir: Default::default(),
+            discover: false,
+            require_genotype: false,
         };
 
         let actual = predictor.index_prg_update_path();
@@ -154,7 +239,10 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             input: Default::default(),
+            sample: None,
             outdir: Default::default(),
+            discover: false,
+            require_genotype: false,
         };
 
         let actual = predictor.index_kmer_prgs_path();
@@ -170,6 +258,9 @@ mod tests {
             index: PathBuf::from("foo"),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
 
         let actual = predictor.index_vcf_path();
@@ -184,7 +275,10 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             input: Default::default(),
+            sample: None,
             outdir: Default::default(),
+            discover: false,
+            require_genotype: false,
         };
 
         let actual = predictor.index_vcf_ref_path();
@@ -202,6 +296,9 @@ mod tests {
             index: PathBuf::from(tmp_path),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -221,6 +318,9 @@ mod tests {
             index: Default::default(),
             input: Default::default(),
             outdir: Default::default(),
+            discover: false,
+            sample: None,
+            require_genotype: false,
         };
 
         let actual = predictor.validate_index().unwrap_err();
@@ -238,6 +338,9 @@ mod tests {
             index: PathBuf::from(tmp_path),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -256,8 +359,11 @@ mod tests {
         let predictor = Predict {
             pandora_exec: None,
             index: PathBuf::from(tmp_path),
+            sample: None,
             input: Default::default(),
             outdir: Default::default(),
+            discover: false,
+            require_genotype: false,
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -279,6 +385,9 @@ mod tests {
             index: PathBuf::from(tmp_path),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -301,6 +410,9 @@ mod tests {
             index: PathBuf::from(tmp_path),
             input: Default::default(),
             outdir: Default::default(),
+            discover: false,
+            sample: None,
+            require_genotype: false,
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -324,6 +436,9 @@ mod tests {
             index: PathBuf::from(tmp_path),
             input: Default::default(),
             outdir: Default::default(),
+            sample: None,
+            discover: false,
+            require_genotype: false,
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
