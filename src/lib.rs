@@ -1,3 +1,4 @@
+mod filter;
 mod interval;
 
 use std::path::{Path, PathBuf};
