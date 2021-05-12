@@ -10,7 +10,7 @@ pub trait IntervalOp {
 }
 
 impl<Idx: PartialOrd<Idx> + Ord + ToOwned<Owned = Idx>> IntervalOp for Range<Idx> {
-    fn intersect(&self, other: &Range<Idx>) -> Option<Range<Idx>> {
+    fn intersect(&self, other: &Self) -> Option<Self> {
         if other.start >= self.end || self.start >= other.end {
             None
         } else {

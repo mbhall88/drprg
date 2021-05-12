@@ -78,12 +78,10 @@ impl Runner for Predict {
         self.validate_index()?;
         debug!("Index is valid");
 
-        // todo: run pandora discover (if flag provided)
         if self.discover {
             todo!("run pandora discover");
         }
 
-        // todo: run pandora map
         info!("Genotyping reads against the panel with pandora");
         let pandora = Pandora::from_path(&self.pandora_exec)?;
         let threads = &rayon::current_num_threads().to_string();
@@ -100,8 +98,14 @@ impl Runner for Predict {
         )?;
         info!("Successfully genotyped reads");
         // todo: create a filterer that takes a record and returns if the vcf record passes
-        let mut rdr = rust_htslib::bcf::IndexedReader::from_path(&self.input)?;
-        let records = rdr.records();
+        // todo: load pandora - passed - variants into HashMap with gene/interval keys
+        // todo: load panel VCF and check with intersecting pandora vcf records
+        let mut panel_vcf = rust_htslib::bcf::Reader::from_path(&self.index_vcf_path())
+            .context("Failed to open panel VCF")?;
+        for (i, record_result) in panel_vcf.records().enumerate() {
+            let panel_variant = record_result
+                .context(format!("Failed to read record {} in panel VCF", i))?;
+        }
         // todo: generate prediction from pandora map output
 
         Ok(())

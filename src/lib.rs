@@ -6,6 +6,7 @@ use bstr::ByteSlice;
 use log::{debug, error};
 use std::ffi::OsStr;
 use std::fs::File;
+use std::ops::Range;
 use std::process::Command;
 use thiserror::Error;
 
@@ -332,9 +333,31 @@ impl PathExt for Path {
     }
 }
 
+// Some extension methods for VCF Records as some of this functionality hasn't been released yet
+pub trait VcfExt {
+    fn end(&self) -> i64;
+    fn rlen(&self) -> i64;
+    fn range(&self) -> Range<i64>;
+}
+
+impl VcfExt for rust_htslib::bcf::Record {
+    fn end(&self) -> i64 {
+        self.pos() + self.rlen()
+    }
+    fn rlen(&self) -> i64 {
+        self.inner().rlen
+    }
+    fn range(&self) -> Range<i64> {
+        self.pos()..self.end()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rust_htslib::bcf;
+    use rust_htslib::bcf::Header;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn path_is_executable() {
@@ -466,5 +489,49 @@ mod tests {
         let expected = OsStr::new("foo");
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_rlen() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let header = Header::new();
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        assert_eq!(record.rlen(), 0);
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        assert_eq!(record.rlen(), 3)
+    }
+
+    #[test]
+    fn test_record_end() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let header = Header::new();
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record.set_pos(5);
+
+        assert_eq!(record.end(), 8)
+    }
+
+    #[test]
+    fn test_record_range() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let header = Header::new();
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record.set_pos(5);
+
+        assert_eq!(record.range(), 5..8)
     }
 }
