@@ -10,6 +10,7 @@ use thiserror::Error;
 const MAKE_PRG_BIN: &str = "make_prg";
 const MAFFT_BIN: &str = "mafft/bin/mafft";
 const PANDORA_BIN: &str = "pandora";
+const MTB_GENOME_SIZE: u32 = 4411532;
 
 /// A collection of custom errors relating to the working with files for this package.
 #[derive(Error, Debug)]
@@ -137,6 +138,51 @@ impl Pandora {
         if !cmd_output.status.success() {
             error!(
                 "Failed to run pandora index with sterr:\n{}",
+                cmd_output.stderr.to_str_lossy()
+            );
+            Err(DependencyError::ProcessError(
+                std::io::Error::from_raw_os_error(
+                    cmd_output.status.code().unwrap_or(129),
+                ),
+            ))
+        } else {
+            Ok(())
+        }
+    }
+
+    pub fn genotype_with<I, S>(
+        &self,
+        prg: &Path,
+        vcf_ref: &Path,
+        reads: &Path,
+        outdir: &Path,
+        args: I,
+    ) -> Result<(), DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let fixed_args = &[
+            "map",
+            "--genotype",
+            "-o",
+            &outdir.to_string_lossy(),
+            "-g",
+            &MTB_GENOME_SIZE.to_string(),
+            "--vcf-refs",
+            &vcf_ref.to_string_lossy(),
+        ];
+        let cmd_output = Command::new(&self.executable)
+            .args(fixed_args)
+            .args(args)
+            .arg(prg)
+            .arg(reads)
+            .output()
+            .map_err(DependencyError::ProcessError)?;
+
+        if !cmd_output.status.success() {
+            error!(
+                "Failed to run pandora map with sterr:\n{}",
                 cmd_output.stderr.to_str_lossy()
             );
             Err(DependencyError::ProcessError(

@@ -247,7 +247,7 @@ impl Runner for Build {
             );
         }
 
-        info!("Generating multiple sequence alignments and PRGs for all genes and their variants...");
+        info!("Generating multiple sequence alignments and reference graphs for all genes and their variants...");
         let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
 
         if !msa_dir.exists() {
@@ -273,12 +273,12 @@ impl Runner for Build {
         })?;
         info!("Successfully generated MSAs");
 
-        info!("Building PRG for genes...");
+        info!("Building reference graphs for genes...");
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
         let prg_path = outdir.join("dr.prg");
         let prg_update_ds = prg_path.with_extension("update_DS");
         if !self.force && prg_path.exists() && prg_update_ds.exists() {
-            info!("Existing PRG found...skipping...");
+            info!("Existing reference graph found...skipping...");
         } else {
             let make_prg_args = &[
                 "-t",
@@ -292,9 +292,9 @@ impl Runner for Build {
                 &prg_update_ds,
                 make_prg_args,
             )?;
-            info!("Successfully created panel PRG");
+            info!("Successfully created panel reference graph");
         }
-        info!("Indexing PRG with pandora...");
+        info!("Indexing reference graph with pandora...");
         let pandora = Pandora::from_path(&self.pandora_exec)?;
         let pandora_args = &["-t", &rayon::current_num_threads().to_string()];
         let pandora_index = prg_path.add_extension(".k15.w14.idx".as_ref());
@@ -302,7 +302,7 @@ impl Runner for Build {
             info!("Existing pandora index found...skipping...");
         } else {
             pandora.index_with(&prg_path, pandora_args)?;
-            info!("PRG indexed successfully");
+            info!("Reference graph indexed successfully");
         }
         info!("Panel index built");
         Ok(())
