@@ -1,3 +1,5 @@
+mod interval;
+
 use std::path::{Path, PathBuf};
 
 use bstr::ByteSlice;
