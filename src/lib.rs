@@ -339,6 +339,8 @@ pub trait VcfExt {
     fn end(&self) -> i64;
     fn rlen(&self) -> i64;
     fn range(&self) -> Range<i64>;
+    fn coverage(&self) -> (&[i32], &[i32]);
+    fn gt_conf(&self) -> f32;
 }
 
 impl VcfExt for rust_htslib::bcf::Record {
@@ -350,6 +352,14 @@ impl VcfExt for rust_htslib::bcf::Record {
     }
     fn range(&self) -> Range<i64> {
         self.pos()..self.end()
+    }
+
+    fn coverage(&self) -> (&[i32], &[i32]) {
+        todo!()
+    }
+
+    fn gt_conf(&self) -> f32 {
+        todo!()
     }
 }
 

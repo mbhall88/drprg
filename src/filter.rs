@@ -1,3 +1,5 @@
+use rust_htslib::bcf;
+use rust_htslib::bcf::Record;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -127,11 +129,60 @@ impl FilterStatus {
     }
 }
 
-pub trait Filter {}
+/// A trait to allow for filtering of a VCF. The provided method is `filter`
+pub trait Filter {
+    fn is_low_covg(&self, record: &bcf::Record) -> bool;
+    fn is_high_covg(&self, record: &bcf::Record) -> bool;
+    fn is_low_gt_conf(&self, record: &bcf::Record) -> bool;
+    fn is_low_support(&self, record: &bcf::Record) -> bool;
+    fn is_high_gaps(&self, record: &bcf::Record) -> bool;
+    fn is_long_indel(&self, record: &bcf::Record) -> bool;
+    fn filter(&self, record: &mut bcf::Record) {
+        todo!()
+    }
+}
+
+/// A struct to hold all of the values for the filter
+pub struct Filterer {
+    min_covg: i32,
+    max_covg: i32,
+    min_strand_bias: f32,
+    min_gt_conf: f32,
+    max_indel: Option<i32>,
+    min_support: f32,
+}
+
+impl Filter for Filterer {
+    fn is_low_covg(&self, record: &Record) -> bool {
+        todo!()
+    }
+
+    fn is_high_covg(&self, record: &Record) -> bool {
+        todo!()
+    }
+
+    fn is_low_gt_conf(&self, record: &Record) -> bool {
+        todo!()
+    }
+
+    fn is_low_support(&self, record: &Record) -> bool {
+        todo!()
+    }
+
+    fn is_high_gaps(&self, record: &Record) -> bool {
+        todo!()
+    }
+
+    fn is_long_indel(&self, record: &Record) -> bool {
+        todo!()
+    }
+}
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use rust_htslib::bcf::Header;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn tags_value() {
@@ -214,5 +265,20 @@ mod test {
         expected.sort_unstable();
 
         assert_eq!(actual, expected)
+    }
+
+    fn bcf_record_set_covg(record: &mut bcf::Record, fwd_covg: i32, rev_covg: i32) {
+        todo!()
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let header = Header::new();
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, 5, 5);
     }
 }
