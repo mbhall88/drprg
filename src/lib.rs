@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::filter::Tags;
 use bstr::ByteSlice;
 use log::{debug, error};
+use rust_htslib::bcf::record::GenotypeAllele;
 use std::ffi::OsStr;
 use std::fs::File;
 use std::ops::Range;
@@ -342,6 +343,7 @@ pub trait VcfExt {
     fn range(&self) -> Range<i64>;
     fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)>;
     fn gt_conf(&self) -> f32;
+    fn called_allele(&self) -> i32;
 }
 
 impl VcfExt for rust_htslib::bcf::Record {
@@ -365,12 +367,23 @@ impl VcfExt for rust_htslib::bcf::Record {
     fn gt_conf(&self) -> f32 {
         todo!()
     }
+
+    fn called_allele(&self) -> i32 {
+        match self.genotypes() {
+            Err(_) => -1,
+            Ok(gts) => match gts.get(0)[..] {
+                [GenotypeAllele::Unphased(i)] | [GenotypeAllele::Phased(i)] => i,
+                _ => -1,
+            },
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use rust_htslib::bcf;
+    use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
     use tempfile::NamedTempFile;
 
@@ -590,5 +603,51 @@ mod tests {
 
         let actual = record.coverage();
         assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_record_called_allele() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        let actual = record.called_allele();
+        let expected = 1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_called_allele_is_null() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::UnphasedMissing])
+            .unwrap();
+        let actual = record.called_allele();
+        let expected = -1;
+
+        assert_eq!(actual, expected)
     }
 }
