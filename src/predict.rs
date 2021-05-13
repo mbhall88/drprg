@@ -87,7 +87,7 @@ impl Runner for Predict {
         let threads = &rayon::current_num_threads().to_string();
         let mut gt_args = vec!["-t", threads];
         if self.is_illumina {
-            &gt_args.push("-I");
+            gt_args.push("-I");
         }
         pandora.genotype_with(
             &self.index_prg_path(),

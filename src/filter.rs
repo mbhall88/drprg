@@ -1,3 +1,4 @@
+use crate::VcfExt;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Record;
 use std::str::FromStr;
@@ -76,6 +77,7 @@ impl FromStr for Tags {
     }
 }
 
+#[derive(Default)]
 struct FilterStatus {
     low_covg: bool,
     high_covg: bool,
@@ -88,15 +90,7 @@ struct FilterStatus {
 
 impl FilterStatus {
     fn new() -> Self {
-        FilterStatus {
-            low_covg: false,
-            high_covg: false,
-            strand_bias: false,
-            low_gt_conf: false,
-            high_gaps: false,
-            long_indel: false,
-            low_support: false,
-        }
+        FilterStatus::default()
     }
     /// Returns the Tags for the filters this object fails
     fn tags(&self) -> Vec<Tags> {
@@ -152,9 +146,30 @@ pub struct Filterer {
     min_support: f32,
 }
 
+impl Default for Filterer {
+    fn default() -> Self {
+        Filterer {
+            min_covg: -1,
+            max_covg: i32::MAX,
+            min_strand_bias: -1.0,
+            min_gt_conf: -1.0,
+            max_indel: None,
+            min_support: -1.0,
+        }
+    }
+}
+
 impl Filter for Filterer {
     fn is_low_covg(&self, record: &Record) -> bool {
-        todo!()
+        // safe to unwrap as we are providing a default
+        let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
+        let default_gt = 0; // i.e. if GT is null, we use ref coverage
+        let gt = match record.called_allele() {
+            i if i < 0 => default_gt,
+            i => i,
+        } as usize;
+        let covg = fc.get(gt).unwrap_or(&0) + rc.get(gt).unwrap_or(&0);
+        covg < self.min_covg
     }
 
     fn is_high_covg(&self, record: &Record) -> bool {
@@ -181,6 +196,7 @@ impl Filter for Filterer {
 #[cfg(test)]
 mod test {
     use super::*;
+    use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
     use tempfile::NamedTempFile;
 
@@ -267,18 +283,162 @@ mod test {
         assert_eq!(actual, expected)
     }
 
-    fn bcf_record_set_covg(record: &mut bcf::Record, fwd_covg: i32, rev_covg: i32) {
-        todo!()
+    fn populate_bcf_header(header: &mut bcf::Header) {
+        header.push_sample(b"sample")
+            .push_record(br#"##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#)
+            .push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+    }
+
+    fn bcf_record_set_covg(
+        record: &mut bcf::Record,
+        fwd_covg: &[i32],
+        rev_covg: &[i32],
+    ) {
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_format_integer(b"MED_FWD_COVG", fwd_covg)
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MED_REV_COVG", rev_covg)
+            .expect("Failed to set reverse coverage");
+    }
+
+    fn bcf_record_set_gt(record: &mut bcf::Record, gt: i32) {
+        let gts = match gt {
+            i if i < 0 => vec![GenotypeAllele::UnphasedMissing],
+            i => vec![GenotypeAllele::Unphased(i)],
+        };
+        record.push_genotypes(&gts).unwrap();
     }
 
     #[test]
     fn filter_bcf_record_is_low_covg() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
-        let header = Header::new();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
         let mut record = vcf.empty_record();
-        bcf_record_set_covg(&mut record, 5, 5);
+        bcf_record_set_covg(&mut record, &[5], &[5]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 2;
+
+        assert!(!filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg_same_as_min() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1], &[1]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 2;
+
+        assert!(!filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg_below_min() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1], &[1]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 3;
+
+        assert!(filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg_null_gt_ref_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 3], &[1, 3]);
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 3;
+
+        assert!(filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg_null_gt_ref_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[6, 3], &[1, 3]);
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 3;
+
+        assert!(!filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg_no_covg() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.remove_format(Tags::FwdCovg.value());
+        header.remove_format(Tags::RevCovg.value());
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 3;
+
+        assert!(filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_covg_no_covg_but_min_covg_unset() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.remove_format(Tags::FwdCovg.value());
+        header.remove_format(Tags::RevCovg.value());
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = -1;
+
+        assert!(!filt.is_low_covg(&record))
     }
 }
