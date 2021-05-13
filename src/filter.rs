@@ -173,7 +173,15 @@ impl Filter for Filterer {
     }
 
     fn is_high_covg(&self, record: &Record) -> bool {
-        todo!()
+        // safe to unwrap as we are providing a default
+        let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
+        let default_gt = 0; // i.e. if GT is null, we use ref coverage
+        let gt = match record.called_allele() {
+            i if i < 0 => default_gt,
+            i => i,
+        } as usize;
+        let covg = fc.get(gt).unwrap_or(&0) + rc.get(gt).unwrap_or(&0);
+        covg > self.max_covg
     }
 
     fn is_low_gt_conf(&self, record: &Record) -> bool {
@@ -437,8 +445,134 @@ mod test {
         bcf_record_set_gt(&mut record, -1);
 
         let mut filt = Filterer::default();
-        filt.min_covg = -1;
 
         assert!(!filt.is_low_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[5], &[5]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 2;
+
+        assert!(filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg_same_as_max() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1], &[1]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 2;
+
+        assert!(!filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg_above_max() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[2], &[2]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 3;
+
+        assert!(filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg_null_gt_ref_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[10, 3], &[1, 3]);
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 3;
+
+        assert!(filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg_null_gt_ref_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 3], &[1, 3]);
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 3;
+
+        assert!(!filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg_no_covg() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.remove_format(Tags::FwdCovg.value());
+        header.remove_format(Tags::RevCovg.value());
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 3;
+
+        assert!(!filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_high_covg_no_covg_but_max_covg_unset() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.remove_format(Tags::FwdCovg.value());
+        header.remove_format(Tags::RevCovg.value());
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+
+        assert!(!filt.is_high_covg(&record))
     }
 }

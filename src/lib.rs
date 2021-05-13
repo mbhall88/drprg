@@ -357,6 +357,7 @@ impl VcfExt for rust_htslib::bcf::Record {
         self.pos()..self.end()
     }
 
+    /// Returns the coverage on the forward and reverse strand (for the first sample only)
     fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)> {
         let fwd_covgs = self.format(Tags::FwdCovg.value()).integer().ok()?;
         let rev_covgs = self.format(Tags::RevCovg.value()).integer().ok()?;
