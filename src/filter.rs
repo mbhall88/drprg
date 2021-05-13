@@ -185,7 +185,9 @@ impl Filter for Filterer {
     }
 
     fn is_low_gt_conf(&self, record: &Record) -> bool {
-        todo!()
+        // we assume that a missing GT_CONF value implies 0
+        let gt_conf = record.gt_conf().unwrap_or(0.0);
+        gt_conf < self.min_gt_conf
     }
 
     fn is_low_support(&self, record: &Record) -> bool {
@@ -296,7 +298,7 @@ mod test {
             .push_record(br#"##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#)
             .push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
-        );
+        ).push_record(br#"##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">"#);
     }
 
     fn bcf_record_set_covg(
@@ -320,6 +322,12 @@ mod test {
             i => vec![GenotypeAllele::Unphased(i)],
         };
         record.push_genotypes(&gts).unwrap();
+    }
+
+    fn bcf_record_set_gt_conf(record: &mut bcf::Record, gt_conf: f32) {
+        record
+            .push_format_float(Tags::GtypeConf.value(), &[gt_conf])
+            .expect("Failed to set gt conf");
     }
 
     #[test]
@@ -571,8 +579,95 @@ mod test {
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
+        let filt = Filterer::default();
 
         assert!(!filt.is_high_covg(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_gt_conf_no_gt_conf_but_gt_conf_unset() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.remove_format(Tags::GtypeConf.value());
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+
+        let filt = Filterer::default();
+
+        assert!(!filt.is_low_gt_conf(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_gt_conf_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let conf = 11.1;
+        bcf_record_set_gt_conf(&mut record, conf);
+
+        let mut filt = Filterer::default();
+        filt.min_gt_conf = 3.2;
+
+        assert!(!filt.is_low_gt_conf(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_gt_conf_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let conf = 11.1;
+        bcf_record_set_gt_conf(&mut record, conf);
+
+        let mut filt = Filterer::default();
+        filt.min_gt_conf = 31.2;
+
+        assert!(filt.is_low_gt_conf(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_gt_conf_same_as_min() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let conf = 11.1;
+        bcf_record_set_gt_conf(&mut record, conf);
+
+        let mut filt = Filterer::default();
+        filt.min_gt_conf = 11.1;
+
+        assert!(!filt.is_low_gt_conf(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_gt_conf_unset() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let conf = 0.0;
+        bcf_record_set_gt_conf(&mut record, conf);
+
+        let filt = Filterer::default();
+
+        assert!(!filt.is_low_gt_conf(&record))
     }
 }
