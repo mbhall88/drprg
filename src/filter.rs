@@ -13,7 +13,7 @@ pub enum TagsError {
 
 /// A collection of known VCF tags/fields/filters
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq)]
-enum Tags {
+pub enum Tags {
     FwdCovg,
     RevCovg,
     LowCovg,
@@ -32,22 +32,22 @@ enum Tags {
 
 impl Tags {
     /// Returns the string representation of the tag
-    fn value(&self) -> &str {
+    pub fn value(&self) -> &[u8] {
         match *self {
-            Tags::FwdCovg => "MED_FWD_COVG",
-            Tags::RevCovg => "MED_REV_COVG",
-            Tags::LowCovg => "ld",
-            Tags::HighCovg => "hd",
-            Tags::StrandBias => "sb",
-            Tags::Gaps => "GAPS",
-            Tags::HighGaps => "hg",
-            Tags::GtypeConf => "GT_CONF",
-            Tags::LowGtConf => "lgc",
-            Tags::LongIndel => "lindel",
-            Tags::LowSupport => "frs",
-            Tags::Pass => "PASS",
-            Tags::FormatFilter => "FT",
-            Tags::AllFail => "FAIL",
+            Tags::FwdCovg => b"MED_FWD_COVG",
+            Tags::RevCovg => b"MED_REV_COVG",
+            Tags::LowCovg => b"ld",
+            Tags::HighCovg => b"hd",
+            Tags::StrandBias => b"sb",
+            Tags::Gaps => b"GAPS",
+            Tags::HighGaps => b"hg",
+            Tags::GtypeConf => b"GT_CONF",
+            Tags::LowGtConf => b"lgc",
+            Tags::LongIndel => b"lindel",
+            Tags::LowSupport => b"frs",
+            Tags::Pass => b"PASS",
+            Tags::FormatFilter => b"FT",
+            Tags::AllFail => b"FAIL",
         }
     }
 }
@@ -186,7 +186,7 @@ mod test {
 
     #[test]
     fn tags_value() {
-        assert_eq!(Tags::GtypeConf.value(), "GT_CONF")
+        assert_eq!(Tags::GtypeConf.value(), b"GT_CONF")
     }
 
     #[test]

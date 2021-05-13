@@ -3,6 +3,7 @@ mod interval;
 
 use std::path::{Path, PathBuf};
 
+use crate::filter::Tags;
 use bstr::ByteSlice;
 use log::{debug, error};
 use std::ffi::OsStr;
@@ -339,7 +340,7 @@ pub trait VcfExt {
     fn end(&self) -> i64;
     fn rlen(&self) -> i64;
     fn range(&self) -> Range<i64>;
-    fn coverage(&self) -> (&[i32], &[i32]);
+    fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)>;
     fn gt_conf(&self) -> f32;
 }
 
@@ -354,8 +355,11 @@ impl VcfExt for rust_htslib::bcf::Record {
         self.pos()..self.end()
     }
 
-    fn coverage(&self) -> (&[i32], &[i32]) {
-        todo!()
+    fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)> {
+        let fwd_covgs = self.format(Tags::FwdCovg.value()).integer().ok()?;
+        let rev_covgs = self.format(Tags::RevCovg.value()).integer().ok()?;
+        // we are making an assumption that we only ever deal with VCFs with one sample
+        Some((fwd_covgs[0].to_owned(), rev_covgs[0].to_owned()))
     }
 
     fn gt_conf(&self) -> f32 {
@@ -544,5 +548,47 @@ mod tests {
         record.set_pos(5);
 
         assert_eq!(record.range(), 5..8)
+    }
+
+    #[test]
+    fn test_record_coverage() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_format_integer(b"MED_FWD_COVG", &[5, 0])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MED_REV_COVG", &[6, 1])
+            .expect("Failed to set reverse coverage");
+
+        let actual = record.coverage();
+        let expected = Some((vec![5, 0], vec![6, 1]));
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_coverage_no_tag() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample");
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+
+        let actual = record.coverage();
+        assert!(actual.is_none())
     }
 }
