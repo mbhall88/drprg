@@ -1,4 +1,5 @@
 use crate::VcfExt;
+use float_cmp::approx_eq;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Record;
 use std::str::FromStr;
@@ -187,11 +188,16 @@ impl Filter for Filterer {
     fn is_low_gt_conf(&self, record: &Record) -> bool {
         // we assume that a missing GT_CONF value implies 0
         let gt_conf = record.gt_conf().unwrap_or(0.0);
-        gt_conf < self.min_gt_conf
+        gt_conf < self.min_gt_conf && !approx_eq!(f32, gt_conf, self.min_gt_conf)
     }
 
     fn is_low_support(&self, record: &Record) -> bool {
-        todo!()
+        match record.fraction_read_support() {
+            Some(frs) => {
+                frs < self.min_support && !approx_eq!(f32, frs, self.min_support)
+            }
+            None => false,
+        }
     }
 
     fn is_high_gaps(&self, record: &Record) -> bool {
@@ -669,5 +675,112 @@ pub(crate) mod test {
         let filt = Filterer::default();
 
         assert!(!filt.is_low_gt_conf(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_support_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.min_support = 0.9;
+
+        assert!(!filt.is_low_support(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_support_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.min_support = 0.9;
+
+        assert!(filt.is_low_support(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_support_same_as_min() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.min_support = 0.90;
+
+        assert!(!filt.is_low_support(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_support_null_gt() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[5, 10], &[4, 1]);
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.min_support = 0.90;
+
+        assert!(!filt.is_low_support(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_support_no_coverage() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[0, 0], &[0, 0]);
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.min_support = 0.90;
+
+        assert!(!filt.is_low_support(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_low_support_no_min_set() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[5, 5], &[5, 5]);
+        bcf_record_set_gt(&mut record, 1);
+
+        let filt = Filterer::default();
+
+        assert!(!filt.is_low_support(&record))
     }
 }
