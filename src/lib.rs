@@ -342,6 +342,7 @@ pub trait VcfExt {
     fn rlen(&self) -> i64;
     fn range(&self) -> Range<i64>;
     fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)>;
+    fn fraction_read_support(&self) -> Option<f32>;
     fn gt_conf(&self) -> Option<f32>;
     fn called_allele(&self) -> i32;
 }
@@ -365,6 +366,20 @@ impl VcfExt for rust_htslib::bcf::Record {
         Some((fwd_covgs[0].to_owned(), rev_covgs[0].to_owned()))
     }
 
+    fn fraction_read_support(&self) -> Option<f32> {
+        let (fc, rc) = self.coverage()?;
+        let total_covg = fc.iter().chain(&rc).sum::<i32>() as f32;
+        let gt = match self.called_allele() {
+            i if i < 0 => return None,
+            i => i,
+        } as usize;
+        let called_covg = (fc[gt] + rc[gt]) as f32;
+        match called_covg / total_covg {
+            f if f.is_nan() => None,
+            f => Some(f),
+        }
+    }
+
     fn gt_conf(&self) -> Option<f32> {
         let gt_conf = self.format(Tags::GtypeConf.value()).float().ok()?;
         // there can only be one value for GT_CONF
@@ -385,6 +400,9 @@ impl VcfExt for rust_htslib::bcf::Record {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::filter::test::{
+        bcf_record_set_covg, bcf_record_set_gt, populate_bcf_header,
+    };
     use rust_htslib::bcf;
     use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
@@ -685,6 +703,78 @@ mod tests {
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
         let mut record = vcf.empty_record();
         let actual = record.gt_conf();
+        assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_record_fraction_read_support() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let actual = record.fraction_read_support();
+        let expected = Some(0.9);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_fraction_read_support_alt() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
+        bcf_record_set_gt(&mut record, 1);
+
+        let actual = record.fraction_read_support();
+        let expected = Some(0.1);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_fraction_read_support_zero_coverage() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[0, 0], &[0, 0]);
+        bcf_record_set_gt(&mut record, 1);
+
+        let actual = record.fraction_read_support();
+        assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_record_fraction_read_support_is_null() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[4, 4], &[0, 10]);
+        bcf_record_set_gt(&mut record, -1);
+
+        let actual = record.fraction_read_support();
         assert!(actual.is_none())
     }
 }

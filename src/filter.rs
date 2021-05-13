@@ -204,7 +204,7 @@ impl Filter for Filterer {
 }
 
 #[cfg(test)]
-mod test {
+pub(crate) mod test {
     use super::*;
     use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
@@ -293,7 +293,7 @@ mod test {
         assert_eq!(actual, expected)
     }
 
-    fn populate_bcf_header(header: &mut bcf::Header) {
+    pub(crate) fn populate_bcf_header(header: &mut bcf::Header) {
         header.push_sample(b"sample")
             .push_record(br#"##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#)
             .push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(
@@ -301,7 +301,7 @@ mod test {
         ).push_record(br#"##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">"#);
     }
 
-    fn bcf_record_set_covg(
+    pub(crate) fn bcf_record_set_covg(
         record: &mut bcf::Record,
         fwd_covg: &[i32],
         rev_covg: &[i32],
@@ -316,7 +316,7 @@ mod test {
             .expect("Failed to set reverse coverage");
     }
 
-    fn bcf_record_set_gt(record: &mut bcf::Record, gt: i32) {
+    pub(crate) fn bcf_record_set_gt(record: &mut bcf::Record, gt: i32) {
         let gts = match gt {
             i if i < 0 => vec![GenotypeAllele::UnphasedMissing],
             i => vec![GenotypeAllele::Unphased(i)],
@@ -324,7 +324,7 @@ mod test {
         record.push_genotypes(&gts).unwrap();
     }
 
-    fn bcf_record_set_gt_conf(record: &mut bcf::Record, gt_conf: f32) {
+    pub(crate) fn bcf_record_set_gt_conf(record: &mut bcf::Record, gt_conf: f32) {
         record
             .push_format_float(Tags::GtypeConf.value(), &[gt_conf])
             .expect("Failed to set gt conf");
