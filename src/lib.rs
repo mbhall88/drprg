@@ -342,7 +342,7 @@ pub trait VcfExt {
     fn rlen(&self) -> i64;
     fn range(&self) -> Range<i64>;
     fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)>;
-    fn gt_conf(&self) -> f32;
+    fn gt_conf(&self) -> Option<f32>;
     fn called_allele(&self) -> i32;
 }
 
@@ -365,8 +365,10 @@ impl VcfExt for rust_htslib::bcf::Record {
         Some((fwd_covgs[0].to_owned(), rev_covgs[0].to_owned()))
     }
 
-    fn gt_conf(&self) -> f32 {
-        todo!()
+    fn gt_conf(&self) -> Option<f32> {
+        let gt_conf = self.format(Tags::GtypeConf.value()).float().ok()?;
+        // there can only be one value for GT_CONF
+        Some(gt_conf[0][0])
     }
 
     fn called_allele(&self) -> i32 {
@@ -650,5 +652,39 @@ mod tests {
         let expected = -1;
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_gt_conf() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        record
+            .push_format_float(Tags::GtypeConf.value(), &[3.4])
+            .expect("Failed to set GT_CONF");
+
+        let actual = record.gt_conf();
+        let expected = Some(3.4);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_gt_conf_no_tag() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample");
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let actual = record.gt_conf();
+        assert!(actual.is_none())
     }
 }
