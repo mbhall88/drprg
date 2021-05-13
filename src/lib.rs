@@ -701,7 +701,7 @@ mod tests {
         header.push_sample(b"sample");
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
-        let mut record = vcf.empty_record();
+        let record = vcf.empty_record();
         let actual = record.gt_conf();
         assert!(actual.is_none())
     }

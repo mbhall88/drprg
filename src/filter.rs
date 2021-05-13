@@ -130,7 +130,6 @@ pub trait Filter {
     fn is_high_covg(&self, record: &bcf::Record) -> bool;
     fn is_low_gt_conf(&self, record: &bcf::Record) -> bool;
     fn is_low_support(&self, record: &bcf::Record) -> bool;
-    fn is_high_gaps(&self, record: &bcf::Record) -> bool;
     fn is_long_indel(&self, record: &bcf::Record) -> bool;
     fn filter(&self, record: &mut bcf::Record) {
         todo!()
@@ -200,12 +199,19 @@ impl Filter for Filterer {
         }
     }
 
-    fn is_high_gaps(&self, record: &Record) -> bool {
-        todo!()
-    }
-
     fn is_long_indel(&self, record: &Record) -> bool {
-        todo!()
+        let gt = record.called_allele();
+        if gt < 1 || self.max_indel.is_none() {
+            false
+        } else {
+            let l = match record.alleles().get(gt as usize) {
+                Some(a) => a.len(),
+                None => 0,
+            } as i64;
+
+            let indel_len = (record.rlen() - l).abs();
+            indel_len > self.max_indel.unwrap() as i64
+        }
     }
 }
 
@@ -458,7 +464,7 @@ pub(crate) mod test {
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
+        let filt = Filterer::default();
 
         assert!(!filt.is_low_covg(&record))
     }
@@ -599,7 +605,7 @@ pub(crate) mod test {
         header.remove_format(Tags::GtypeConf.value());
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
-        let mut record = vcf.empty_record();
+        let record = vcf.empty_record();
 
         let filt = Filterer::default();
 
@@ -782,5 +788,194 @@ pub(crate) mod test {
         let filt = Filterer::default();
 
         assert!(!filt.is_low_support(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_ins_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TCGAG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(1);
+
+        assert!(filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_del_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(1);
+
+        assert!(filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_ins_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TCGAG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(10);
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_del_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(10);
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_ins_same_as_max() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TCGAG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(2);
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_del_below_same_as_max() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(2);
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_ref() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 0);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(0);
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_null() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, -1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(0);
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_unset() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let filt = Filterer::default();
+
+        assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_is_long_indel_snp() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut filt = Filterer::default();
+        filt.max_indel = Some(0);
+
+        assert!(!filt.is_long_indel(&record))
     }
 }
