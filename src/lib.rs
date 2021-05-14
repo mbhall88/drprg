@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use crate::filter::Tags;
 use bstr::ByteSlice;
 use log::{debug, error};
+use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::record::GenotypeAllele;
 use std::ffi::OsStr;
 use std::fs::File;
@@ -345,6 +346,7 @@ pub trait VcfExt {
     fn fraction_read_support(&self) -> Option<f32>;
     fn gt_conf(&self) -> Option<f32>;
     fn called_allele(&self) -> i32;
+    fn is_pass(&self) -> bool;
 }
 
 impl VcfExt for rust_htslib::bcf::Record {
@@ -394,6 +396,10 @@ impl VcfExt for rust_htslib::bcf::Record {
                 _ => -1,
             },
         }
+    }
+
+    fn is_pass(&self) -> bool {
+        self.has_filter(Id(0))
     }
 }
 
@@ -776,5 +782,21 @@ mod tests {
 
         let actual = record.fraction_read_support();
         assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_record_is_pass() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        header
+            .push_record(br#"##FILTER=<ID=foo,Description="sample is a foo fighter">"#);
+        header.push_record(br#"##FILTER=<ID=bar,Description="a horse walks into...">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        assert!(record.is_pass());
+        record.push_filter(record.header().name_to_id(b"foo").unwrap());
+        assert!(!record.is_pass());
     }
 }

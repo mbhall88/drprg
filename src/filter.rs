@@ -2,8 +2,12 @@ use crate::VcfExt;
 use float_cmp::approx_eq;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Record;
+use std::cmp::Ordering::Equal;
 use std::str::FromStr;
 use thiserror::Error;
+
+#[cfg(test)]
+use mockall::*;
 
 /// A collection of custom errors relating to the Tags enum
 #[derive(Error, Debug, PartialEq)]
@@ -21,8 +25,6 @@ pub enum Tags {
     LowCovg,
     HighCovg,
     StrandBias,
-    Gaps,
-    HighGaps,
     GtypeConf,
     LowGtConf,
     LongIndel,
@@ -41,8 +43,6 @@ impl Tags {
             Tags::LowCovg => b"ld",
             Tags::HighCovg => b"hd",
             Tags::StrandBias => b"sb",
-            Tags::Gaps => b"GAPS",
-            Tags::HighGaps => b"hg",
             Tags::GtypeConf => b"GT_CONF",
             Tags::LowGtConf => b"lgc",
             Tags::LongIndel => b"lindel",
@@ -64,8 +64,6 @@ impl FromStr for Tags {
             "ld" => Ok(Tags::LowCovg),
             "hd" => Ok(Tags::HighCovg),
             "sb" => Ok(Tags::StrandBias),
-            "GAPS" => Ok(Tags::Gaps),
-            "hg" => Ok(Tags::HighGaps),
             "GT_CONF" => Ok(Tags::GtypeConf),
             "lgc" => Ok(Tags::LowGtConf),
             "lindel" => Ok(Tags::LongIndel),
@@ -84,7 +82,6 @@ struct FilterStatus {
     high_covg: bool,
     strand_bias: bool,
     low_gt_conf: bool,
-    high_gaps: bool,
     long_indel: bool,
     low_support: bool,
 }
@@ -108,9 +105,6 @@ impl FilterStatus {
         if self.strand_bias {
             tags.push(Tags::StrandBias);
         }
-        if self.high_gaps {
-            tags.push(Tags::HighGaps);
-        }
         if self.long_indel {
             tags.push(Tags::LongIndel);
         }
@@ -125,14 +119,23 @@ impl FilterStatus {
 }
 
 /// A trait to allow for filtering of a VCF. The provided method is `filter`
+#[cfg_attr(test, automock)]
 pub trait Filter {
     fn is_low_covg(&self, record: &bcf::Record) -> bool;
     fn is_high_covg(&self, record: &bcf::Record) -> bool;
     fn is_low_gt_conf(&self, record: &bcf::Record) -> bool;
     fn is_low_support(&self, record: &bcf::Record) -> bool;
     fn is_long_indel(&self, record: &bcf::Record) -> bool;
+    fn has_strand_bias(&self, record: &bcf::Record) -> bool;
     fn filter(&self, record: &mut bcf::Record) {
-        todo!()
+        let status = FilterStatus {
+            low_covg: self.is_low_covg(&record),
+            high_covg: self.is_high_covg(&record),
+            strand_bias: self.has_strand_bias(&record),
+            low_gt_conf: self.is_low_gt_conf(&record),
+            long_indel: self.is_long_indel(&record),
+            low_support: self.is_low_support(&record),
+        };
     }
 }
 
@@ -213,6 +216,47 @@ impl Filter for Filterer {
             indel_len > self.max_indel.unwrap() as i64
         }
     }
+
+    fn has_strand_bias(&self, record: &Record) -> bool {
+        type B = Vec<f32>;
+        let (fc, rc): (B, B) = match record.coverage() {
+            Some((f, r)) => (
+                f.iter().map(|i| *i as f32).collect::<B>(),
+                r.iter().map(|i| *i as f32).collect::<B>(),
+            ),
+            None => return false,
+        };
+        let ratio = match record.called_allele() {
+            -1 => {
+                let mut ratios: Vec<f32> = vec![];
+                for gt in 0..record.allele_count() as usize {
+                    let sum_covg = fc[gt] + rc[gt];
+                    if approx_eq!(f32, sum_covg, 0.0) {
+                        ratios.push(1.0);
+                    } else {
+                        let r = fc[gt].min(rc[gt]) / sum_covg;
+                        ratios.push(r);
+                    }
+                }
+                ratios.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
+                ratios.first().copied()
+            }
+            gt => {
+                let sum_covg = fc[gt as usize] + rc[gt as usize];
+                if approx_eq!(f32, sum_covg, 0.0) {
+                    None
+                } else {
+                    Some(fc[gt as usize].min(rc[gt as usize]) / sum_covg)
+                }
+            }
+        };
+        match ratio {
+            Some(r) => {
+                r < self.min_strand_bias && !approx_eq!(f32, r, self.min_strand_bias)
+            }
+            None => false,
+        }
+    }
 }
 
 #[cfg(test)]
@@ -264,7 +308,6 @@ pub(crate) mod test {
             high_covg: true,
             strand_bias: true,
             low_gt_conf: true,
-            high_gaps: true,
             long_indel: true,
             low_support: true,
         };
@@ -276,7 +319,6 @@ pub(crate) mod test {
             Tags::HighCovg,
             Tags::LowGtConf,
             Tags::StrandBias,
-            Tags::HighGaps,
             Tags::LongIndel,
             Tags::LowSupport,
         ];
@@ -292,14 +334,13 @@ pub(crate) mod test {
             high_covg: false,
             strand_bias: true,
             low_gt_conf: false,
-            high_gaps: true,
             long_indel: false,
-            low_support: false,
+            low_support: true,
         };
 
         let mut actual = status.tags();
         actual.sort_unstable();
-        let mut expected = vec![Tags::StrandBias, Tags::HighGaps];
+        let mut expected = vec![Tags::StrandBias, Tags::LowSupport];
         expected.sort_unstable();
 
         assert_eq!(actual, expected)
@@ -318,14 +359,16 @@ pub(crate) mod test {
         fwd_covg: &[i32],
         rev_covg: &[i32],
     ) {
-        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
-        record.set_alleles(alleles).expect("Failed to set alleles");
         record
             .push_format_integer(b"MED_FWD_COVG", fwd_covg)
             .expect("Failed to set forward coverage");
         record
             .push_format_integer(b"MED_REV_COVG", rev_covg)
             .expect("Failed to set reverse coverage");
+    }
+
+    pub(crate) fn bcf_record_set_alleles(record: &mut bcf::Record, alleles: &[&[u8]]) {
+        record.set_alleles(alleles).expect("Failed to set alleles");
     }
 
     pub(crate) fn bcf_record_set_gt(record: &mut bcf::Record, gt: i32) {
@@ -977,5 +1020,133 @@ pub(crate) mod test {
         filt.max_indel = Some(0);
 
         assert!(!filt.is_long_indel(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_has_strand_bias_above() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
+        bcf_record_set_gt(&mut record, 0);
+        bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
+
+        let mut filt = Filterer::default();
+        filt.min_strand_bias = 0.1;
+
+        assert!(!filt.has_strand_bias(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_has_strand_bias_below() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 1], &[1, 9]);
+        bcf_record_set_gt(&mut record, 1);
+        bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
+
+        let mut filt = Filterer::default();
+        filt.min_strand_bias = 0.2;
+
+        assert!(filt.has_strand_bias(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_has_strand_bias_same_as_min() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 1], &[1, 9]);
+        bcf_record_set_gt(&mut record, 1);
+        bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
+
+        let mut filt = Filterer::default();
+        filt.min_strand_bias = 0.1;
+
+        assert!(!filt.has_strand_bias(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_has_strand_bias_no_coverage() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 0], &[1, 0]);
+        bcf_record_set_gt(&mut record, 1);
+        bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
+
+        let mut filt = Filterer::default();
+        filt.min_strand_bias = 0.1;
+
+        assert!(!filt.has_strand_bias(&record))
+    }
+
+    #[test]
+    fn filter_bcf_record_has_strand_bias_null_selects_min() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[1, 0, 4], &[1, 0, 400]);
+        bcf_record_set_gt(&mut record, -1);
+        bcf_record_set_alleles(&mut record, &[b"A", b"T", b"C"]);
+
+        let mut filt = Filterer::default();
+        filt.min_strand_bias = 0.1;
+
+        assert!(filt.has_strand_bias(&record))
+    }
+
+    #[test]
+    #[ignore]
+    fn filter_filter() {
+        // fn is_low_covg(&self, record: &bcf::Record) -> bool;
+        // fn is_high_covg(&self, record: &bcf::Record) -> bool;
+        // fn is_low_gt_conf(&self, record: &bcf::Record) -> bool;
+        // fn is_low_support(&self, record: &bcf::Record) -> bool;
+        // fn is_long_indel(&self, record: &bcf::Record) -> bool;
+        // fn filter(&self, record: &mut bcf::Record) {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+
+        let mut mock = MockFilter::new();
+        mock.expect_is_low_covg().return_const(false);
+        mock.expect_is_high_covg().return_const(false);
+        mock.expect_is_low_gt_conf().return_const(false);
+        mock.expect_is_low_support().return_const(false);
+        mock.expect_is_long_indel().return_const(false);
+
+        let filt = Filterer::default();
+        filt.filter(&mut record);
+
+        assert!(record.is_pass())
     }
 }
