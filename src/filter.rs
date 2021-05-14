@@ -6,15 +6,15 @@ use std::cmp::Ordering::Equal;
 use std::str::FromStr;
 use thiserror::Error;
 
-#[cfg(test)]
-use mockall::*;
-
 /// A collection of custom errors relating to the Tags enum
 #[derive(Error, Debug, PartialEq)]
-pub enum TagsError {
+pub enum FilterError {
     /// The string is not known
     #[error("Unknown tag given {0}")]
     UnknownTag(String),
+    /// Tried to add a filter tag not in the header
+    #[error("Tried to add filter {0}, which is not in the header")]
+    TagNotInHeader(String),
 }
 
 /// A collection of known VCF tags/fields/filters
@@ -55,7 +55,7 @@ impl Tags {
 }
 
 impl FromStr for Tags {
-    type Err = TagsError;
+    type Err = FilterError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -71,7 +71,7 @@ impl FromStr for Tags {
             "PASS" => Ok(Tags::Pass),
             "FT" => Ok(Tags::FormatFilter),
             "FAIL" => Ok(Tags::AllFail),
-            _ => Err(TagsError::UnknownTag(s.to_string())),
+            _ => Err(FilterError::UnknownTag(s.to_string())),
         }
     }
 }
@@ -116,10 +116,21 @@ impl FilterStatus {
         }
         tags
     }
+
+    fn apply_filters_to(&self, record: &mut bcf::Record) -> Result<(), FilterError> {
+        for tag in self.tags() {
+            let id = record.header().name_to_id(tag.value()).map_err(|_| {
+                FilterError::TagNotInHeader(
+                    String::from_utf8_lossy(tag.value()).to_string(),
+                )
+            })?;
+            record.push_filter(id);
+        }
+        Ok(())
+    }
 }
 
 /// A trait to allow for filtering of a VCF. The provided method is `filter`
-#[cfg_attr(test, automock)]
 pub trait Filter {
     fn is_low_covg(&self, record: &bcf::Record) -> bool;
     fn is_high_covg(&self, record: &bcf::Record) -> bool;
@@ -127,7 +138,7 @@ pub trait Filter {
     fn is_low_support(&self, record: &bcf::Record) -> bool;
     fn is_long_indel(&self, record: &bcf::Record) -> bool;
     fn has_strand_bias(&self, record: &bcf::Record) -> bool;
-    fn filter(&self, record: &mut bcf::Record) {
+    fn filter(&self, record: &mut bcf::Record) -> Result<(), FilterError> {
         let status = FilterStatus {
             low_covg: self.is_low_covg(&record),
             high_covg: self.is_high_covg(&record),
@@ -136,6 +147,9 @@ pub trait Filter {
             long_indel: self.is_long_indel(&record),
             low_support: self.is_low_support(&record),
         };
+
+        status.apply_filters_to(record)?;
+        Ok(())
     }
 }
 
@@ -286,7 +300,7 @@ pub(crate) mod test {
         let s = "foo";
 
         let actual = Tags::from_str(s);
-        let expected = Err(TagsError::UnknownTag(s.to_string()));
+        let expected = Err(FilterError::UnknownTag(s.to_string()));
 
         assert_eq!(actual, expected)
     }
@@ -352,6 +366,7 @@ pub(crate) mod test {
             .push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         ).push_record(br#"##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">"#);
+        header.push_record(br#"##contig=<ID=chrom>"#);
     }
 
     pub(crate) fn bcf_record_set_covg(
@@ -1118,14 +1133,7 @@ pub(crate) mod test {
     }
 
     #[test]
-    #[ignore]
-    fn filter_filter() {
-        // fn is_low_covg(&self, record: &bcf::Record) -> bool;
-        // fn is_high_covg(&self, record: &bcf::Record) -> bool;
-        // fn is_low_gt_conf(&self, record: &bcf::Record) -> bool;
-        // fn is_low_support(&self, record: &bcf::Record) -> bool;
-        // fn is_long_indel(&self, record: &bcf::Record) -> bool;
-        // fn filter(&self, record: &mut bcf::Record) {
+    fn filter_all_pass() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1134,19 +1142,39 @@ pub(crate) mod test {
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
+        bcf_record_set_covg(&mut record, &[1, 0], &[1, 0]);
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
-
-        let mut mock = MockFilter::new();
-        mock.expect_is_low_covg().return_const(false);
-        mock.expect_is_high_covg().return_const(false);
-        mock.expect_is_low_gt_conf().return_const(false);
-        mock.expect_is_low_support().return_const(false);
-        mock.expect_is_long_indel().return_const(false);
+        record.set_pos(1);
 
         let filt = Filterer::default();
-        filt.filter(&mut record);
+        filt.filter(&mut record).unwrap();
 
         assert!(record.is_pass())
+    }
+
+    #[test]
+    fn filter_low_covg() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.push_record(br#"##FILTER=<ID=ld,Description="low covg">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        bcf_record_set_covg(&mut record, &[1, 0], &[1, 0]);
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 1);
+        record.set_pos(1);
+
+        let mut filt = Filterer::default();
+        filt.min_covg = 200;
+        filt.filter(&mut record).unwrap();
+
+        let id = record.header().name_to_id(Tags::LowCovg.value()).unwrap();
+        assert!(record.has_filter(id));
+        assert!(!record.is_pass())
     }
 }
