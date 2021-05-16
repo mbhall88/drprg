@@ -276,6 +276,7 @@ impl Filter for Filterer {
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
+    use bstr::ByteSlice;
     use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
     use tempfile::NamedTempFile;
@@ -1164,7 +1165,7 @@ pub(crate) mod test {
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
-        bcf_record_set_covg(&mut record, &[1, 0], &[1, 0]);
+        bcf_record_set_covg(&mut record, &[1, 10], &[1, 0]);
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
         record.set_pos(1);
@@ -1176,5 +1177,129 @@ pub(crate) mod test {
         let id = record.header().name_to_id(Tags::LowCovg.value()).unwrap();
         assert!(record.has_filter(id));
         assert!(!record.is_pass())
+    }
+
+    #[test]
+    fn filter_high_covg_and_low_support() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.push_record(br#"##FILTER=<ID=hd,Description="low covg">"#);
+        header.push_record(br#"##FILTER=<ID=frs,Description="low covg">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 0);
+        record.set_pos(1);
+
+        let mut filt = Filterer::default();
+        filt.max_covg = 2;
+        filt.min_support = 0.95;
+        filt.filter(&mut record).unwrap();
+
+        let mut id = record.header().name_to_id(Tags::HighCovg.value()).unwrap();
+        assert!(record.has_filter(id));
+        id = record
+            .header()
+            .name_to_id(Tags::LowSupport.value())
+            .unwrap();
+        assert!(record.has_filter(id));
+        assert!(!record.is_pass())
+    }
+
+    #[test]
+    fn filter_status_apply_filters_to_missing_tag() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.push_record(br#"##FILTER=<ID=hd,Description="low covg">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 0);
+        record.set_pos(1);
+
+        let stat = FilterStatus {
+            low_covg: false,
+            high_covg: true,
+            strand_bias: false,
+            low_gt_conf: false,
+            long_indel: true,
+            low_support: false,
+        };
+
+        let actual = stat.apply_filters_to(&mut record).unwrap_err();
+        let expected = FilterError::TagNotInHeader(
+            Tags::LongIndel.value().to_str_lossy().to_string(),
+        );
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn filter_status_apply_filters_to_tags_all_present() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        header.push_record(br#"##FILTER=<ID=sb,Description="low covg">"#);
+        header.push_record(br#"##FILTER=<ID=lgc,Description="low covg">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 0);
+        record.set_pos(1);
+
+        let stat = FilterStatus {
+            low_covg: false,
+            high_covg: false,
+            strand_bias: true,
+            low_gt_conf: true,
+            long_indel: false,
+            low_support: false,
+        };
+
+        stat.apply_filters_to(&mut record).unwrap();
+
+        let mut id = record.header().name_to_id(Tags::LowGtConf.value()).unwrap();
+        assert!(record.has_filter(id));
+        id = record
+            .header()
+            .name_to_id(Tags::StrandBias.value())
+            .unwrap();
+        assert!(record.has_filter(id));
+    }
+
+    #[test]
+    fn filter_status_apply_filters_to_all_pass() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        bcf_record_set_gt(&mut record, 0);
+        record.set_pos(1);
+
+        let stat = FilterStatus::new();
+
+        stat.apply_filters_to(&mut record).unwrap();
+
+        assert!(record.is_pass())
     }
 }
