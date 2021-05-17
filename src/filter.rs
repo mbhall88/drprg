@@ -5,7 +5,28 @@ use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::Record;
 use std::cmp::Ordering::Equal;
 use std::str::FromStr;
+use structopt::StructOpt;
 use thiserror::Error;
+#[macro_use]
+use lazy_static::lazy_static;
+// min_strand_bias: -1.0,
+// min_gt_conf: -1.0,
+// max_indel: None,
+// min_support: -1.0,
+
+const MIN_COVG: i32 = -1;
+const MAX_COVG: i32 = i32::MAX;
+const MIN_SB: f32 = -1.0;
+const MIN_GTCONF: f32 = -1.0;
+const MAX_INDEL: Option<i32> = None;
+const MIN_FRS: f32 = -1.0;
+lazy_static! {
+    static ref MIN_COVG_STR: String = MIN_COVG.to_string();
+    static ref MAX_COVG_STR: String = MAX_COVG.to_string();
+    static ref MIN_SB_STR: String = MIN_SB.to_string();
+    static ref MIN_GTCONF_STR: String = MIN_GTCONF.to_string();
+    static ref MIN_FRS_STR: String = MIN_FRS.to_string();
+}
 
 /// A collection of custom errors relating to the Tags enum
 #[derive(Error, Debug, PartialEq)]
@@ -157,24 +178,43 @@ pub trait Filter {
 }
 
 /// A struct to hold all of the values for the filter
+#[derive(StructOpt, Debug)]
 pub struct Filterer {
+    /// Minimum depth of coverage allowed on variants
+    #[structopt(short = "d", long, default_value = &MIN_COVG_STR, hidden_short_help = true, value_name = "INT")]
     min_covg: i32,
+    /// Maximum depth of coverage allowed on variants
+    #[structopt(short = "D", long, default_value = &MAX_COVG_STR, hidden_short_help = true, value_name = "INT")]
     max_covg: i32,
+    /// Minimum strand bias ratio allowed on variants
+    ///
+    /// For example, setting to 0.25 requires >=25% of total (allele) coverage on both
+    /// strands for an allele.
+    #[structopt(short = "b", long, default_value = &MIN_SB_STR, hidden_short_help = true, value_name = "FLOAT")]
     min_strand_bias: f32,
+    /// Minimum genotype confidence (GT_CONF) score allow on variants
+    #[structopt(short = "g", long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT")]
     min_gt_conf: f32,
+    /// Maximum (absolute) length of insertions/deletions allowed
+    #[structopt(short = "L", long, hidden_short_help = true, value_name = "INT")]
     max_indel: Option<i32>,
-    min_support: f32,
+    /// Minimum fraction of read support
+    ///
+    /// For example, setting to 0.9 requires >=90% of coverage for the variant to be on the called
+    /// allele
+    #[structopt(short = "K", long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT")]
+    min_frs: f32,
 }
 
 impl Default for Filterer {
     fn default() -> Self {
         Filterer {
-            min_covg: -1,
-            max_covg: i32::MAX,
-            min_strand_bias: -1.0,
-            min_gt_conf: -1.0,
-            max_indel: None,
-            min_support: -1.0,
+            min_covg: MIN_COVG,
+            max_covg: MAX_COVG,
+            min_strand_bias: MIN_SB,
+            min_gt_conf: MIN_GTCONF,
+            max_indel: MAX_INDEL,
+            min_frs: MIN_FRS,
         }
     }
 }
@@ -212,9 +252,7 @@ impl Filter for Filterer {
 
     fn is_low_support(&self, record: &Record) -> bool {
         match record.fraction_read_support() {
-            Some(frs) => {
-                frs < self.min_support && !approx_eq!(f32, frs, self.min_support)
-            }
+            Some(frs) => frs < self.min_frs && !approx_eq!(f32, frs, self.min_frs),
             None => false,
         }
     }
@@ -758,7 +796,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 1);
 
         let mut filt = Filterer::default();
-        filt.min_support = 0.9;
+        filt.min_frs = 0.9;
 
         assert!(!filt.is_low_support(&record))
     }
@@ -776,7 +814,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 0);
 
         let mut filt = Filterer::default();
-        filt.min_support = 0.9;
+        filt.min_frs = 0.9;
 
         assert!(filt.is_low_support(&record))
     }
@@ -794,7 +832,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 0);
 
         let mut filt = Filterer::default();
-        filt.min_support = 0.90;
+        filt.min_frs = 0.90;
 
         assert!(!filt.is_low_support(&record))
     }
@@ -812,7 +850,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, -1);
 
         let mut filt = Filterer::default();
-        filt.min_support = 0.90;
+        filt.min_frs = 0.90;
 
         assert!(!filt.is_low_support(&record))
     }
@@ -830,7 +868,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 1);
 
         let mut filt = Filterer::default();
-        filt.min_support = 0.90;
+        filt.min_frs = 0.90;
 
         assert!(!filt.is_low_support(&record))
     }
@@ -1201,7 +1239,7 @@ pub(crate) mod test {
 
         let mut filt = Filterer::default();
         filt.max_covg = 2;
-        filt.min_support = 0.95;
+        filt.min_frs = 0.95;
         filt.filter(&mut record).unwrap();
 
         let mut id = record.header().name_to_id(Tags::HighCovg.value()).unwrap();

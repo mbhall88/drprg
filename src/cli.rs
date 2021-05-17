@@ -24,7 +24,7 @@ pub struct Cli {
     /// Maximum number of threads to use
     ///
     /// Use 0 to select the number automatically
-    #[structopt(short, long, global = true, default_value = "1")]
+    #[structopt(short, long, global = true, default_value = "1", value_name = "INT")]
     pub threads: u8,
     #[structopt(subcommand)] // Note that we mark a field as a subcommand
     pub(crate) cmd: Command,

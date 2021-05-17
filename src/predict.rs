@@ -8,6 +8,7 @@ use thiserror::Error;
 
 use crate::cli::check_path_exists;
 use crate::Runner;
+use drprg::filter::Filterer;
 use drprg::{Pandora, PathExt};
 use rust_htslib::bcf::Read;
 
@@ -27,19 +28,26 @@ pub struct Predict {
         short = "p",
         long = "pandora",
         parse(from_os_str),
-        hidden_short_help = true
+        hidden_short_help = true,
+        value_name = "FILE"
     )]
     pandora_exec: Option<PathBuf>,
     /// Directory containing the index (produced by `drprg build`)
-    #[structopt(short = "x", long, required = true, parse(try_from_os_str = check_path_exists))]
+    #[structopt(short = "x", long, required = true, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
     index: PathBuf,
     /// Sample reads to predict resistance from
     ///
     /// Both fasta and fastq are accepted, along with compressed or uncompressed.
-    #[structopt(short, long, required = true, parse(try_from_os_str = check_path_exists))]
+    #[structopt(short, long, required = true, parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     input: PathBuf,
     /// Directory to place output
-    #[structopt(short, long, default_value = ".", parse(from_os_str))]
+    #[structopt(
+        short,
+        long,
+        default_value = ".",
+        parse(from_os_str),
+        value_name = "DIR"
+    )]
     outdir: PathBuf,
     /// Identifier to use for the sample
     ///
@@ -61,6 +69,8 @@ pub struct Predict {
     /// Sample reads are from Illumina sequencing
     #[structopt(short = "I", long = "illumina")]
     is_illumina: bool,
+    #[structopt(flatten)]
+    filterer: Filterer,
 }
 
 impl Runner for Predict {
@@ -179,6 +189,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.sample_name();
@@ -198,6 +209,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.sample_name();
@@ -217,6 +229,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.index_prg_path();
@@ -236,6 +249,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.index_prg_index_path();
@@ -255,6 +269,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.index_prg_update_path();
@@ -274,6 +289,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.index_kmer_prgs_path();
@@ -293,6 +309,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.index_vcf_path();
@@ -312,6 +329,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.index_vcf_ref_path();
@@ -333,6 +351,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -356,6 +375,7 @@ mod tests {
             sample: None,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
 
         let actual = predictor.validate_index().unwrap_err();
@@ -377,6 +397,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -401,6 +422,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -426,6 +448,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -452,6 +475,7 @@ mod tests {
             sample: None,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -479,6 +503,7 @@ mod tests {
             discover: false,
             require_genotype: false,
             is_illumina: false,
+            filterer: Default::default(),
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
