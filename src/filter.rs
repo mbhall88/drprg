@@ -1,6 +1,7 @@
 use crate::VcfExt;
 use float_cmp::approx_eq;
 use rust_htslib::bcf;
+use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::Record;
 use std::cmp::Ordering::Equal;
 use std::str::FromStr;
@@ -118,14 +119,16 @@ impl FilterStatus {
     }
 
     fn apply_filters_to(&self, record: &mut bcf::Record) -> Result<(), FilterError> {
+        let mut ids: Vec<Id> = vec![];
         for tag in self.tags() {
             let id = record.header().name_to_id(tag.value()).map_err(|_| {
                 FilterError::TagNotInHeader(
                     String::from_utf8_lossy(tag.value()).to_string(),
                 )
             })?;
-            record.push_filter(id);
+            ids.push(id);
         }
+        record.set_filters(&ids);
         Ok(())
     }
 }
