@@ -1,18 +1,19 @@
-pub mod filter;
-mod interval;
-
+use std::ffi::OsStr;
+use std::fs::File;
+use std::ops::Range;
 use std::path::{Path, PathBuf};
+use std::process::Command;
 
-use crate::filter::Tags;
 use bstr::ByteSlice;
 use log::{debug, error};
 use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::record::GenotypeAllele;
-use std::ffi::OsStr;
-use std::fs::File;
-use std::ops::Range;
-use std::process::Command;
 use thiserror::Error;
+
+use crate::filter::Tags;
+
+pub mod filter;
+mod interval;
 
 const MAKE_PRG_BIN: &str = "make_prg";
 const MAFFT_BIN: &str = "mafft/bin/mafft";
@@ -200,6 +201,10 @@ impl Pandora {
         } else {
             Ok(())
         }
+    }
+
+    pub fn vcf_filename() -> String {
+        String::from("pandora_genotyped.vcf")
     }
 }
 
@@ -405,14 +410,16 @@ impl VcfExt for rust_htslib::bcf::Record {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::filter::test::{
-        bcf_record_set_covg, bcf_record_set_gt, populate_bcf_header,
-    };
     use rust_htslib::bcf;
     use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
     use tempfile::NamedTempFile;
+
+    use crate::filter::test::{
+        bcf_record_set_covg, bcf_record_set_gt, populate_bcf_header,
+    };
+
+    use super::*;
 
     #[test]
     fn path_is_executable() {

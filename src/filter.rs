@@ -1,18 +1,16 @@
-use crate::VcfExt;
+use std::cmp::Ordering::Equal;
+use std::io::Write;
+use std::str::FromStr;
+
 use float_cmp::approx_eq;
+use lazy_static::lazy_static;
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::Record;
-use std::cmp::Ordering::Equal;
-use std::str::FromStr;
 use structopt::StructOpt;
 use thiserror::Error;
-#[macro_use]
-use lazy_static::lazy_static;
-// min_strand_bias: -1.0,
-// min_gt_conf: -1.0,
-// max_indel: None,
-// min_support: -1.0,
+
+use crate::VcfExt;
 
 const MIN_COVG: i32 = -1;
 const MAX_COVG: i32 = i32::MAX;
@@ -314,13 +312,68 @@ impl Filter for Filterer {
     }
 }
 
+impl Filterer {
+    fn meta_info_line(id: &[u8], description: &[u8]) -> Vec<u8> {
+        let mut line: Vec<u8> = b"##FILTER=<ID=".to_vec();
+        line.write_all(id).unwrap();
+        line.write_all(br#",Description=""#).unwrap();
+        line.write_all(description).unwrap();
+        line.write_all(br#"">"#).unwrap();
+        line
+    }
+    /// Write meta-information lines to a VCF for the filters that are currently enabled
+    pub fn add_filter_headers(&self, header: &mut bcf::Header) {
+        if self.min_covg > MIN_COVG {
+            let id = Tags::LowCovg.value();
+            let desc =
+                format!("Kmer coverage on called allele less than {}", self.min_covg);
+            header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
+        }
+        if self.max_covg < MAX_COVG {
+            let id = Tags::HighCovg.value();
+            let desc =
+                format!("Kmer coverage on called allele more than {}", self.min_covg);
+            header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
+        }
+        if self.min_strand_bias > MIN_SB {
+            let id = Tags::StrandBias.value();
+            let desc = format!(
+                "A strand on the called allele has less than {:.2}% of the coverage for that allele", self.min_strand_bias * 100.0,
+            );
+            header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
+        }
+        if self.min_gt_conf > MIN_GTCONF {
+            let id = Tags::LowGtConf.value();
+            let desc = format!(
+                "Genotype confidence score less than {:.1}",
+                self.min_gt_conf,
+            );
+            header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
+        }
+        if self.max_indel.is_some() {
+            let id = Tags::LongIndel.value();
+            let desc = format!("Indel is longer than {}bp", self.max_indel.unwrap(),);
+            header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
+        }
+        if self.min_frs > MIN_FRS {
+            let id = Tags::LowSupport.value();
+            let desc = format!(
+                "Fraction of read support on called allele is less than {}",
+                self.min_frs
+            );
+            header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
+        }
+    }
+}
+
 #[cfg(test)]
 pub(crate) mod test {
-    use super::*;
     use bstr::ByteSlice;
     use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn tags_value() {
@@ -1342,5 +1395,71 @@ pub(crate) mod test {
         stat.apply_filters_to(&mut record).unwrap();
 
         assert!(record.is_pass())
+    }
+
+    #[test]
+    fn filterer_add_filters_to_header_all_default_set_nothing() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        let filt = Filterer::default();
+        filt.add_filter_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let view = vcf.header();
+
+        assert!(view.name_to_id(Tags::LowGtConf.value()).is_err())
+    }
+
+    #[test]
+    fn filterer_add_filters_to_header_all_set() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        let filt = Filterer {
+            min_covg: 0,
+            max_covg: 0,
+            min_strand_bias: 0.0,
+            min_gt_conf: 0.0,
+            max_indel: Some(1),
+            min_frs: 0.0,
+        };
+        filt.add_filter_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let view = vcf.header();
+
+        assert!(view.name_to_id(Tags::LowGtConf.value()).is_ok());
+        assert!(view.name_to_id(Tags::LowCovg.value()).is_ok());
+        assert!(view.name_to_id(Tags::HighCovg.value()).is_ok());
+        assert!(view.name_to_id(Tags::LowSupport.value()).is_ok());
+        assert!(view.name_to_id(Tags::LongIndel.value()).is_ok());
+        assert!(view.name_to_id(Tags::StrandBias.value()).is_ok())
+    }
+
+    #[test]
+    fn filterer_add_filters_to_header_some_set() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        let filt = Filterer {
+            min_covg: MIN_COVG,
+            max_covg: 0,
+            min_strand_bias: MIN_SB,
+            min_gt_conf: 0.0,
+            max_indel: Some(1),
+            min_frs: 0.0,
+        };
+        filt.add_filter_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let view = vcf.header();
+
+        assert!(view.name_to_id(Tags::LowGtConf.value()).is_ok());
+        assert!(view.name_to_id(Tags::LowCovg.value()).is_err());
+        assert!(view.name_to_id(Tags::HighCovg.value()).is_ok());
+        assert!(view.name_to_id(Tags::LowSupport.value()).is_ok());
+        assert!(view.name_to_id(Tags::LongIndel.value()).is_ok());
+        assert!(view.name_to_id(Tags::StrandBias.value()).is_err())
     }
 }

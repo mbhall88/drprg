@@ -2,15 +2,17 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use log::{debug, info};
+use rust_htslib::bcf;
+use rust_htslib::bcf::Read;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
-use crate::cli::check_path_exists;
-use crate::Runner;
 use drprg::filter::Filterer;
 use drprg::{Pandora, PathExt};
-use rust_htslib::bcf::Read;
+
+use crate::cli::check_path_exists;
+use crate::Runner;
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -108,6 +110,11 @@ impl Runner for Predict {
         )?;
         info!("Successfully genotyped reads");
         // todo: create a filterer that takes a record and returns if the vcf record passes
+        let pandora_vcf =
+            bcf::Reader::from_path(self.outdir.join(Pandora::vcf_filename()))?;
+        let mut vcf_header = bcf::Header::from_template(pandora_vcf.header());
+        self.filterer.add_filter_headers(&mut vcf_header);
+
         // todo: load pandora - passed - variants into HashMap with gene/interval keys
         // todo: load panel VCF and check with intersecting pandora vcf records
         let mut panel_vcf = rust_htslib::bcf::Reader::from_path(&self.index_vcf_path())
