@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::ops::Range;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
@@ -8,8 +10,8 @@ use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
-use drprg::filter::Filterer;
-use drprg::{Pandora, PathExt};
+use drprg::filter::{Filter, Filterer};
+use drprg::{Pandora, PathExt, VcfExt};
 
 use crate::cli::check_path_exists;
 use crate::Runner;
@@ -20,6 +22,9 @@ pub enum PredictError {
     /// The index is not valid
     #[error("Index is not valid due to missing file {0:?}")]
     InvalidIndex(PathBuf),
+    /// VCF record is missing chromosome field
+    #[error("VCF record is missing CHROM field")]
+    MissingChrom,
 }
 
 #[derive(StructOpt, Debug)]
@@ -109,13 +114,31 @@ impl Runner for Predict {
             &gt_args,
         )?;
         info!("Successfully genotyped reads");
-        // todo: create a filterer that takes a record and returns if the vcf record passes
-        let pandora_vcf =
+        let mut pandora_vcf =
             bcf::Reader::from_path(self.outdir.join(Pandora::vcf_filename()))?;
         let mut vcf_header = bcf::Header::from_template(pandora_vcf.header());
         self.filterer.add_filter_headers(&mut vcf_header);
+        let mut pandora_var_idx: HashMap<(Vec<u8>, Range<i64>), Vec<bcf::Record>> =
+            HashMap::new();
+        for record_result in pandora_vcf.records() {
+            let mut record = record_result?;
+            self.filterer.filter(&mut record)?;
+            let chrom = record
+                .header()
+                .rid2name(record.rid().ok_or(PredictError::MissingChrom)?)
+                .map_err(|_| PredictError::MissingChrom {})?
+                .to_owned();
+            let key = (chrom, record.range());
+            if let Some(v) = pandora_var_idx.get_mut(&key) {
+                v.push(record);
+            } else {
+                pandora_var_idx.insert(key, vec![record]);
+            }
+        }
+        // for (k, r) in pandora_var_idx {
+        //     println!("{:?}\t{:?}", k.1, r.range());
+        // }
 
-        // todo: load pandora - passed - variants into HashMap with gene/interval keys
         // todo: load panel VCF and check with intersecting pandora vcf records
         let mut panel_vcf = rust_htslib::bcf::Reader::from_path(&self.index_vcf_path())
             .context("Failed to open panel VCF")?;
