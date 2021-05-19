@@ -9,10 +9,11 @@ use structopt::StructOpt;
 use thiserror::Error;
 
 use drprg::filter::{Filter, Filterer};
-use drprg::{index_vcf, Pandora, PathExt};
+use drprg::{index_vcf, unwrap_or_continue, Pandora, PathExt, VcfExt};
 
 use crate::cli::check_path_exists;
 use crate::Runner;
+use rust_htslib::bcf::header::{TagLength, TagType};
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -22,7 +23,7 @@ pub enum PredictError {
     InvalidIndex(PathBuf),
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Default)]
 #[structopt(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Predict {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
@@ -117,12 +118,36 @@ impl Runner for Predict {
         debug!("Filtered pandora VCF indexed successfully");
 
         // todo: load panel VCF and check with intersecting pandora vcf records
-        // let mut panel_vcf = bcf::Reader::from_path(&self.index_vcf_path())
-        //     .context("Failed to open panel VCF")?;
-        // for (i, record_result) in panel_vcf.records().enumerate() {
-        //     let panel_var = record_result
-        //         .context(format!("Failed to read record {} in panel VCF", i))?;
-        // }
+        let predict_vcf_path = outdir.join(self.predict_vcf_filename());
+        {
+            let mut vcfidx = bcf::IndexedReader::from_path(&filt_vcf_path)
+                .context("Failed to open filtered VCF index")?;
+            let mut predict_header = bcf::Header::from_template(vcfidx.header());
+            self.add_predict_info_to_header(&mut predict_header);
+            let mut panel_vcf = bcf::Reader::from_path(&self.index_vcf_path())
+                .context("Failed to open panel VCF")?;
+
+            for (i, record_result) in panel_vcf.records().enumerate() {
+                let panel_record = record_result
+                    .context(format!("Failed to read record {} in panel VCF", i))?;
+                let panel_rid = panel_record.rid().context(format!(
+                    "Panel variant number {} does not have a CHROM",
+                    i
+                ))?;
+                let chrom = panel_record
+                    .header()
+                    .rid2name(panel_rid)
+                    .context("Panel VCF is missing a contig from the header")?;
+                let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(chrom));
+                let start = panel_record.pos() as u64;
+                let end = panel_record.end() as u64;
+                unwrap_or_continue!(vcfidx.fetch(idx_rid, start, end));
+                for idx_res in vcfidx.records() {
+                    let idx_record =
+                        idx_res.context("Failed to parse index vcf record")?;
+                }
+            }
+        }
         // todo: generate prediction from filtered pandora output
 
         Ok(())
@@ -130,6 +155,18 @@ impl Runner for Predict {
 }
 
 impl Predict {
+    fn add_predict_info_to_header(&self, header: &mut bcf::Header) {
+        for field in &[InfoField::VarId, InfoField::Prediction] {
+            let line = format!(
+                r#"##INFO=<ID={},Number={},Type={},Description="{}">"#,
+                field.id(),
+                field.number().as_char(),
+                field.tag_type().as_str(),
+                field.description()
+            );
+            header.push_record(line.as_bytes());
+        }
+    }
     fn index_prg_path(&self) -> PathBuf {
         self.index.join("dr.prg")
     }
@@ -164,6 +201,11 @@ impl Predict {
     fn filtered_vcf_filename(&self) -> PathBuf {
         let path = PathBuf::from(self.sample_name());
         path.with_extension("filtered.bcf")
+    }
+
+    fn predict_vcf_filename(&self) -> PathBuf {
+        let path = PathBuf::from(self.sample_name());
+        path.with_extension("predict.bcf")
     }
 
     fn validate_index(&self) -> Result<(), PredictError> {
@@ -212,11 +254,80 @@ impl Predict {
     }
 }
 
+enum InfoField {
+    VarId,
+    Prediction,
+}
+
+impl InfoField {
+    /// The ID used in the VCF INFO header entry
+    fn id(&self) -> &str {
+        match self {
+            InfoField::Prediction => "PREDICT",
+            InfoField::VarId => "VARID",
+        }
+    }
+    /// The INFO Type used for this field
+    fn tag_type(&self) -> TagType {
+        match self {
+            InfoField::Prediction => TagType::String,
+            InfoField::VarId => TagType::String,
+        }
+    }
+    /// The INFO Number used for this field
+    fn number(&self) -> TagLength {
+        match self {
+            InfoField::Prediction => TagLength::Variable,
+            InfoField::VarId => TagLength::Variable,
+        }
+    }
+    /// The INFO Description used for this field
+    fn description(&self) -> &str {
+        match self {
+            InfoField::Prediction => "The drug resistance prediction(s) for the corresponding VARID(s), where 'R' = resistant, 'S' = susceptible, 'F' = failed, and 'U' = unknown",
+            InfoField::VarId => "The identifier for the panel variant(s) the record overlaps with"
+        }
+    }
+}
+
+trait TagLengthExt {
+    fn as_char(&self) -> char;
+}
+
+impl TagLengthExt for TagLength {
+    fn as_char(&self) -> char {
+        match self {
+            Self::Variable => '.',
+            Self::Genotypes => 'G',
+            Self::Alleles => 'R',
+            Self::AltAlleles => 'A',
+            Self::Fixed(i) => std::char::from_u32(*i).unwrap_or('.'),
+        }
+    }
+}
+
+trait TagTypeExt {
+    fn as_str(&self) -> &str;
+}
+
+impl TagTypeExt for TagType {
+    fn as_str(&self) -> &str {
+        match self {
+            Self::String => "String",
+            Self::Flag => "Flag",
+            Self::Float => "Float",
+            Self::Integer => "Integer",
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::fs::File;
 
     use super::*;
+    use rust_htslib::bcf::Header;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn sample_name_no_sample() {
@@ -557,5 +668,25 @@ mod tests {
         let expected = PredictError::InvalidIndex(tmp_path.join("dr.update_DS"));
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn predict_add_predict_info_to_header() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+        let pred = Predict::default();
+        pred.add_predict_info_to_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let view = vcf.header();
+
+        for field in &[InfoField::VarId, InfoField::Prediction] {
+            let result = view.info_type(field.id().as_bytes());
+            assert!(result.is_ok());
+            let (tag_type, tag_len) = result.unwrap();
+            assert_eq!(tag_type, field.tag_type());
+            assert_eq!(tag_len, field.number())
+        }
     }
 }
