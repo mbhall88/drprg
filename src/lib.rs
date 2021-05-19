@@ -22,6 +22,32 @@ const MAFFT_BIN: &str = "mafft/bin/mafft";
 const PANDORA_BIN: &str = "pandora";
 const MTB_GENOME_SIZE: u32 = 4411532;
 
+#[macro_export]
+/// A macro that will unwrap and return the value of a Result if Ok or cause a loop to continue if
+/// the Result is an Err
+///
+/// # Examples
+/// ```rust
+/// # use drprg::unwrap_or_continue;
+/// let v = &[Ok(1), Ok(2), Err(3), Ok(4)];
+/// let mut sum = 0;
+/// let mut i = 0;
+/// for x in v {
+/// i += 1;
+/// sum += unwrap_or_continue!(x);
+/// }
+/// assert_eq!(i, 4);
+/// assert_eq!(sum, 7)
+/// ```
+macro_rules! unwrap_or_continue {
+    ( $result:expr ) => {
+        match $result {
+            Ok(val) => val,
+            Err(_) => continue,
+        }
+    };
+}
+
 /// A collection of custom errors relating to the working with files for this package.
 #[derive(Error, Debug)]
 pub enum DependencyError {
@@ -837,5 +863,18 @@ mod tests {
         assert!(record.is_pass());
         record.push_filter(record.header().name_to_id(b"foo").unwrap());
         assert!(!record.is_pass());
+    }
+
+    #[test]
+    fn test_unwrap_or_continue() {
+        let v = &[Ok(1), Ok(2), Err(3), Ok(4)];
+        let mut sum = 0;
+        let mut i = 0;
+        for x in v {
+            i += 1;
+            sum += unwrap_or_continue!(x);
+        }
+        assert_eq!(i, 4);
+        assert_eq!(sum, 7)
     }
 }
