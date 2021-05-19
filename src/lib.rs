@@ -20,6 +20,7 @@ mod interval;
 const MAKE_PRG_BIN: &str = "make_prg";
 const MAFFT_BIN: &str = "mafft/bin/mafft";
 const PANDORA_BIN: &str = "pandora";
+const BCFTOOLS_BIN: &str = "bcftools";
 const MTB_GENOME_SIZE: u32 = 4411532;
 
 #[macro_export]
@@ -63,6 +64,26 @@ pub enum DependencyError {
     /// An error associated with indexing VCFs with htslib
     #[error("Failed to index VCF with htslib: {0}")]
     HtslibIndexError(String),
+}
+
+pub struct Bcftools {
+    executable: String,
+}
+
+impl Bcftools {
+    pub fn from_path(path: &Option<PathBuf>) -> Result<Self, DependencyError> {
+        let default = dependency_dir().join(BCFTOOLS_BIN);
+        let executable = from_path_or(&path, &default);
+        match (path, executable) {
+            (_, Some(exec)) => Ok(Self { executable: exec }),
+            (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
+                p.to_string_lossy(),
+            ))),
+            (None, None) => {
+                Err(DependencyError::NotExecutable(BCFTOOLS_BIN.to_owned()))
+            }
+        }
+    }
 }
 
 pub struct MakePrg {
