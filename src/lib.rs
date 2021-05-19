@@ -1,11 +1,13 @@
 use std::ffi::OsStr;
 use std::fs::File;
 use std::ops::Range;
+use std::os::unix::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use bstr::ByteSlice;
 use log::{debug, error};
+use rust_htslib::bcf;
 use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::record::GenotypeAllele;
 use thiserror::Error;
@@ -32,6 +34,9 @@ pub enum DependencyError {
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     ProcessError(#[from] std::io::Error),
+    /// An error associated with indexing VCFs with htslib
+    #[error("Failed to index VCF with htslib: {0}")]
+    HtslibIndexError(String),
 }
 
 pub struct MakePrg {
@@ -275,16 +280,43 @@ fn from_path_or(path: &Option<PathBuf>, default: &Path) -> Option<String> {
         }
         None => {
             let default_fname = default.file_name()?.to_string_lossy();
-            debug!(
-                "No {} executable given. Trying default locations...",
-                default_fname
-            );
             is_executable(&default.to_string_lossy())
                 .or_else(|| is_executable(&*default_fname))
         }
     }
 }
 
+pub fn index_vcf(path: &Path) -> Result<(), DependencyError> {
+    let min_shift: i32 = 14; // recommended default in htslib docs - https://github.com/samtools/htslib/blob/818008a750eefb347bb3732dff9fb60afc367de6/htslib/vcf.h#L1236
+    let fname = std::ffi::CString::new(path.to_path_buf().into_os_string().into_vec())
+        .map_err(|_| {
+            DependencyError::HtslibIndexError(
+                "Failed to convert filtered VCF path into a CString".to_string(),
+            )
+        })?;
+    unsafe {
+        match rust_htslib::htslib::bcf_index_build(fname.as_ptr(), min_shift) {
+            0 => Ok(()),
+            -1 => Err(DependencyError::HtslibIndexError(
+                "Indexing failed (htslib exit code -1)".to_string(),
+            )),
+            -2 => Err(DependencyError::HtslibIndexError(
+                "Opening @fn failed (htslib exit code -2)".to_string(),
+            )),
+            -3 => Err(DependencyError::HtslibIndexError(
+                "Format not indexable (htslib exit code -3)".to_string(),
+            )),
+            -4 => Err(DependencyError::HtslibIndexError(
+                "Failed to create and/or save the index (htslib exit code -4)"
+                    .to_string(),
+            )),
+            i => Err(DependencyError::HtslibIndexError(format!(
+                "Unknown htslib exit code ({}) received",
+                i
+            ))),
+        }
+    }
+}
 pub fn dependency_dir() -> PathBuf {
     std::env::current_exe()
         .unwrap()
@@ -354,7 +386,7 @@ pub trait VcfExt {
     fn is_pass(&self) -> bool;
 }
 
-impl VcfExt for rust_htslib::bcf::Record {
+impl VcfExt for bcf::Record {
     fn end(&self) -> i64 {
         self.pos() + self.rlen()
     }

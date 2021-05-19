@@ -107,9 +107,6 @@ struct FilterStatus {
 }
 
 impl FilterStatus {
-    fn new() -> Self {
-        FilterStatus::default()
-    }
     /// Returns the Tags for the filters this object fails
     fn tags(&self) -> Vec<Tags> {
         let mut tags = vec![];
@@ -200,7 +197,7 @@ pub struct Filterer {
     ///
     /// For example, setting to 0.9 requires >=90% of coverage for the variant to be on the called
     /// allele
-    #[structopt(short = "K", long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT")]
+    #[structopt(short = "K", long, default_value = &MIN_FRS_STR, hidden_short_help = true, value_name = "FLOAT")]
     min_frs: f32,
 }
 
@@ -402,7 +399,7 @@ pub(crate) mod test {
 
     #[test]
     fn filter_status_tags_none_fail() {
-        let status = FilterStatus::new();
+        let status = FilterStatus::default();
 
         let actual = status.tags();
         let expected = &[Tags::Pass];
@@ -1390,7 +1387,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 0);
         record.set_pos(1);
 
-        let stat = FilterStatus::new();
+        let stat = FilterStatus::default();
 
         stat.apply_filters_to(&mut record).unwrap();
 

@@ -1,17 +1,15 @@
-use std::collections::HashMap;
-use std::ops::Range;
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use log::{debug, info};
 use rust_htslib::bcf;
-use rust_htslib::bcf::Read;
+use rust_htslib::bcf::{Format, Read};
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
 use drprg::filter::{Filter, Filterer};
-use drprg::{Pandora, PathExt, VcfExt};
+use drprg::{index_vcf, Pandora, PathExt};
 
 use crate::cli::check_path_exists;
 use crate::Runner;
@@ -22,9 +20,6 @@ pub enum PredictError {
     /// The index is not valid
     #[error("Index is not valid due to missing file {0:?}")]
     InvalidIndex(PathBuf),
-    /// VCF record is missing chromosome field
-    #[error("VCF record is missing CHROM field")]
-    MissingChrom,
 }
 
 #[derive(StructOpt, Debug)]
@@ -114,39 +109,21 @@ impl Runner for Predict {
             &gt_args,
         )?;
         info!("Successfully genotyped reads");
-        let mut pandora_vcf =
-            bcf::Reader::from_path(self.outdir.join(Pandora::vcf_filename()))?;
-        let mut vcf_header = bcf::Header::from_template(pandora_vcf.header());
-        self.filterer.add_filter_headers(&mut vcf_header);
-        let mut pandora_var_idx: HashMap<(Vec<u8>, Range<i64>), Vec<bcf::Record>> =
-            HashMap::new();
-        for record_result in pandora_vcf.records() {
-            let mut record = record_result?;
-            self.filterer.filter(&mut record)?;
-            let chrom = record
-                .header()
-                .rid2name(record.rid().ok_or(PredictError::MissingChrom)?)
-                .map_err(|_| PredictError::MissingChrom {})?
-                .to_owned();
-            let key = (chrom, record.range());
-            if let Some(v) = pandora_var_idx.get_mut(&key) {
-                v.push(record);
-            } else {
-                pandora_var_idx.insert(key, vec![record]);
-            }
-        }
-        // for (k, r) in pandora_var_idx {
-        //     println!("{:?}\t{:?}", k.1, r.range());
-        // }
+        debug!("Filtering variants...");
+        let filt_vcf_path = self.filter_pandora_vcf()?;
+        debug!("Variant filtering complete");
+        debug!("Indexing filtered pandora VCF");
+        index_vcf(&filt_vcf_path).context("Failed to index filtered pandora VCF")?;
+        debug!("Filtered pandora VCF indexed successfully");
 
         // todo: load panel VCF and check with intersecting pandora vcf records
-        let mut panel_vcf = rust_htslib::bcf::Reader::from_path(&self.index_vcf_path())
-            .context("Failed to open panel VCF")?;
-        for (i, record_result) in panel_vcf.records().enumerate() {
-            let panel_variant = record_result
-                .context(format!("Failed to read record {} in panel VCF", i))?;
-        }
-        // todo: generate prediction from pandora map output
+        // let mut panel_vcf = bcf::Reader::from_path(&self.index_vcf_path())
+        //     .context("Failed to open panel VCF")?;
+        // for (i, record_result) in panel_vcf.records().enumerate() {
+        //     let panel_var = record_result
+        //         .context(format!("Failed to read record {} in panel VCF", i))?;
+        // }
+        // todo: generate prediction from filtered pandora output
 
         Ok(())
     }
@@ -184,6 +161,11 @@ impl Predict {
         }
     }
 
+    fn filtered_vcf_filename(&self) -> PathBuf {
+        let path = PathBuf::from(self.sample_name());
+        path.with_extension("filtered.bcf")
+    }
+
     fn validate_index(&self) -> Result<(), PredictError> {
         let expected_paths = &[
             self.index_prg_path(),
@@ -199,6 +181,34 @@ impl Predict {
             }
         }
         Ok(())
+    }
+
+    fn filter_pandora_vcf(&self) -> Result<PathBuf> {
+        let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
+        let filt_vcf_path = self.outdir.join(self.filtered_vcf_filename());
+        {
+            let mut vcf_reader = bcf::Reader::from_path(pandora_vcf_path)
+                .context("Failed to open pandora VCF")?;
+            let mut writer_header = bcf::Header::from_template(vcf_reader.header());
+            self.filterer.add_filter_headers(&mut writer_header);
+            let mut vcf_writer = bcf::Writer::from_path(
+                &filt_vcf_path,
+                &writer_header,
+                false,
+                Format::BCF,
+            )
+            .context("Failed to create filtered VCF")?;
+            for (i, record_result) in vcf_reader.records().enumerate() {
+                let mut record = record_result
+                    .context(format!("Failed to read record {} in pandora VCF", i))?;
+                vcf_writer.translate(&mut record);
+                self.filterer.filter(&mut record)?;
+                vcf_writer
+                    .write(&record)
+                    .context("Failed to write filtered VCF record")?;
+            }
+        }
+        Ok(filt_vcf_path)
     }
 }
 
