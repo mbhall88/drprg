@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna::revcomp;
@@ -13,7 +13,7 @@ use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
-use drprg::{MakePrg, Pandora};
+use drprg::{index_vcf, Bcftools, MakePrg, Pandora};
 use drprg::{MultipleSeqAligner, PathExt};
 
 use crate::cli::check_path_exists;
@@ -53,6 +53,15 @@ pub struct Build {
         value_name = "FILE"
     )]
     mafft_exec: Option<PathBuf>,
+    /// Path to bcftools executable. Will try in src/ext or $PATH if not given
+    #[structopt(
+        short = "B",
+        long = "bcftools",
+        parse(from_os_str),
+        hidden_short_help = true,
+        value_name = "FILE"
+    )]
+    bcftools_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
     #[structopt(short = "a", long = "gff", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     gff_file: PathBuf,
@@ -180,91 +189,117 @@ impl Runner for Build {
             debug!("Creating VCF header...");
             let vcf_header = self.create_vcf_header(&annotations);
             debug!("VCF header created");
-
-            let mut vcf_writer = bcf::Writer::from_path(
-                &panel_vcf_path,
-                &vcf_header,
-                false,
-                bcf::Format::BCF,
-            )?;
-            debug!("Loading the reference genome index...");
-            let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
-            debug!("Loaded the reference genome index");
-            let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
-            if !premsa_dir.exists() {
-                debug!("Pre-MSA directory doesn't exist...creating...");
-                std::fs::create_dir(&premsa_dir)
-                    .context(format!("Failed to create {:?}", &premsa_dir))?;
-            } else if self.force {
-                debug!("Existing pre-MSA directory found...removing...");
-                std::fs::remove_dir_all(&premsa_dir)
-                    .and_then(|_| std::fs::create_dir(&premsa_dir))
-                    .context(format!(
-                        "Failed to remove and recreate {:?}",
-                        &premsa_dir
-                    ))?;
-            }
-
-            info!("Converting the panel to a VCF...");
-            for (gene, gff_record) in &annotations {
-                let seq =
-                    extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
-                fa_writer.write(
-                    gene,
-                    Some(&format!("padding={}", self.padding)),
-                    &seq,
+            let unsorted_panel_vcf_path = panel_vcf_path.with_extension("unsorted.bcf");
+            {
+                let mut vcf_writer = bcf::Writer::from_path(
+                    &unsorted_panel_vcf_path,
+                    &vcf_header,
+                    false,
+                    bcf::Format::BCF,
                 )?;
-                let premsa_path = premsa_dir.join(format!("{}.fa", gene));
-                let mut premsa_writer = fasta::Writer::to_file(premsa_path)?;
-                premsa_writer.write(
-                    gene,
-                    Some(&format!("padding={}", self.padding)),
-                    &seq,
-                )?;
+                debug!("Loading the reference genome index...");
+                let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
+                debug!("Loaded the reference genome index");
+                let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
+                if !premsa_dir.exists() {
+                    debug!("Pre-MSA directory doesn't exist...creating...");
+                    std::fs::create_dir(&premsa_dir)
+                        .context(format!("Failed to create {:?}", &premsa_dir))?;
+                } else if self.force {
+                    debug!("Existing pre-MSA directory found...removing...");
+                    std::fs::remove_dir_all(&premsa_dir)
+                        .and_then(|_| std::fs::create_dir(&premsa_dir))
+                        .context(format!(
+                            "Failed to remove and recreate {:?}",
+                            &premsa_dir
+                        ))?;
+                }
 
-                let panel_records_for_gene = &panel[gene];
-                for panel_record in panel_records_for_gene {
-                    let mut vcf_record = vcf_writer.empty_record();
-                    match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
-                        Err(PanelError::PosOutOfRange(pos, gene)) => {
-                            warn!(
+                info!("Converting the panel to a VCF...");
+                for (gene, gff_record) in &annotations {
+                    let seq =
+                        extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
+                    fa_writer.write(
+                        gene,
+                        Some(&format!("padding={}", self.padding)),
+                        &seq,
+                    )?;
+                    let premsa_path = premsa_dir.join(format!("{}.fa", gene));
+                    let mut premsa_writer = fasta::Writer::to_file(premsa_path)?;
+                    premsa_writer.write(
+                        gene,
+                        Some(&format!("padding={}", self.padding)),
+                        &seq,
+                    )?;
+
+                    let panel_records_for_gene = &panel[gene];
+                    for panel_record in panel_records_for_gene {
+                        let mut vcf_record = vcf_writer.empty_record();
+                        match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
+                            Err(PanelError::PosOutOfRange(pos, gene)) => {
+                                warn!(
                                 "Position {} is out of range for gene {} [Skipping]",
                                 pos, gene
                             );
-                            continue;
+                                continue;
+                            }
+                            Err(e) => return Err(anyhow!(e)),
+                            _ => (),
                         }
-                        Err(e) => return Err(anyhow!(e)),
-                        _ => (),
-                    }
-                    // we use unwrap as we have already confirmed above that the strand is + or -
-                    let strand =
-                        gff_record.strand().unwrap().strand_symbol().to_owned();
-                    vcf_record
-                        .push_info_string(b"ST", &[strand.as_bytes()])
-                        .context(format!(
-                            "Couldn't set INFO field ST for {}",
-                            panel_record.name()
-                        ))?;
-                    vcf_writer.write(&vcf_record)?;
+                        // we use unwrap as we have already confirmed above that the strand is + or -
+                        let strand =
+                            gff_record.strand().unwrap().strand_symbol().to_owned();
+                        vcf_record
+                            .push_info_string(b"ST", &[strand.as_bytes()])
+                            .context(format!(
+                                "Couldn't set INFO field ST for {}",
+                                panel_record.name()
+                            ))?;
+                        vcf_writer.write(&vcf_record)?;
 
-                    let s: usize = vcf_record.pos() as usize;
-                    let e: usize = s + vcf_record.inner().rlen as usize;
-                    for (i, allele) in vcf_record.alleles()[1..].iter().enumerate() {
-                        let mutated_seq =
-                            [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
-                                .concat();
-                        premsa_writer.write(
-                            &format!("{}_{}", panel_record.name(), i),
-                            None,
-                            &mutated_seq,
-                        )?;
+                        let s: usize = vcf_record.pos() as usize;
+                        let e: usize = s + vcf_record.inner().rlen as usize;
+                        for (i, allele) in vcf_record.alleles()[1..].iter().enumerate()
+                        {
+                            let mutated_seq =
+                                [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
+                                    .concat();
+                            premsa_writer.write(
+                                &format!("{}_{}", panel_record.name(), i),
+                                None,
+                                &mutated_seq,
+                            )?;
+                        }
                     }
                 }
             }
+            debug!("Sorting the original panel VCF...");
+            let bcftools = Bcftools::from_path(&self.bcftools_exec)?;
+            bcftools
+                .sort(&unsorted_panel_vcf_path, &panel_vcf_path)
+                .context("Failed to sort the panel VCF")?;
+            if let Err(e) = std::fs::remove_file(unsorted_panel_vcf_path) {
+                warn!(
+                    "Failed to remove the unsorted/original panel VCF with error:\n{}",
+                    e.to_string()
+                );
+            }
+            debug!("Panel VCF sorted and original removed");
             info!(
                 "Panel successfully converted to a VCF at {:?}",
                 panel_vcf_path
             );
+        }
+        let mut s = panel_vcf_path.to_string_lossy().to_string();
+        s.push_str(".csi");
+        let panel_vcf_index_path = Path::new(&s);
+
+        if !self.force && panel_vcf_index_path.exists() {
+            info!("Using existing panel VCF index")
+        } else {
+            info!("Indexing the panel VCF...");
+            index_vcf(&panel_vcf_path).context("Failed to index the panel VCF")?;
+            info!("Panel VCF successfully indexed");
         }
 
         info!("Generating multiple sequence alignments and reference graphs for all genes and their variants...");

@@ -84,6 +84,30 @@ impl Bcftools {
             }
         }
     }
+
+    pub fn sort(&self, input: &Path, output: &Path) -> Result<(), DependencyError> {
+        let cmd_output = Command::new(&self.executable)
+            .arg("sort")
+            .args(&["-O", "b", "-o"])
+            .arg(output)
+            .arg(input)
+            .output()
+            .map_err(DependencyError::ProcessError)?;
+
+        if !cmd_output.status.success() {
+            error!(
+                "Failed to run bcftools sort with sterr:\n{}",
+                cmd_output.stderr.to_str_lossy()
+            );
+            Err(DependencyError::ProcessError(
+                std::io::Error::from_raw_os_error(
+                    cmd_output.status.code().unwrap_or(129),
+                ),
+            ))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 pub struct MakePrg {
