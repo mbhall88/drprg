@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Seek};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna::revcomp;
@@ -23,7 +23,7 @@ use crate::Runner;
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(StructOpt, Debug)]
+#[derive(StructOpt, Debug, Default)]
 #[structopt(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Build {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
@@ -290,10 +290,8 @@ impl Runner for Build {
                 panel_vcf_path
             );
         }
-        let mut s = panel_vcf_path.to_string_lossy().to_string();
-        s.push_str(".csi");
-        let panel_vcf_index_path = Path::new(&s);
 
+        let panel_vcf_index_path = panel_vcf_path.add_extension(".csi".as_ref());
         if !self.force && panel_vcf_index_path.exists() {
             info!("Using existing panel VCF index")
         } else {
@@ -705,18 +703,8 @@ mod tests {
         let contents: &str = &[gene, variant, residue, drugs].join("\t");
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let builder = Build {
-            pandora_exec: None,
-            makeprg_exec: None,
-            mafft_exec: None,
-            gff_file: Default::default(),
-            panel_file: PathBuf::from(file.path()),
-            reference_file: Default::default(),
-            padding: 0,
-            outdir: Default::default(),
-            match_len: 0,
-            force: false,
-        };
+        let mut builder = Build::default();
+        builder.panel_file = PathBuf::from(file.path());
 
         let actual = builder.load_panel().unwrap();
         let expected = HashMap::from_iter(vec![(
@@ -742,18 +730,8 @@ mod tests {
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(contents.as_bytes()).unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let builder = Build {
-            pandora_exec: None,
-            makeprg_exec: None,
-            mafft_exec: None,
-            gff_file: Default::default(),
-            panel_file: PathBuf::from(file.path()),
-            reference_file: Default::default(),
-            padding: 0,
-            outdir: Default::default(),
-            match_len: 0,
-            force: false,
-        };
+        let mut builder = Build::default();
+        builder.panel_file = PathBuf::from(file.path());
 
         let actual = builder.load_panel().unwrap();
         let expected = HashMap::from_iter(vec![(
@@ -778,18 +756,8 @@ mod tests {
         let contents: &str = &[gene, variant, residue, drugs].join(",");
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let builder = Build {
-            pandora_exec: None,
-            makeprg_exec: None,
-            mafft_exec: None,
-            gff_file: Default::default(),
-            panel_file: PathBuf::from(file.path()),
-            reference_file: Default::default(),
-            padding: 0,
-            outdir: Default::default(),
-            match_len: 0,
-            force: false,
-        };
+        let mut builder = Build::default();
+        builder.panel_file = PathBuf::from(file.path());
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
@@ -806,18 +774,8 @@ mod tests {
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(header.as_bytes()).unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let builder = Build {
-            pandora_exec: None,
-            makeprg_exec: None,
-            mafft_exec: None,
-            gff_file: Default::default(),
-            panel_file: PathBuf::from(file.path()),
-            reference_file: Default::default(),
-            padding: 0,
-            outdir: Default::default(),
-            match_len: 0,
-            force: false,
-        };
+        let mut builder = Build::default();
+        builder.panel_file = PathBuf::from(file.path());
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
@@ -825,18 +783,8 @@ mod tests {
 
     #[test]
     fn load_panel_path_doesnt_exist() {
-        let builder = Build {
-            pandora_exec: None,
-            makeprg_exec: None,
-            mafft_exec: None,
-            gff_file: Default::default(),
-            panel_file: PathBuf::from("foobar"),
-            reference_file: Default::default(),
-            padding: 0,
-            outdir: Default::default(),
-            match_len: 0,
-            force: false,
-        };
+        let mut builder = Build::default();
+        builder.panel_file = PathBuf::from("foobar");
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
@@ -844,18 +792,7 @@ mod tests {
 
     #[test]
     fn create_vcf_header() {
-        let builder = Build {
-            pandora_exec: None,
-            makeprg_exec: None,
-            mafft_exec: None,
-            gff_file: Default::default(),
-            panel_file: PathBuf::from("foobar"),
-            reference_file: Default::default(),
-            padding: 0,
-            outdir: Default::default(),
-            match_len: 0,
-            force: false,
-        };
+        let builder = Build::default();
         const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Name=dnaA;gene=dnaA\n";
         let reader = gff::Reader::new(GFF, gff::GffType::GFF3);
         let genes = HashSet::from_iter(vec!["dnaA".to_string()]);
@@ -880,6 +817,7 @@ mod tests {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
             mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
+            bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
             gff_file: ANNOTATION.parse().unwrap(),
             panel_file: PANEL.parse().unwrap(),
             reference_file: REF.parse().unwrap(),
@@ -920,6 +858,7 @@ mod tests {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
             mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
+            bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
             gff_file: ANNOTATION.parse().unwrap(),
             panel_file: PANEL.parse().unwrap(),
             reference_file: REF.parse().unwrap(),
@@ -954,6 +893,7 @@ mod tests {
     fn build_runner_with_force() {
         let outdir = tempfile::tempdir().unwrap();
         let builder = Build {
+            bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
             mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),

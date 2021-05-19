@@ -183,6 +183,10 @@ impl Predict {
         self.index.join("panel.bcf")
     }
 
+    fn index_vcf_index_path(&self) -> PathBuf {
+        self.index_vcf_path().add_extension(".csi".as_ref())
+    }
+
     fn index_vcf_ref_path(&self) -> PathBuf {
         self.index.join("genes.fa")
     }
@@ -213,6 +217,7 @@ impl Predict {
             self.index_prg_path(),
             self.index_kmer_prgs_path(),
             self.index_vcf_path(),
+            self.index_vcf_index_path(),
             self.index_vcf_ref_path(),
             self.index_prg_index_path(),
             self.index_prg_update_path(),
@@ -508,6 +513,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
             let _f = File::create(tmp_path.join("dr.update_DS")).unwrap();
@@ -587,6 +593,33 @@ mod tests {
     }
 
     #[test]
+    fn validate_index_missing_panel_vcf_index() {
+        let dir = tempfile::tempdir().unwrap();
+        let tmp_path = dir.path();
+        let predictor = Predict {
+            pandora_exec: None,
+            index: PathBuf::from(tmp_path),
+            sample: None,
+            input: Default::default(),
+            outdir: Default::default(),
+            discover: false,
+            require_genotype: false,
+            is_illumina: false,
+            filterer: Default::default(),
+        };
+        {
+            let _f = File::create(tmp_path.join("dr.prg")).unwrap();
+            let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+        }
+
+        let actual = predictor.validate_index().unwrap_err();
+        let expected = PredictError::InvalidIndex(tmp_path.join("panel.bcf.csi"));
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
     fn validate_index_missing_vcf_ref() {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
@@ -605,6 +638,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -632,6 +666,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
         }
 
@@ -660,6 +695,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
         }
