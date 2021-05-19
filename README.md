@@ -64,8 +64,9 @@ $ target/release/drprg -h
 #### Dependencies
 
 `drprg` relies on [`pandora`][pandora] for all subcommands. Additionally, if you want to
-build a custom panel, you will need [`make_prg`][makeprg] (prototype) and
-[`mafft`][mafft]. To download dependencies and place them in their default location, run
+build a custom panel, you will need [`bcftools`][bcftools], [`make_prg`][makeprg]
+(prototype) and [`mafft`][mafft]. To download dependencies and place them in their
+default location, run
 
 ```shell script
 # all dependencies
@@ -76,6 +77,8 @@ $ make pandora
 $ make makeprg
 # mafft only
 $ make mafft
+# bcftools only
+$ make bcftools
 ```
 
 By default, the external dependencies will be downloaded to `src/ext`. This can be
@@ -132,3 +135,4 @@ OPTIONS:
 [makeprg]: https://github.com/leoisl/make_prg/releases/tag/v0.2.0_prototype
 [mykrobe]: https://github.com/Mykrobe-tools/mykrobe
 [Singularity]: https://sylabs.io/
+[bcftools]: https://samtools.github.io/bcftools/bcftools.html
