@@ -3,18 +3,17 @@ use std::path::PathBuf;
 use anyhow::{Context, Result};
 use log::{debug, info};
 use rust_htslib::bcf;
+use rust_htslib::bcf::header::{TagLength, TagType};
 use rust_htslib::bcf::{Format, Read};
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use thiserror::Error;
 
 use drprg::filter::{Filter, Filterer};
-use drprg::{index_vcf, unwrap_or_continue, Pandora, PathExt, VcfExt};
+use drprg::{unwrap_or_continue, Pandora, PathExt, VcfExt};
 
 use crate::cli::check_path_exists;
 use crate::Runner;
-use drprg::interval::IntervalOp;
-use rust_htslib::bcf::header::{TagLength, TagType};
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -99,6 +98,7 @@ pub struct Predict {
 
 impl Runner for Predict {
     fn run(&mut self) -> Result<()> {
+        // todo: implement force
         if !self.outdir.exists() {
             info!("Outdir doesn't exist...creating...");
             std::fs::create_dir(&self.outdir)
@@ -132,7 +132,7 @@ impl Runner for Predict {
         )?;
         info!("Successfully genotyped reads");
         debug!("Filtering variants...");
-        let filt_vcf_path = self.predict_from_pandora_vcf()?;
+        let _predict_vcf_path = self.predict_from_pandora_vcf()?;
         debug!("Variant filtering complete");
 
         Ok(())
@@ -249,21 +249,52 @@ impl Predict {
                 if record.called_allele() == -1 && self.require_genotype {
                     prediction = Prediction::Failed;
                 } else {
-                    let match_idx = record.argmatch(&idx_record);
-                    todo!("Does the overlapping sequence match index Ref or Alt (or none)");
+                    match record.argmatch(&idx_record) {
+                        None if self.discover => prediction = Prediction::Unknown,
+                        Some(i) if i > 0 => prediction = Prediction::Resistant,
+                        _ => (),
+                    };
                 }
-                record
-                    .push_info_string(
-                        InfoField::VarId.id().as_bytes(),
-                        &[&idx_record.id()],
-                    )
-                    .context("Failed to push VARID to record")?;
-                record
-                    .push_info_string(
-                        InfoField::Prediction.id().as_bytes(),
-                        &[&[prediction.to_u8()]],
-                    )
-                    .context("Failed to push PREDICT to record")?;
+                let vid = idx_record.id();
+                let pred = &[prediction.to_u8()];
+                let current_varids = record
+                    .info(InfoField::VarId.id().as_bytes())
+                    .string()
+                    .context("Couldn't unwrap VARIDs")?;
+                match current_varids {
+                    Some(v) => {
+                        let mut cur_v = v.clone();
+                        cur_v.push(&vid);
+                        record
+                            .push_info_string(InfoField::VarId.id().as_bytes(), &cur_v)
+                            .context("Failed to push VARID to record")?;
+                    }
+                    None => record
+                        .push_info_string(InfoField::VarId.id().as_bytes(), &[&vid])
+                        .context("Failed to push VARID to record")?,
+                };
+                let current_preds = record
+                    .info(InfoField::Prediction.id().as_bytes())
+                    .string()
+                    .context("Couldn't unwrap PREDICTs")?;
+                match current_preds {
+                    Some(v) => {
+                        let mut cur_v = v.clone();
+                        cur_v.push(pred);
+                        record
+                            .push_info_string(
+                                InfoField::Prediction.id().as_bytes(),
+                                &cur_v,
+                            )
+                            .context("Failed to push PREDICT to record")?;
+                    }
+                    None => record
+                        .push_info_string(
+                            InfoField::Prediction.id().as_bytes(),
+                            &[pred],
+                        )
+                        .context("Failed to push PREDICT to record")?,
+                }
             }
 
             writer
@@ -346,9 +377,10 @@ impl TagTypeExt for TagType {
 mod tests {
     use std::fs::File;
 
-    use super::*;
     use rust_htslib::bcf::Header;
     use tempfile::NamedTempFile;
+
+    use super::*;
 
     #[test]
     fn sample_name_no_sample() {

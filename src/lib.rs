@@ -1531,4 +1531,36 @@ mod tests {
 
         assert_eq!(actual, expected)
     }
+
+    #[test]
+    fn test_record_argmatch_null_uses_ref() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"ATC", b"ACT", b"ACC", b"ACA", b"ACG", b"AC"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::UnphasedMissing])
+            .unwrap();
+        record.set_pos(161);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"ATC", b"ACT", b"ACC", b"ACA", b"ACG"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(161);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(0);
+
+        assert_eq!(actual, expected)
+    }
 }

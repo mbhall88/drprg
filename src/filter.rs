@@ -504,8 +504,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[5], &[5]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 2;
+        let filt = Filterer {
+            min_covg: 2,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_covg(&record))
     }
@@ -522,8 +524,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1], &[1]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 2;
+        let filt = Filterer {
+            min_covg: 2,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_covg(&record))
     }
@@ -540,8 +544,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1], &[1]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 3;
+        let filt = Filterer {
+            min_covg: 3,
+            ..Default::default()
+        };
 
         assert!(filt.is_low_covg(&record))
     }
@@ -558,8 +564,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 3;
+        let filt = Filterer {
+            min_covg: 3,
+            ..Default::default()
+        };
 
         assert!(filt.is_low_covg(&record))
     }
@@ -576,8 +584,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[6, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 3;
+        let filt = Filterer {
+            min_covg: 3,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_covg(&record))
     }
@@ -595,8 +605,10 @@ pub(crate) mod test {
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 3;
+        let filt = Filterer {
+            min_covg: 3,
+            ..Default::default()
+        };
 
         assert!(filt.is_low_covg(&record))
     }
@@ -631,8 +643,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[5], &[5]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 2;
+        let filt = Filterer {
+            max_covg: 2,
+            ..Default::default()
+        };
 
         assert!(filt.is_high_covg(&record))
     }
@@ -649,8 +663,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1], &[1]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 2;
+        let filt = Filterer {
+            max_covg: 2,
+            ..Default::default()
+        };
 
         assert!(!filt.is_high_covg(&record))
     }
@@ -667,8 +683,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[2], &[2]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 3;
+        let filt = Filterer {
+            max_covg: 3,
+            ..Default::default()
+        };
 
         assert!(filt.is_high_covg(&record))
     }
@@ -685,8 +703,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[10, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 3;
+        let filt = Filterer {
+            max_covg: 3,
+            ..Default::default()
+        };
 
         assert!(filt.is_high_covg(&record))
     }
@@ -703,8 +723,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 3;
+        let filt = Filterer {
+            max_covg: 3,
+            ..Default::default()
+        };
 
         assert!(!filt.is_high_covg(&record))
     }
@@ -722,8 +744,10 @@ pub(crate) mod test {
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 3;
+        let filt = Filterer {
+            max_covg: 3,
+            ..Default::default()
+        };
 
         assert!(!filt.is_high_covg(&record))
     }
@@ -774,8 +798,10 @@ pub(crate) mod test {
         let conf = 11.1;
         bcf_record_set_gt_conf(&mut record, conf);
 
-        let mut filt = Filterer::default();
-        filt.min_gt_conf = 3.2;
+        let filt = Filterer {
+            min_gt_conf: 3.2,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_gt_conf(&record))
     }
@@ -792,8 +818,10 @@ pub(crate) mod test {
         let conf = 11.1;
         bcf_record_set_gt_conf(&mut record, conf);
 
-        let mut filt = Filterer::default();
-        filt.min_gt_conf = 31.2;
+        let filt = Filterer {
+            min_gt_conf: 31.2,
+            ..Default::default()
+        };
 
         assert!(filt.is_low_gt_conf(&record))
     }
@@ -810,8 +838,10 @@ pub(crate) mod test {
         let conf = 11.1;
         bcf_record_set_gt_conf(&mut record, conf);
 
-        let mut filt = Filterer::default();
-        filt.min_gt_conf = 11.1;
+        let filt = Filterer {
+            min_gt_conf: 11.1,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_gt_conf(&record))
     }
@@ -845,8 +875,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.min_frs = 0.9;
+        let filt = Filterer {
+            min_frs: 0.90,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_support(&record))
     }
@@ -863,8 +895,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.min_frs = 0.9;
+        let filt = Filterer {
+            min_frs: 0.90,
+            ..Default::default()
+        };
 
         assert!(filt.is_low_support(&record))
     }
@@ -881,8 +915,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.min_frs = 0.90;
+        let filt = Filterer {
+            min_frs: 0.90,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_support(&record))
     }
@@ -899,8 +935,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[5, 10], &[4, 1]);
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.min_frs = 0.90;
+        let filt = Filterer {
+            min_frs: 0.90,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_support(&record))
     }
@@ -917,8 +955,10 @@ pub(crate) mod test {
         bcf_record_set_covg(&mut record, &[0, 0], &[0, 0]);
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.min_frs = 0.90;
+        let filt = Filterer {
+            min_frs: 0.90,
+            ..Default::default()
+        };
 
         assert!(!filt.is_low_support(&record))
     }
@@ -953,8 +993,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(1);
+        let filt = Filterer {
+            max_indel: Some(1),
+            ..Default::default()
+        };
 
         assert!(filt.is_long_indel(&record))
     }
@@ -972,8 +1014,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(1);
+        let filt = Filterer {
+            max_indel: Some(1),
+            ..Default::default()
+        };
 
         assert!(filt.is_long_indel(&record))
     }
@@ -991,8 +1035,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(10);
+        let filt = Filterer {
+            max_indel: Some(10),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1010,8 +1056,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(10);
+        let filt = Filterer {
+            max_indel: Some(10),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1029,8 +1077,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(2);
+        let filt = Filterer {
+            max_indel: Some(2),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1048,8 +1098,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(2);
+        let filt = Filterer {
+            max_indel: Some(2),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1067,8 +1119,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 0);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(0);
+        let filt = Filterer {
+            max_indel: Some(0),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1086,8 +1140,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, -1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(0);
+        let filt = Filterer {
+            max_indel: Some(0),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1123,8 +1179,10 @@ pub(crate) mod test {
         record.set_alleles(alleles).expect("Failed to set alleles");
         bcf_record_set_gt(&mut record, 1);
 
-        let mut filt = Filterer::default();
-        filt.max_indel = Some(0);
+        let filt = Filterer {
+            max_indel: Some(0),
+            ..Default::default()
+        };
 
         assert!(!filt.is_long_indel(&record))
     }
@@ -1142,8 +1200,10 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 0);
         bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
 
-        let mut filt = Filterer::default();
-        filt.min_strand_bias = 0.1;
+        let filt = Filterer {
+            min_strand_bias: 0.1,
+            ..Default::default()
+        };
 
         assert!(!filt.has_strand_bias(&record))
     }
@@ -1161,8 +1221,10 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 1);
         bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
 
-        let mut filt = Filterer::default();
-        filt.min_strand_bias = 0.2;
+        let filt = Filterer {
+            min_strand_bias: 0.2,
+            ..Default::default()
+        };
 
         assert!(filt.has_strand_bias(&record))
     }
@@ -1180,8 +1242,10 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 1);
         bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
 
-        let mut filt = Filterer::default();
-        filt.min_strand_bias = 0.1;
+        let filt = Filterer {
+            min_strand_bias: 0.1,
+            ..Default::default()
+        };
 
         assert!(!filt.has_strand_bias(&record))
     }
@@ -1199,8 +1263,10 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 1);
         bcf_record_set_alleles(&mut record, &[b"A", b"T"]);
 
-        let mut filt = Filterer::default();
-        filt.min_strand_bias = 0.1;
+        let filt = Filterer {
+            min_strand_bias: 0.1,
+            ..Default::default()
+        };
 
         assert!(!filt.has_strand_bias(&record))
     }
@@ -1218,8 +1284,10 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, -1);
         bcf_record_set_alleles(&mut record, &[b"A", b"T", b"C"]);
 
-        let mut filt = Filterer::default();
-        filt.min_strand_bias = 0.1;
+        let filt = Filterer {
+            min_strand_bias: 0.1,
+            ..Default::default()
+        };
 
         assert!(filt.has_strand_bias(&record))
     }
@@ -1261,8 +1329,10 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 1);
         record.set_pos(1);
 
-        let mut filt = Filterer::default();
-        filt.min_covg = 200;
+        let filt = Filterer {
+            min_covg: 200,
+            ..Default::default()
+        };
         filt.filter(&mut record).unwrap();
 
         let id = record.header().name_to_id(Tags::LowCovg.value()).unwrap();
@@ -1287,9 +1357,11 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, 0);
         record.set_pos(1);
 
-        let mut filt = Filterer::default();
-        filt.max_covg = 2;
-        filt.min_frs = 0.95;
+        let filt = Filterer {
+            max_covg: 2,
+            min_frs: 0.95,
+            ..Default::default()
+        };
         filt.filter(&mut record).unwrap();
 
         let mut id = record.header().name_to_id(Tags::HighCovg.value()).unwrap();

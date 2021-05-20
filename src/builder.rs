@@ -703,8 +703,10 @@ mod tests {
         let contents: &str = &[gene, variant, residue, drugs].join("\t");
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let mut builder = Build::default();
-        builder.panel_file = PathBuf::from(file.path());
+        let builder = Build {
+            panel_file: PathBuf::from(file.path()),
+            ..Default::default()
+        };
 
         let actual = builder.load_panel().unwrap();
         let expected = HashMap::from_iter(vec![(
@@ -730,8 +732,10 @@ mod tests {
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(contents.as_bytes()).unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let mut builder = Build::default();
-        builder.panel_file = PathBuf::from(file.path());
+        let builder = Build {
+            panel_file: PathBuf::from(file.path()),
+            ..Default::default()
+        };
 
         let actual = builder.load_panel().unwrap();
         let expected = HashMap::from_iter(vec![(
@@ -756,8 +760,10 @@ mod tests {
         let contents: &str = &[gene, variant, residue, drugs].join(",");
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let mut builder = Build::default();
-        builder.panel_file = PathBuf::from(file.path());
+        let builder = Build {
+            panel_file: PathBuf::from(file.path()),
+            ..Default::default()
+        };
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
@@ -774,8 +780,10 @@ mod tests {
         let mut file = tempfile::NamedTempFile::new().unwrap();
         file.write_all(header.as_bytes()).unwrap();
         file.write_all(contents.as_bytes()).unwrap();
-        let mut builder = Build::default();
-        builder.panel_file = PathBuf::from(file.path());
+        let builder = Build {
+            panel_file: PathBuf::from(file.path()),
+            ..Default::default()
+        };
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
@@ -783,8 +791,10 @@ mod tests {
 
     #[test]
     fn load_panel_path_doesnt_exist() {
-        let mut builder = Build::default();
-        builder.panel_file = PathBuf::from("foobar");
+        let builder = Build {
+            panel_file: PathBuf::from("foobar"),
+            ..Default::default()
+        };
 
         let actual = builder.load_panel();
         assert!(actual.is_err())
