@@ -150,18 +150,18 @@ impl Build {
 }
 
 impl Runner for Build {
-    fn run(&self) -> Result<()> {
+    fn run(&mut self) -> Result<()> {
         if !self.outdir.exists() {
             info!("Outdir doesn't exist...creating...");
             std::fs::create_dir(&self.outdir)
                 .context(format!("Failed to create {:?}", &self.outdir))?;
         }
-        let outdir = self
+        self.outdir = self
             .outdir
             .canonicalize()
             .context("Failed to canonicalize outdir")?;
-        let premsa_dir = outdir.join("premsa");
-        let msa_dir = outdir.join("msa");
+        let premsa_dir = self.outdir.join("premsa");
+        let msa_dir = self.outdir.join("msa");
         info!("Building panel index...");
 
         info!("Loading the panel...");
@@ -181,8 +181,8 @@ impl Runner for Build {
         }
         info!("Loaded annotations");
 
-        let panel_vcf_path = outdir.join("panel.bcf");
-        let gene_refs_path = outdir.join("genes.fa");
+        let panel_vcf_path = self.outdir.join("panel.bcf");
+        let gene_refs_path = self.outdir.join("genes.fa");
         if !self.force && panel_vcf_path.exists() && gene_refs_path.exists() {
             info!("Using existing panel VCF and gene reference files")
         } else {
@@ -328,7 +328,7 @@ impl Runner for Build {
 
         info!("Building reference graphs for genes...");
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
-        let prg_path = outdir.join("dr.prg");
+        let prg_path = self.outdir.join("dr.prg");
         let prg_update_ds = prg_path.with_extension("update_DS");
         if !self.force && prg_path.exists() && prg_update_ds.exists() {
             info!("Existing reference graph found...skipping...");
@@ -813,7 +813,7 @@ mod tests {
     #[test]
     fn build_runner() {
         let outdir = tempfile::tempdir().unwrap();
-        let builder = Build {
+        let mut builder = Build {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
             mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
@@ -854,7 +854,7 @@ mod tests {
         if outdir.exists() {
             std::fs::remove_dir_all(&outdir).unwrap();
         }
-        let builder = Build {
+        let mut builder = Build {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
             mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
@@ -892,7 +892,7 @@ mod tests {
     #[test]
     fn build_runner_with_force() {
         let outdir = tempfile::tempdir().unwrap();
-        let builder = Build {
+        let mut builder = Build {
             bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),

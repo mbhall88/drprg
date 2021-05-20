@@ -13,9 +13,11 @@ use rust_htslib::bcf::record::GenotypeAllele;
 use thiserror::Error;
 
 use crate::filter::Tags;
+use crate::interval::IntervalOp;
+use std::cmp::min;
 
 pub mod filter;
-mod interval;
+pub mod interval;
 
 const MAKE_PRG_BIN: &str = "make_prg";
 const MAFFT_BIN: &str = "mafft/bin/mafft";
@@ -455,6 +457,7 @@ pub trait VcfExt {
     fn gt_conf(&self) -> Option<f32>;
     fn called_allele(&self) -> i32;
     fn is_pass(&self) -> bool;
+    fn slice(&self, iv: &Range<i64>) -> &[u8];
 }
 
 impl VcfExt for bcf::Record {
@@ -508,6 +511,25 @@ impl VcfExt for bcf::Record {
 
     fn is_pass(&self) -> bool {
         self.has_filter(Id(0))
+    }
+
+    /// Slice the called allele with the given interval. If the called allele is NULL then REF is
+    /// used
+    fn slice(&self, iv: &Range<i64>) -> &[u8] {
+        let gt = match self.called_allele() {
+            i if i < 0 => 0, // we assume REF for NULL calls
+            i => i,
+        } as usize;
+        let allele = self.alleles()[gt];
+        let isec = match self.range().intersect(&iv) {
+            Some(i) => {
+                let s = (i.start - self.pos()) as usize;
+                let e = min(s + (i.end - i.start) as usize, allele.len());
+                s..e
+            }
+            None => return b"",
+        };
+        &self.alleles()[gt][isec]
     }
 }
 
@@ -921,5 +943,238 @@ mod tests {
         }
         assert_eq!(i, 4);
         assert_eq!(sum, 7)
+    }
+
+    #[test]
+    fn test_record_slice_ref_first_base() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        let iv = 0..1;
+
+        let actual = record.slice(&iv);
+        let expected = b"A";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_ref_last_base() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record.set_pos(0);
+        let iv = 2..10;
+
+        let actual = record.slice(&iv);
+        let expected = b"G";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_ref_iv_spans_whole_and_more() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 2..10;
+
+        let actual = record.slice(&iv);
+        let expected = b"AGG";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_alt_iv_spans_whole_and_more() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 2..10;
+
+        let actual = record.slice(&iv);
+        let expected = b"TG";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_alt_middle_base() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 7..8;
+
+        let actual = record.slice(&iv);
+        let expected = b"A";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_empty_iv() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 7..7;
+
+        let actual = record.slice(&iv);
+        let expected = b"";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_null_gt_uses_ref() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::UnphasedMissing])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 7..9;
+
+        let actual = record.slice(&iv);
+        let expected = b"G";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_no_iv_overlap_left() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 0..5;
+
+        let actual = record.slice(&iv);
+        let expected = b"";
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_slice_no_iv_overlap_right() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record.set_pos(5);
+        let iv = 8..10;
+
+        let actual = record.slice(&iv);
+        let expected = b"";
+
+        assert_eq!(actual, expected)
     }
 }

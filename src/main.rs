@@ -16,7 +16,7 @@ mod panel;
 mod predict;
 
 pub trait Runner {
-    fn run(&self) -> Result<()>;
+    fn run(&mut self) -> Result<()>;
 }
 
 fn main() -> Result<()> {
@@ -40,7 +40,7 @@ fn main() -> Result<()> {
         .build_global()
         .unwrap();
 
-    let subcmd: Box<dyn Runner> = match args.cmd {
+    let mut subcmd: Box<dyn Runner> = match args.cmd {
         Command::Predict(cmd) => Box::new(cmd),
         Command::Build(cmd) => Box::new(cmd),
     };
