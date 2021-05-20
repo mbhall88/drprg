@@ -249,8 +249,8 @@ impl Predict {
                 if record.called_allele() == -1 && self.require_genotype {
                     prediction = Prediction::Failed;
                 } else {
-                    let seq = record.slice(&idx_record.range());
-                    todo!("Do the overlapping sequences match? Ref or Alt (or none)");
+                    let match_idx = record.argmatch(&idx_record);
+                    todo!("Does the overlapping sequence match index Ref or Alt (or none)");
                 }
                 record
                     .push_info_string(
