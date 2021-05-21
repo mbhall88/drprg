@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use log::{debug, info};
@@ -33,12 +33,12 @@ enum Prediction {
 }
 
 impl Prediction {
-    fn to_u8(&self) -> u8 {
+    fn to_bytes(&self) -> &[u8] {
         match self {
-            Self::Susceptible => b'S',
-            Self::Resistant => b'R',
-            Self::Failed => b'F',
-            Self::Unknown => b'U',
+            Self::Susceptible => b"S",
+            Self::Resistant => b"R",
+            Self::Failed => b"F",
+            Self::Unknown => b"U",
         }
     }
 }
@@ -132,7 +132,8 @@ impl Runner for Predict {
         )?;
         info!("Successfully genotyped reads");
         debug!("Filtering variants...");
-        let _predict_vcf_path = self.predict_from_pandora_vcf()?;
+        let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
+        let _predict_vcf_path = self.predict_from_pandora_vcf(&pandora_vcf_path)?;
         debug!("Variant filtering complete");
 
         Ok(())
@@ -210,8 +211,7 @@ impl Predict {
         Ok(())
     }
 
-    fn predict_from_pandora_vcf(&self) -> Result<PathBuf> {
-        let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
+    fn predict_from_pandora_vcf(&self, pandora_vcf_path: &Path) -> Result<PathBuf> {
         let predict_vcf_path = self.outdir.join(self.predict_vcf_filename());
         let mut reader = bcf::Reader::from_path(pandora_vcf_path)
             .context("Failed to open pandora VCF")?;
@@ -242,7 +242,7 @@ impl Predict {
             let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(chrom));
             let iv = record.range();
             unwrap_or_continue!(vcfidx.fetch(idx_rid, iv.start as u64, iv.end as u64));
-
+            let mut record_has_resistant = false;
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
                 let mut prediction = Prediction::Susceptible;
@@ -250,13 +250,25 @@ impl Predict {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
-                        None if self.discover => prediction = Prediction::Unknown,
-                        Some(i) if i > 0 => prediction = Prediction::Resistant,
+                        None if self.discover => {
+                            if record_has_resistant {
+                                prediction = Prediction::Susceptible
+                            } else {
+                                prediction = Prediction::Unknown
+                            }
+                        }
+                        Some(i) if i > 0 => {
+                            record_has_resistant = true;
+                            prediction = Prediction::Resistant
+                        }
                         _ => (),
                     };
                 }
+                // todo: improve this. need to find a way to push all of these into a vector and just have a single update at the end of the loop
+                // I've tried, but the borrow checker is too smart for me and I can't solve the problem
+                // This works for now, but slows the execution down quite a bit
                 let vid = idx_record.id();
-                let pred = &[prediction.to_u8()];
+                let pred = prediction.to_bytes();
                 let current_varids = record
                     .info(InfoField::VarId.id().as_bytes())
                     .string()
@@ -280,6 +292,15 @@ impl Predict {
                 match current_preds {
                     Some(v) => {
                         let mut cur_v = v.clone();
+                        if record_has_resistant {
+                            // change all unknowns to susceptible
+                            let u = Prediction::Unknown.to_bytes();
+                            for p in &mut cur_v {
+                                if p == &u {
+                                    *p = Prediction::Susceptible.to_bytes();
+                                }
+                            }
+                        }
                         cur_v.push(pred);
                         record
                             .push_info_string(
@@ -377,8 +398,8 @@ impl TagTypeExt for TagType {
 mod tests {
     use std::fs::File;
 
-    use rust_htslib::bcf::Header;
-    use tempfile::NamedTempFile;
+    use rust_htslib::bcf::{Header, Read};
+    use tempfile::{NamedTempFile, TempDir};
 
     use super::*;
 
@@ -771,6 +792,140 @@ mod tests {
             let (tag_type, tag_len) = result.unwrap();
             assert_eq!(tag_type, field.tag_type());
             assert_eq!(tag_len, field.number())
+        }
+    }
+
+    #[test]
+    fn predict_from_pandora_vcf_no_unknown_or_failed() {
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.7,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            filterer: filt,
+            ..Default::default()
+        };
+        let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
+
+        let result = pred.predict_from_pandora_vcf(&pandora_vcf_path);
+        assert!(result.is_ok());
+
+        let mut expected_rdr =
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out.bcf")).unwrap();
+        let mut actual_rdr =
+            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
+        let mut actual_records = actual_rdr.records();
+        for r in expected_rdr.records() {
+            let expected_record = r.unwrap();
+            let actual_record = actual_records.next().unwrap().unwrap();
+            assert_eq!(expected_record.pos(), actual_record.pos());
+            assert_eq!(
+                expected_record
+                    .info(b"VARID")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice(),
+                actual_record
+                    .info(b"VARID")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice()
+            );
+            assert_eq!(
+                expected_record
+                    .info(b"PREDICT")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice(),
+                actual_record
+                    .info(b"PREDICT")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice()
+            );
+            assert!(expected_record
+                .filters()
+                .zip(actual_record.filters())
+                .all(|(a, b)| expected_record.header().id_to_name(a)
+                    == actual_record.header().id_to_name(b)));
+        }
+    }
+
+    #[test]
+    fn predict_from_pandora_vcf_with_unknown_and_failed() {
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.7,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            filterer: filt,
+            discover: true,
+            require_genotype: true,
+            ..Default::default()
+        };
+        let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
+
+        let result = pred.predict_from_pandora_vcf(&pandora_vcf_path);
+        assert!(result.is_ok());
+
+        let mut expected_rdr =
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out2.bcf")).unwrap();
+        let mut actual_rdr =
+            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
+        let mut actual_records = actual_rdr.records();
+        for r in expected_rdr.records() {
+            let expected_record = r.unwrap();
+            let actual_record = actual_records.next().unwrap().unwrap();
+            assert_eq!(expected_record.pos(), actual_record.pos());
+            assert_eq!(
+                expected_record
+                    .info(b"VARID")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice(),
+                actual_record
+                    .info(b"VARID")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice()
+            );
+            assert_eq!(
+                expected_record
+                    .info(b"PREDICT")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice(),
+                actual_record
+                    .info(b"PREDICT")
+                    .string()
+                    .unwrap()
+                    .unwrap()
+                    .as_slice()
+            );
+            assert!(expected_record
+                .filters()
+                .zip(actual_record.filters())
+                .all(|(a, b)| expected_record.header().id_to_name(a)
+                    == actual_record.header().id_to_name(b)));
         }
     }
 }
