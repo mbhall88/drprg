@@ -39,5 +39,5 @@ RUN ( wget -O - "$BCFTOOLS_URL" | tar -xjf - ) \
 	&& apt remove -y $PKGS \
 	&& rm -rf /var/lib/apt/lists/* \
 	&& rm -rf /bcftools
-	
+
 RUN drprg --help && pandora --help && make_prg --help && mafft --version && bcftools --version

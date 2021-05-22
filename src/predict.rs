@@ -14,6 +14,7 @@ use drprg::{unwrap_or_continue, Pandora, PathExt, VcfExt};
 
 use crate::cli::check_path_exists;
 use crate::Runner;
+use uuid::Uuid;
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -25,11 +26,17 @@ pub enum PredictError {
 
 /// All possible predictions
 #[derive(Debug, Eq, PartialEq)]
-enum Prediction {
+pub enum Prediction {
     Susceptible,
     Resistant,
     Failed,
     Unknown,
+}
+
+impl Default for Prediction {
+    fn default() -> Self {
+        Self::Susceptible
+    }
 }
 
 impl Prediction {
@@ -230,7 +237,9 @@ impl Predict {
 
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
-
+            record
+                .set_id(&Uuid::new_v4().to_string()[..8].as_bytes())
+                .context("Duplicate ID found - 1/270,000,000 chance of this happening - buy a lottery ticket!")?;
             let rid = record.rid().context(format!(
                 "Pandora variant number {} does not have a CHROM",
                 i

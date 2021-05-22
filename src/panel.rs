@@ -89,7 +89,7 @@ impl<'de> Deserialize<'de> for Residue {
 }
 
 /// A variant object holding information about the reference, position, and new allele
-#[derive(Debug, PartialEq, Hash, Eq)]
+#[derive(Debug, Default, PartialEq, Hash, Eq)]
 pub struct Variant {
     pub reference: String,
     pub pos: i64,
