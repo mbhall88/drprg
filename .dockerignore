@@ -1,10 +1,9 @@
 .git*
 src/ext/
 target/
-tmp/
+tmp*/
 .rustfmt.toml
 README.md
 Dockerfile
 .dockerignore
-.github
 .idea

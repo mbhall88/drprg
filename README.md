@@ -132,7 +132,7 @@ OPTIONS:
 
 [pandora]: https://github.com/rmcolq/pandora
 [mafft]: https://mafft.cbrc.jp/alignment/software/
-[makeprg]: https://github.com/leoisl/make_prg/releases/tag/v0.2.0_prototype
+[makeprg]: https://github.com/leoisl/make_prg/
 [mykrobe]: https://github.com/Mykrobe-tools/mykrobe
 [Singularity]: https://sylabs.io/
 [bcftools]: https://samtools.github.io/bcftools/bcftools.html

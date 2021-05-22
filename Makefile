@@ -3,7 +3,7 @@ EXTDIR := $(abspath src/ext)
 MAFFT_SRC := $(EXTDIR)/mafft
 
 # URLs
-PANDORA_URL := "https://github.com/rmcolq/pandora/releases/download/0.9.0-rc2/pandora-linux-precompiled-v0.9.0-rc2"
+PANDORA_URL := "https://github.com/rmcolq/pandora/releases/download/0.9.0/pandora-linux-precompiled-v0.9.0"
 MAKEPRG_URL := "https://github.com/leoisl/make_prg/releases/download/v0.2.0/make_prg_0.2.0"
 BCFTOOLS_URL := "https://github.com/samtools/bcftools/releases/download/1.12/bcftools-1.12.tar.bz2"
 MAFFT_URL := "https://mafft.cbrc.jp/alignment/software/mafft-7.475-without-extensions-src.tgz"
@@ -34,9 +34,8 @@ bcftools: makedir
 	&& ./configure --prefix=$(EXTDIR)/bcftools-1.12 \
 	&& make \
 	&& make install \
-	&& mv bin/bcftools $(BCFTOOLS) \
 	&& cd .. \
-	&& rm -rf $(EXTDIR)/bcftools-1.12
+	&& ln -s bcftools-1.12/bin/bcftools $(BCFTOOLS)
 
 .PHONY: mafft
 mafft: makedir
