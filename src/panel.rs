@@ -6,7 +6,7 @@ use std::str::FromStr;
 use bstr::ByteSlice;
 use regex::Regex;
 use rust_htslib::bcf;
-use serde::{de, Deserialize, Deserializer};
+use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use thiserror::Error;
 
 pub(crate) type Panel = HashMap<String, HashSet<PanelRecord>>;
@@ -56,6 +56,12 @@ pub enum Residue {
     Amino,
 }
 
+impl Default for Residue {
+    fn default() -> Self {
+        Self::Nucleic
+    }
+}
+
 impl fmt::Display for Residue {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match &self {
@@ -63,6 +69,18 @@ impl fmt::Display for Residue {
             Residue::Amino => "PROT",
         };
         write!(f, "{}", s)
+    }
+}
+
+impl Serialize for Residue {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 
@@ -126,6 +144,18 @@ impl<'de> Deserialize<'de> for Variant {
     {
         let s = String::deserialize(deserializer)?;
         FromStr::from_str(&s).map_err(de::Error::custom)
+    }
+}
+
+impl Serialize for Variant {
+    fn serialize<S>(
+        &self,
+        serializer: S,
+    ) -> Result<<S as Serializer>::Ok, <S as Serializer>::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(&self.to_string())
     }
 }
 

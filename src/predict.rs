@@ -1,20 +1,24 @@
 use std::path::{Path, PathBuf};
+use std::str::FromStr;
+use std::string::ToString;
 
 use anyhow::{Context, Result};
 use log::{debug, info};
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
 use rust_htslib::bcf::{Format, Read};
+use serde::{de, Deserialize, Deserializer, Serialize};
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
+use strum_macros::EnumString;
 use thiserror::Error;
+use uuid::Uuid;
 
 use drprg::filter::{Filter, Filterer};
 use drprg::{unwrap_or_continue, Pandora, PathExt, VcfExt};
 
 use crate::cli::check_path_exists;
 use crate::Runner;
-use uuid::Uuid;
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -25,12 +29,30 @@ pub enum PredictError {
 }
 
 /// All possible predictions
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, Eq, PartialEq, EnumString, strum_macros::Display, Serialize)]
 pub enum Prediction {
+    #[strum(to_string = "S")]
+    #[serde(alias = "S", rename(serialize = "S"))]
     Susceptible,
+    #[strum(to_string = "R")]
+    #[serde(alias = "R", rename(serialize = "R"))]
     Resistant,
+    #[strum(to_string = "F")]
+    #[serde(alias = "F", rename(serialize = "F"))]
     Failed,
+    #[strum(to_string = "U")]
+    #[serde(alias = "U", rename(serialize = "U"))]
     Unknown,
+}
+
+impl<'de> Deserialize<'de> for Prediction {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        FromStr::from_str(&s).map_err(de::Error::custom)
+    }
 }
 
 impl Default for Prediction {

@@ -13,7 +13,8 @@ use crate::cli::Command;
 mod builder;
 mod cli;
 mod panel;
-mod predict;
+pub mod predict;
+pub mod report;
 
 pub trait Runner {
     fn run(&mut self) -> Result<()>;

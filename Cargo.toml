@@ -15,6 +15,7 @@ anyhow = "1.0"
 bio = "0.33"
 serde = "1"
 serde_derive = "1"
+serde_json = "1"
 csv = "1.1"
 rust-htslib = "0.36"
 regex = "1"
@@ -24,6 +25,8 @@ rayon = "1.5"
 tempfile = "3"
 float-cmp = "0.8"
 uuid = {version = "0.8", features = ["v4"]}
+strum = "0.20"
+strum_macros = "0.20"
 
 [dev-dependencies]
 assert_cmd = "1.0.3"
