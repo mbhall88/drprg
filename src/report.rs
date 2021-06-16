@@ -4,16 +4,15 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Susceptibility {
-    predict: Prediction,
-    drug: String,
-    evidence: Vec<Evidence>,
+    pub(crate) predict: Prediction,
+    pub(crate) evidence: Vec<Evidence>,
 }
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Evidence {
-    variant: Variant,
-    gene: String,
-    residue: Residue,
-    vcfid: String,
+    pub(crate) variant: Variant,
+    pub(crate) gene: String,
+    pub(crate) residue: Residue,
+    pub(crate) vcfid: String,
 }
 
 #[cfg(test)]
@@ -54,7 +53,6 @@ mod tests {
     fn susceptibility_serde() {
         let expected_struct = Susceptibility {
             predict: Prediction::Resistant,
-            drug: "Ofloxacin".to_string(),
             evidence: vec![Evidence {
                 variant: Variant::from_str("K4S").unwrap(),
                 gene: "inhA".to_string(),
@@ -68,7 +66,6 @@ mod tests {
             r#"
         {
           "predict": "R",
-          "drug": "Ofloxacin",
           "evidence": [
             {
               "variant": "K4S",

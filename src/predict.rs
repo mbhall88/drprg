@@ -8,6 +8,7 @@ use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
 use rust_htslib::bcf::{Format, Read};
 use serde::{de, Deserialize, Deserializer, Serialize};
+use std::collections::BTreeMap;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
 use strum_macros::EnumString;
@@ -18,7 +19,14 @@ use drprg::filter::{Filter, Filterer};
 use drprg::{unwrap_or_continue, Pandora, PathExt, VcfExt};
 
 use crate::cli::check_path_exists;
+use crate::panel::{Residue, Variant};
+use crate::report::{Evidence, Susceptibility};
 use crate::Runner;
+use bstr::ByteSlice;
+use std::collections::{HashMap, HashSet};
+use std::fs::File;
+use std::io::Write;
+use std::iter::FromIterator;
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
@@ -123,11 +131,13 @@ pub struct Predict {
     is_illumina: bool,
     #[structopt(flatten)]
     filterer: Filterer,
+    /// Force overwriting existing files. Use this if you want to build from scratch
+    #[structopt(short = "F", long)]
+    force: bool,
 }
 
 impl Runner for Predict {
     fn run(&mut self) -> Result<()> {
-        // todo: implement force
         if !self.outdir.exists() {
             info!("Outdir doesn't exist...creating...");
             std::fs::create_dir(&self.outdir)
@@ -145,25 +155,35 @@ impl Runner for Predict {
             todo!("run pandora discover");
         }
 
-        info!("Genotyping reads against the panel with pandora");
-        let pandora = Pandora::from_path(&self.pandora_exec)?;
-        let threads = &rayon::current_num_threads().to_string();
-        let mut gt_args = vec!["-t", threads];
-        if self.is_illumina {
-            gt_args.push("-I");
-        }
-        pandora.genotype_with(
-            &self.index_prg_path(),
-            &self.index_vcf_ref_path(),
-            &self.input,
-            &self.outdir,
-            &gt_args,
-        )?;
-        info!("Successfully genotyped reads");
-        debug!("Filtering variants...");
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
-        let _predict_vcf_path = self.predict_from_pandora_vcf(&pandora_vcf_path)?;
-        debug!("Variant filtering complete");
+        if !pandora_vcf_path.exists() || self.force {
+            info!("Genotyping reads against the panel with pandora");
+            let pandora = Pandora::from_path(&self.pandora_exec)?;
+            let threads = &rayon::current_num_threads().to_string();
+            let mut gt_args = vec!["-t", threads];
+            if self.is_illumina {
+                gt_args.push("-I");
+            }
+            pandora.genotype_with(
+                &self.index_prg_path(),
+                &self.index_vcf_ref_path(),
+                &self.input,
+                &self.outdir,
+                &gt_args,
+            )?;
+            info!("Successfully genotyped reads");
+        } else {
+            info!("Pandora output already present..skipping..");
+        }
+
+        info!("Making predictions from variants...");
+        let predict_vcf_path = self.predict_from_pandora_vcf(&pandora_vcf_path)?;
+        debug!("Predictions written to VCF {:?}", predict_vcf_path);
+        let predict_json_path = self.vcf_to_json(&predict_vcf_path)?;
+        info!(
+            "Prediction report written to JSON file {:?}",
+            predict_json_path
+        );
 
         Ok(())
     }
@@ -220,6 +240,11 @@ impl Predict {
     fn predict_vcf_filename(&self) -> PathBuf {
         let path = PathBuf::from(self.sample_name());
         path.add_extension(".drprg.bcf".as_ref())
+    }
+
+    fn json_filename(&self) -> PathBuf {
+        let path = PathBuf::from(self.sample_name());
+        path.add_extension(".drprg.json".as_ref())
     }
 
     fn validate_index(&self) -> Result<(), PredictError> {
@@ -353,8 +378,121 @@ impl Predict {
                 .write(&record)
                 .context("Failed to write filtered VCF record")?;
         }
-        // todo: generate prediction from filtered pandora output
         Ok(predict_vcf_path)
+    }
+
+    fn load_var_to_drugs(&self) -> Result<HashMap<String, (HashSet<String>, Residue)>> {
+        let mut drug_info = HashMap::new();
+        let mut reader = bcf::Reader::from_path(&self.index_vcf_path())
+            .context("Failed to open panel VCF")?;
+        for record_result in reader.records() {
+            let record = unwrap_or_continue!(record_result);
+            let drugs: Vec<String> = match record
+                .info(b"DRUGS")
+                .string()
+                .context("Couldn't get DRUGS tag from panel VCF")?
+            {
+                Some(v) => v
+                    .iter()
+                    .map(|el| String::from_utf8_lossy(el).to_string())
+                    .collect(),
+                None => continue,
+            };
+            let res = match record
+                .info(b"RES")
+                .string()
+                .context("Couldn't get DRUGS tag from panel VCF")?
+            {
+                Some(v) => Residue::from_str(v.clone()[0].to_str_lossy().as_ref()),
+                None => Ok(Residue::Nucleic), // this can't happen
+            }?;
+            // bcf specs ensure no duplicate IDs
+            drug_info.insert(
+                String::from_utf8_lossy(&record.id()).into_owned(),
+                (HashSet::from_iter(drugs), res),
+            );
+        }
+
+        Ok(drug_info)
+    }
+
+    fn vcf_to_json(&self, vcf_path: &Path) -> Result<PathBuf> {
+        let json_path = self.outdir.join(self.json_filename());
+        debug!("Loading the panel...");
+        let panel = self.load_var_to_drugs()?;
+        debug!("Loaded panel");
+        let mut json: BTreeMap<String, Susceptibility> = BTreeMap::new();
+        let mut reader =
+            bcf::Reader::from_path(vcf_path).context("Failed to open predict VCF")?;
+        for (i, record_result) in reader.records().enumerate() {
+            let record = record_result
+                .context(format!("Failed to read record {} in predict VCF", i))?;
+            if !record.is_pass() {
+                continue;
+            }
+            let preds = match record
+                .info(InfoField::Prediction.id().as_bytes())
+                .string()
+                .context(format!(
+                    "Failed to get prediction tag for record number {}",
+                    i
+                ))? {
+                Some(v) => v
+                    .iter()
+                    .map(|el| Prediction::from_str(el.to_str_lossy().as_ref()).unwrap())
+                    .collect::<Vec<Prediction>>(),
+                None => continue,
+            };
+            let varids = match record
+                .info(InfoField::VarId.id().as_bytes())
+                .string()
+                .context(format!("Failed to get variant ID for record number {}", i))?
+            {
+                Some(v) => v
+                    .iter()
+                    .map(|el| String::from_utf8_lossy(el).to_string())
+                    .collect::<Vec<String>>(),
+                None => continue,
+            };
+            for (p, v) in preds.iter().zip(varids.iter()) {
+                if *p != Prediction::Susceptible {
+                    let (drugs, residue) = panel
+                        .get(v)
+                        .context(format!("Variant {} in VCF is not in the panel", v))?;
+                    let (chrom, var) = v.split_once("_").context(format!(
+                        "Couldn't split variant ID {} at underscore",
+                        v
+                    ))?;
+                    let ev = Evidence {
+                        variant: Variant::from_str(var)?,
+                        gene: chrom.to_owned(),
+                        residue: residue.to_owned(),
+                        vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
+                    };
+                    for drug in drugs {
+                        let entry = json
+                            .entry(drug.to_string())
+                            .or_insert_with(Susceptibility::default);
+                        entry.predict = Prediction::Resistant;
+                        entry.evidence.push(ev.to_owned());
+                    }
+                }
+            }
+        }
+        for (_, (drugs, _)) in panel {
+            for d in drugs {
+                json.entry(d).or_insert_with(Susceptibility::default);
+            }
+        }
+        {
+            let mut file =
+                File::create(&json_path).context("Failed to create JSON file")?;
+            let s = serde_json::to_string_pretty(&json)
+                .context("Failed to write to JSON file")?;
+            write!(&file, "{}", s)?;
+            file.flush()?;
+        }
+        Ok(json_path)
     }
 }
 
@@ -438,14 +576,12 @@ mod tests {
     fn sample_name_no_sample() {
         let predictor = Predict {
             pandora_exec: None,
-            index: Default::default(),
             input: PathBuf::from("foo/sample1.fq.gz"),
-            outdir: Default::default(),
             sample: None,
             discover: false,
             require_genotype: false,
             is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.sample_name();
@@ -458,14 +594,12 @@ mod tests {
     fn sample_name_with_sample() {
         let predictor = Predict {
             pandora_exec: None,
-            index: Default::default(),
             input: PathBuf::from("foo/sample1.fq.gz"),
-            outdir: Default::default(),
             sample: Some("sample2".to_string()),
             discover: false,
             require_genotype: false,
             is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.sample_name();
@@ -479,13 +613,11 @@ mod tests {
         let predictor = Predict {
             pandora_exec: None,
             index: PathBuf::from("foo"),
-            input: Default::default(),
-            outdir: Default::default(),
             sample: None,
             discover: false,
             require_genotype: false,
             is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.index_prg_path();
@@ -499,13 +631,11 @@ mod tests {
         let predictor = Predict {
             pandora_exec: None,
             index: PathBuf::from("foo"),
-            input: Default::default(),
-            outdir: Default::default(),
             sample: None,
             discover: false,
             require_genotype: false,
             is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.index_prg_index_path();
@@ -517,15 +647,11 @@ mod tests {
     #[test]
     fn index_prg_update_path() {
         let predictor = Predict {
-            pandora_exec: None,
-            sample: None,
             index: PathBuf::from("foo"),
-            input: Default::default(),
-            outdir: Default::default(),
             discover: false,
             require_genotype: false,
             is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.index_prg_update_path();
@@ -537,15 +663,8 @@ mod tests {
     #[test]
     fn index_kmer_prgs_path() {
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from("foo"),
-            input: Default::default(),
-            sample: None,
-            outdir: Default::default(),
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.index_kmer_prgs_path();
@@ -557,15 +676,8 @@ mod tests {
     #[test]
     fn index_vcf_path() {
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from("foo"),
-            input: Default::default(),
-            outdir: Default::default(),
-            sample: None,
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.index_vcf_path();
@@ -577,15 +689,8 @@ mod tests {
     #[test]
     fn index_vcf_ref_path() {
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from("foo"),
-            input: Default::default(),
-            sample: None,
-            outdir: Default::default(),
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
 
         let actual = predictor.index_vcf_ref_path();
@@ -599,15 +704,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            input: Default::default(),
-            outdir: Default::default(),
-            sample: None,
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -623,17 +721,7 @@ mod tests {
 
     #[test]
     fn validate_index_missing_prg() {
-        let predictor = Predict {
-            pandora_exec: None,
-            index: Default::default(),
-            input: Default::default(),
-            outdir: Default::default(),
-            discover: false,
-            sample: None,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
-        };
+        let predictor = Predict::default();
 
         let actual = predictor.validate_index().unwrap_err();
         let expected = PredictError::InvalidIndex(PathBuf::new().join("dr.prg"));
@@ -646,15 +734,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            input: Default::default(),
-            outdir: Default::default(),
-            sample: None,
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -671,16 +752,10 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            sample: None,
-            input: Default::default(),
-            outdir: Default::default(),
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
+
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
@@ -696,17 +771,12 @@ mod tests {
     fn validate_index_missing_panel_vcf_index() {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
+
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            sample: None,
-            input: Default::default(),
-            outdir: Default::default(),
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
+
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
@@ -723,17 +793,12 @@ mod tests {
     fn validate_index_missing_vcf_ref() {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
+
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            input: Default::default(),
-            outdir: Default::default(),
-            sample: None,
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
+
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
@@ -752,15 +817,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            input: Default::default(),
-            outdir: Default::default(),
-            discover: false,
-            sample: None,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
@@ -781,15 +839,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
-            pandora_exec: None,
             index: PathBuf::from(tmp_path),
-            input: Default::default(),
-            outdir: Default::default(),
-            sample: None,
-            discover: false,
-            require_genotype: false,
-            is_illumina: false,
-            filterer: Default::default(),
+            ..Default::default()
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();

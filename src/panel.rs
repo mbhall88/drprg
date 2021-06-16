@@ -1,3 +1,4 @@
+use log::warn;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -7,9 +8,44 @@ use bstr::ByteSlice;
 use regex::Regex;
 use rust_htslib::bcf;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use std::path::Path;
 use thiserror::Error;
 
 pub(crate) type Panel = HashMap<String, HashSet<PanelRecord>>;
+
+pub trait PanelExt {
+    fn from_csv(path: &Path) -> Result<Panel, anyhow::Error>;
+}
+
+impl PanelExt for Panel {
+    fn from_csv(path: &Path) -> Result<Self, anyhow::Error> {
+        let mut panel: Panel = HashMap::new();
+        let mut n_records = 0;
+
+        let mut reader = csv::ReaderBuilder::new()
+            .delimiter(b'\t')
+            .has_headers(false)
+            .from_path(path)?;
+
+        for result in reader.deserialize() {
+            n_records += 1;
+            let record: PanelRecord = result?;
+            let set_of_records = panel
+                .entry(record.gene.to_owned())
+                .or_insert_with(HashSet::new);
+            let seen_before = !set_of_records.insert(record);
+
+            if seen_before {
+                warn!(
+                    "Duplicate panel record detected in record number {}",
+                    n_records
+                )
+            }
+        }
+        Ok(panel)
+    }
+}
+
 lazy_static! {
     static ref VARIANT_REGEX: Regex =
         Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z]+)$").unwrap();
@@ -107,7 +143,7 @@ impl<'de> Deserialize<'de> for Residue {
 }
 
 /// A variant object holding information about the reference, position, and new allele
-#[derive(Debug, Default, PartialEq, Hash, Eq)]
+#[derive(Debug, Default, PartialEq, Hash, Eq, Clone)]
 pub struct Variant {
     pub reference: String,
     pub pos: i64,

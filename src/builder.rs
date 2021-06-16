@@ -17,7 +17,7 @@ use drprg::{index_vcf, Bcftools, MakePrg, Pandora};
 use drprg::{MultipleSeqAligner, PathExt};
 
 use crate::cli::check_path_exists;
-use crate::panel::{Panel, PanelError, PanelRecord};
+use crate::panel::{Panel, PanelError, PanelExt, PanelRecord};
 use crate::Runner;
 
 static META: &str = "##";
@@ -104,30 +104,7 @@ pub struct Build {
 
 impl Build {
     fn load_panel(&self) -> Result<Panel, anyhow::Error> {
-        let mut panel: Panel = HashMap::new();
-        let mut n_records = 0;
-
-        let mut reader = csv::ReaderBuilder::new()
-            .delimiter(b'\t')
-            .has_headers(false)
-            .from_path(&self.panel_file)?;
-
-        for result in reader.deserialize() {
-            n_records += 1;
-            let record: PanelRecord = result?;
-            let set_of_records = panel
-                .entry(record.gene.to_owned())
-                .or_insert_with(HashSet::new);
-            let seen_before = !set_of_records.insert(record);
-
-            if seen_before {
-                warn!(
-                    "Duplicate panel record detected in record number {}",
-                    n_records
-                )
-            }
-        }
-        Ok(panel)
+        Panel::from_csv(&self.panel_file)
     }
 
     fn create_vcf_header(

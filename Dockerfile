@@ -1,4 +1,4 @@
-FROM rust:1.51 AS builder
+FROM rust:1.52 AS builder
 
 COPY . /drprg
 
