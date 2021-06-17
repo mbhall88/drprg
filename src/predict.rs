@@ -8,6 +8,7 @@ use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
 use rust_htslib::bcf::{Format, Read};
 use serde::{de, Deserialize, Deserializer, Serialize};
+use serde_json::json;
 use std::collections::BTreeMap;
 use structopt::clap::AppSettings;
 use structopt::StructOpt;
@@ -484,10 +485,11 @@ impl Predict {
                 json.entry(d).or_insert_with(Susceptibility::default);
             }
         }
+        let data = json!({"sample": self.sample_name(), "susceptibility": json});
         {
             let mut file =
                 File::create(&json_path).context("Failed to create JSON file")?;
-            let s = serde_json::to_string_pretty(&json)
+            let s = serde_json::to_string_pretty(&data)
                 .context("Failed to write to JSON file")?;
             write!(&file, "{}", s)?;
             file.flush()?;
