@@ -38,7 +38,9 @@ pub enum PredictError {
 }
 
 /// All possible predictions
-#[derive(Debug, Eq, PartialEq, EnumString, strum_macros::Display, Serialize)]
+#[derive(
+    Debug, Eq, PartialEq, EnumString, strum_macros::Display, Serialize, Copy, Clone,
+)]
 pub enum Prediction {
     #[strum(to_string = "S")]
     #[serde(alias = "S", rename(serialize = "S"))]
@@ -474,7 +476,7 @@ impl Predict {
                         let entry = json
                             .entry(drug.to_string())
                             .or_insert_with(Susceptibility::default);
-                        entry.predict = Prediction::Resistant;
+                        entry.predict = *p;
                         entry.evidence.push(ev.to_owned());
                     }
                 }
@@ -573,6 +575,7 @@ mod tests {
     use tempfile::{NamedTempFile, TempDir};
 
     use super::*;
+    use std::io::BufReader;
 
     #[test]
     fn sample_name_no_sample() {
@@ -1011,5 +1014,185 @@ mod tests {
                 .all(|(a, b)| expected_record.header().id_to_name(a)
                     == actual_record.header().id_to_name(b)));
         }
+    }
+
+    #[test]
+    fn vcf_to_json_no_unknown_or_failed() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.7,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            filterer: filt,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/out.bcf");
+        let result = pred.vcf_to_json(&vcf_path);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+        let expected = r#"
+        {
+          "sample": "test",
+          "susceptibility": {
+            "Isoniazid": {
+              "evidence": [
+                {
+                  "gene": "fabG1",
+                  "residue": "DNA",
+                  "variant": "CTG607TTA",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "R"
+            },
+            "Ofloxacin": {
+              "evidence": [],
+              "predict": "S"
+            },
+            "Rifampicin": {
+              "evidence": [],
+              "predict": "S"
+            },
+            "Streptomycin": {
+              "evidence": [
+                {
+                  "gene": "gid",
+                  "residue": "PROT",
+                  "variant": "R47W",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "rpsL",
+                  "residue": "PROT",
+                  "variant": "K43R",
+                  "vcfid": "."
+                }
+               ],
+              "predict": "R"
+            }
+          }
+        }
+        "#
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn vcf_to_json_with_unknown_and_failed() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.7,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            filterer: filt,
+            discover: true,
+            require_genotype: true,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/out2.bcf");
+        let result = pred.vcf_to_json(&vcf_path);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+        let expected = r#"
+        {
+          "sample": "test",
+          "susceptibility": {
+            "Isoniazid": {
+              "evidence": [
+                {
+                  "gene": "fabG1",
+                  "residue": "DNA",
+                  "variant": "CTG607TTA",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "R"
+            },
+            "Ofloxacin": {
+              "evidence": [
+                {
+                  "gene": "inhA",
+                  "residue": "PROT",
+                  "variant": "I194T",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "F"
+            },
+            "Rifampicin": {
+              "evidence": [
+                {
+                  "gene": "inhA",
+                  "residue": "PROT",
+                  "variant": "I21T",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "U"
+            },
+            "Streptomycin": {
+              "evidence": [
+                {
+                  "gene": "gid",
+                  "residue": "PROT",
+                  "variant": "R47W",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "rpsL",
+                  "residue": "PROT",
+                  "variant": "K43R",
+                  "vcfid": "."
+                }
+               ],
+              "predict": "R"
+            }
+          }
+        }
+        "#
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>();
+
+        assert_eq!(actual, expected)
     }
 }
