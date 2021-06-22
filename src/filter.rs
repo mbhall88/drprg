@@ -176,28 +176,34 @@ pub trait Filter {
 #[derive(StructOpt, Debug)]
 pub struct Filterer {
     /// Minimum depth of coverage allowed on variants
-    #[structopt(short = "d", long, default_value = &MIN_COVG_STR, hidden_short_help = true, value_name = "INT")]
+    #[structopt(short = "d", long, default_value = &MIN_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
     pub min_covg: i32,
     /// Maximum depth of coverage allowed on variants
-    #[structopt(short = "D", long, default_value = &MAX_COVG_STR, hidden_short_help = true, value_name = "INT")]
+    #[structopt(short = "D", long, default_value = &MAX_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
     pub max_covg: i32,
     /// Minimum strand bias ratio allowed on variants
     ///
     /// For example, setting to 0.25 requires >=25% of total (allele) coverage on both
     /// strands for an allele.
-    #[structopt(short = "b", long, default_value = &MIN_SB_STR, hidden_short_help = true, value_name = "FLOAT")]
+    #[structopt(short = "b", long, default_value = &MIN_SB_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_strand_bias: f32,
     /// Minimum genotype confidence (GT_CONF) score allow on variants
-    #[structopt(short = "g", long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT")]
+    #[structopt(short = "g", long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT, allow_hyphen_values = true")]
     pub min_gt_conf: f32,
     /// Maximum (absolute) length of insertions/deletions allowed
-    #[structopt(short = "L", long, hidden_short_help = true, value_name = "INT")]
+    #[structopt(
+        short = "L",
+        long,
+        hidden_short_help = true,
+        value_name = "INT",
+        allow_hyphen_values = true
+    )]
     pub max_indel: Option<i32>,
     /// Minimum fraction of read support
     ///
     /// For example, setting to 0.9 requires >=90% of coverage for the variant to be on the called
     /// allele
-    #[structopt(short = "K", long, default_value = &MIN_FRS_STR, hidden_short_help = true, value_name = "FLOAT")]
+    #[structopt(short = "K", long, default_value = &MIN_FRS_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_frs: f32,
 }
 
