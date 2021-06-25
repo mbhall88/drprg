@@ -224,12 +224,15 @@ impl Filter for Filterer {
     fn is_low_covg(&self, record: &Record) -> bool {
         // safe to unwrap as we are providing a default
         let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
-        let default_gt = 0; // i.e. if GT is null, we use ref coverage
-        let gt = match record.called_allele() {
-            i if i < 0 => default_gt,
-            i => i,
-        } as usize;
-        let covg = fc.get(gt).unwrap_or(&0) + rc.get(gt).unwrap_or(&0);
+        let covg: i32;
+        let gt = record.called_allele();
+        if gt < 0 {
+            // if GT is null, we use total covg on all alleles
+            covg = fc.iter().chain(rc.iter()).sum();
+        } else {
+            covg =
+                fc.get(gt as usize).unwrap_or(&0) + rc.get(gt as usize).unwrap_or(&0);
+        }
         covg < self.min_covg
     }
 
@@ -559,7 +562,7 @@ pub(crate) mod test {
     }
 
     #[test]
-    fn filter_bcf_record_is_low_covg_null_gt_ref_below() {
+    fn filter_bcf_record_is_low_covg_null_gt_sum_of_all_is_below() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -571,7 +574,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, -1);
 
         let filt = Filterer {
-            min_covg: 3,
+            min_covg: 9,
             ..Default::default()
         };
 
