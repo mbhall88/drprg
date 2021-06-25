@@ -151,6 +151,7 @@ impl FilterStatus {
 
 /// A trait to allow for filtering of a VCF. The provided method is `filter`
 pub trait Filter {
+    fn _covg_for_gt(&self, record: &Record) -> i32;
     fn is_low_covg(&self, record: &bcf::Record) -> bool;
     fn is_high_covg(&self, record: &bcf::Record) -> bool;
     fn is_low_gt_conf(&self, record: &bcf::Record) -> bool;
@@ -221,7 +222,7 @@ impl Default for Filterer {
 }
 
 impl Filter for Filterer {
-    fn is_low_covg(&self, record: &Record) -> bool {
+    fn _covg_for_gt(&self, record: &Record) -> i32 {
         // safe to unwrap as we are providing a default
         let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
         let covg: i32;
@@ -233,18 +234,16 @@ impl Filter for Filterer {
             covg =
                 fc.get(gt as usize).unwrap_or(&0) + rc.get(gt as usize).unwrap_or(&0);
         }
+        covg
+    }
+
+    fn is_low_covg(&self, record: &Record) -> bool {
+        let covg = self._covg_for_gt(&record);
         covg < self.min_covg
     }
 
     fn is_high_covg(&self, record: &Record) -> bool {
-        // safe to unwrap as we are providing a default
-        let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
-        let default_gt = 0; // i.e. if GT is null, we use ref coverage
-        let gt = match record.called_allele() {
-            i if i < 0 => default_gt,
-            i => i,
-        } as usize;
-        let covg = fc.get(gt).unwrap_or(&0) + rc.get(gt).unwrap_or(&0);
+        let covg = self._covg_for_gt(&record);
         covg > self.max_covg
     }
 
@@ -701,7 +700,7 @@ pub(crate) mod test {
     }
 
     #[test]
-    fn filter_bcf_record_is_high_covg_null_gt_ref_above() {
+    fn filter_bcf_record_is_high_covg_null_gt_sum_is_above() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -713,7 +712,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, -1);
 
         let filt = Filterer {
-            max_covg: 3,
+            max_covg: 12,
             ..Default::default()
         };
 
@@ -721,7 +720,7 @@ pub(crate) mod test {
     }
 
     #[test]
-    fn filter_bcf_record_is_high_covg_null_gt_ref_below() {
+    fn filter_bcf_record_is_high_covg_null_gt_sum_of_all_is_above() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -733,7 +732,7 @@ pub(crate) mod test {
         bcf_record_set_gt(&mut record, -1);
 
         let filt = Filterer {
-            max_covg: 3,
+            max_covg: 9,
             ..Default::default()
         };
 
