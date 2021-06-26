@@ -3,7 +3,7 @@ use std::fs::File;
 use std::ops::Range;
 use std::os::unix::ffi::OsStringExt;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use std::process::{Command, Stdio};
 
 use bstr::ByteSlice;
 use log::{debug, error};
@@ -248,9 +248,13 @@ impl Pandora {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
+        let errstream = File::create(outdir.join("pandora.log"))
+            .map_err(|source| DependencyError::FileError { source })?;
         let fixed_args = &[
             "map",
             "--genotype",
+            "--local",
+            "-v",
             "-o",
             &outdir.to_string_lossy(),
             "-g",
@@ -263,6 +267,8 @@ impl Pandora {
             .args(args)
             .arg(prg)
             .arg(reads)
+            .stdout(errstream)
+            .stderr(Stdio::inherit())
             .output()
             .map_err(DependencyError::ProcessError)?;
 
