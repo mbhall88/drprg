@@ -253,7 +253,6 @@ impl Pandora {
         let fixed_args = &[
             "map",
             "--genotype",
-            "--local",
             "-v",
             "-o",
             &outdir.to_string_lossy(),
