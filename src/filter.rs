@@ -1,4 +1,3 @@
-use std::cmp::Ordering::Equal;
 use std::io::Write;
 use std::str::FromStr;
 
@@ -286,18 +285,15 @@ impl Filter for Filterer {
         };
         let ratio = match record.called_allele() {
             -1 => {
-                let mut ratios: Vec<f32> = vec![];
-                for gt in 0..record.allele_count() as usize {
-                    let sum_covg = fc[gt] + rc[gt];
-                    if approx_eq!(f32, sum_covg, 0.0) {
-                        ratios.push(1.0);
-                    } else {
-                        let r = fc[gt].min(rc[gt]) / sum_covg;
-                        ratios.push(r);
-                    }
+                let total_fc: f32 = fc.iter().sum();
+                let total_rc: f32 = rc.iter().sum();
+                let total = total_fc + total_rc;
+
+                if approx_eq!(f32, total, 0.0) {
+                    None
+                } else {
+                    Some(total_fc.min(total_rc) / total)
                 }
-                ratios.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Equal));
-                ratios.first().copied()
             }
             gt => {
                 let sum_covg = fc[gt as usize] + rc[gt as usize];
@@ -1280,7 +1276,7 @@ pub(crate) mod test {
     }
 
     #[test]
-    fn filter_bcf_record_has_strand_bias_null_selects_min() {
+    fn filter_bcf_record_has_strand_bias_null_uses_all() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1288,7 +1284,7 @@ pub(crate) mod test {
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
         let mut record = vcf.empty_record();
-        bcf_record_set_covg(&mut record, &[1, 0, 4], &[1, 0, 400]);
+        bcf_record_set_covg(&mut record, &[1, 0, 4], &[1, 0, 40]);
         bcf_record_set_gt(&mut record, -1);
         bcf_record_set_alleles(&mut record, &[b"A", b"T", b"C"]);
 
@@ -1297,7 +1293,14 @@ pub(crate) mod test {
             ..Default::default()
         };
 
-        assert!(filt.has_strand_bias(&record))
+        assert!(!filt.has_strand_bias(&record));
+
+        let filt2 = Filterer {
+            min_strand_bias: 0.13,
+            ..Default::default()
+        };
+
+        assert!(filt2.has_strand_bias(&record))
     }
 
     #[test]
