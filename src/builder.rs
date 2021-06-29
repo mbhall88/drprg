@@ -97,6 +97,15 @@ pub struct Build {
         value_name = "INT"
     )]
     match_len: u32,
+    /// Maximum nesting level when constructing the panel graph with make_prg
+    #[structopt(
+        short = "-N",
+        long = "--max-nesting",
+        default_value = "5",
+        hidden_short_help = true,
+        value_name = "INT"
+    )]
+    max_nesting: u32,
     /// Force overwriting existing files. Use this if you want to build from scratch
     #[structopt(short = "F", long)]
     force: bool,
@@ -306,8 +315,13 @@ impl Runner for Build {
         info!("Building reference graphs for genes...");
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
         let prg_path = self.outdir.join("dr.prg");
+        let prg_update_prgs = self.outdir.join("dr_prgs");
         let prg_update_ds = prg_path.with_extension("update_DS");
-        if !self.force && prg_path.exists() && prg_update_ds.exists() {
+        if !self.force
+            && prg_path.exists()
+            && prg_update_ds.exists()
+            && prg_update_prgs.exists()
+        {
             info!("Existing reference graph found...skipping...");
         } else {
             let make_prg_args = &[
@@ -315,11 +329,14 @@ impl Runner for Build {
                 &rayon::current_num_threads().to_string(),
                 "--min_match_length",
                 &self.match_len.to_string(),
+                "--max_nesting",
+                &self.max_nesting.to_string(),
             ];
             makeprg.from_msas_with(
                 &msa_dir,
                 &prg_path,
                 &prg_update_ds,
+                &prg_update_prgs,
                 make_prg_args,
             )?;
             info!("Successfully created panel reference graph");

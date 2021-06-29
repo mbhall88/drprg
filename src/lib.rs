@@ -137,6 +137,7 @@ impl MakePrg {
         input: &Path,
         output_prg: &Path,
         output_update_ds: &Path,
+        output_update_prgs: &Path,
         args: I,
     ) -> Result<(), DependencyError>
     where
@@ -170,6 +171,7 @@ impl MakePrg {
                 let tmp_prefix = &dir.path().join(prefix);
                 let tmp_prg = tmp_prefix.with_extension("prg.fa");
                 let tmp_update_ds = tmp_prefix.with_extension("update_DS");
+                let tmp_update_prgs = &dir.path().join(format!("{}_prgs", prefix));
 
                 // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
                 // not on the same "mount" as the local filesystem see more info at
@@ -178,6 +180,21 @@ impl MakePrg {
                     .map_err(|source| DependencyError::FileError { source })?;
                 std::fs::copy(tmp_update_ds, output_update_ds)
                     .map_err(|source| DependencyError::FileError { source })?;
+                let copyopts = fs_extra::dir::CopyOptions {
+                    overwrite: true,
+                    skip_exist: false,
+                    buffer_size: 64000,
+                    copy_inside: true,
+                    content_only: false,
+                    depth: 0,
+                };
+                fs_extra::dir::move_dir(tmp_update_prgs, output_update_prgs, &copyopts)
+                    .map_err(|source| DependencyError::FileError {
+                        source: std::io::Error::new(
+                            std::io::ErrorKind::Other,
+                            source.to_string(),
+                        ),
+                    })?;
 
                 Ok(())
             }
