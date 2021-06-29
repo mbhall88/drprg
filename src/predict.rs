@@ -29,6 +29,8 @@ use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
 
+static NONE_DRUG: &str = "NONE";
+
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq)]
 pub enum PredictError {
@@ -280,6 +282,9 @@ impl Predict {
                 .context("Failed to create filtered VCF")?;
         let mut vcfidx = bcf::IndexedReader::from_path(self.index_vcf_path())
             .context("Failed to open panel VCF index")?;
+        debug!("Loading the panel...");
+        let panel = self.load_var_to_drugs()?;
+        debug!("Loaded panel");
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
@@ -301,24 +306,30 @@ impl Predict {
             let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(chrom));
             let iv = record.range();
             unwrap_or_continue!(vcfidx.fetch(idx_rid, iv.start as u64, iv.end as u64));
-            let mut record_has_resistant = false;
+            let mut record_has_match_in_idx = false;
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
+                let vid = idx_record.id();
                 let mut prediction = Prediction::Susceptible;
                 if record.called_allele() == -1 && self.require_genotype {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
                         None if self.discover => {
-                            if record_has_resistant {
+                            if record_has_match_in_idx {
                                 prediction = Prediction::Susceptible
                             } else {
                                 prediction = Prediction::Unknown
                             }
                         }
                         Some(i) if i > 0 => {
-                            record_has_resistant = true;
-                            prediction = Prediction::Resistant
+                            record_has_match_in_idx = true;
+                            let vid_str = vid.to_str_lossy();
+                            // safe to unwrap here as the var id must be in the panel by definition
+                            let (drugs, _) = &panel.get(&*vid_str).unwrap();
+                            if !drugs.contains(NONE_DRUG) {
+                                prediction = Prediction::Resistant
+                            }
                         }
                         _ => (),
                     };
@@ -326,7 +337,6 @@ impl Predict {
                 // todo: improve this. need to find a way to push all of these into a vector and just have a single update at the end of the loop
                 // I've tried, but the borrow checker is too smart for me and I can't solve the problem
                 // This works for now, but slows the execution down quite a bit
-                let vid = idx_record.id();
                 let pred = prediction.to_bytes();
                 let current_varids = record
                     .info(InfoField::VarId.id().as_bytes())
@@ -351,7 +361,7 @@ impl Predict {
                 match current_preds {
                     Some(v) => {
                         let mut cur_v = v.clone();
-                        if record_has_resistant {
+                        if record_has_match_in_idx {
                             // change all unknowns to susceptible
                             let u = Prediction::Unknown.to_bytes();
                             for p in &mut cur_v {
@@ -484,7 +494,9 @@ impl Predict {
         }
         for (_, (drugs, _)) in panel {
             for d in drugs {
-                json.entry(d).or_insert_with(Susceptibility::default);
+                if d != NONE_DRUG {
+                    json.entry(d).or_insert_with(Susceptibility::default);
+                }
             }
         }
         let data = json!({"sample": self.sample_name(), "susceptibility": json});
