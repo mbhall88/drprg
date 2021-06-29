@@ -253,6 +253,46 @@ impl Pandora {
         }
     }
 
+    pub fn discover_with<I, S>(
+        &self,
+        prg: &Path,
+        query_idx: &Path,
+        outdir: &Path,
+        args: I,
+    ) -> Result<(), DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let logstream = File::create(outdir.join("discover.log"))
+            .map_err(|source| DependencyError::FileError { source })?;
+        let fixed_args = &["discover", "-g", &MTB_GENOME_SIZE.to_string(), "-N 10"];
+        let cmd_output = Command::new(&self.executable)
+            .args(fixed_args)
+            .args(args)
+            .arg(prg)
+            .arg(query_idx)
+            .stdout(logstream)
+            .stderr(Stdio::inherit())
+            .output()
+            .map_err(DependencyError::ProcessError)?;
+
+        if !cmd_output.status.success() {
+            error!(
+                "Failed to run pandora discover with sterr:\n{}",
+                cmd_output.stderr.to_str_lossy()
+            );
+            Err(DependencyError::ProcessError(
+                std::io::Error::from_raw_os_error(
+                    cmd_output.status.code().unwrap_or(129),
+                ),
+            ))
+        } else {
+            Ok(())
+        }
+        todo!("cleanup")
+    }
+
     pub fn genotype_with<I, S>(
         &self,
         prg: &Path,
@@ -301,6 +341,7 @@ impl Pandora {
         } else {
             Ok(())
         }
+        todo!("cleanup")
     }
 
     pub fn vcf_filename() -> String {

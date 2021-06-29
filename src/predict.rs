@@ -155,16 +155,39 @@ impl Runner for Predict {
 
         self.validate_index()?;
         debug!("Index is valid");
+        let threads = &rayon::current_num_threads().to_string();
 
         if self.discover {
-            todo!("run pandora discover");
+            let pandora = Pandora::from_path(&self.pandora_exec)?;
+            let tsvpath = self.outdir.join("query.tsv");
+            {
+                let mut file = File::create(tsvpath)
+                    .context("Failed to create sample TSV file")?;
+                let content =
+                    format!("{}\t{}", self.sample_name(), self.input.to_string_lossy());
+                file.write_all(content.as_bytes())
+                    .context("Failed to write content to TSV file")?;
+            }
+            let mut args = vec!["-t", threads];
+            if self.is_illumina {
+                args.push("-I");
+            }
+            pandora
+                .discover_with(
+                    &self.index_prg_path(),
+                    &tsvpath,
+                    &self.outdir.join("discover"),
+                    &args,
+                )
+                .context("Failed to run pandora discover")?;
+            todo!("make prg update");
+            todo!("cleanup")
         }
 
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
         if !pandora_vcf_path.exists() || self.force {
             info!("Genotyping reads against the panel with pandora");
             let pandora = Pandora::from_path(&self.pandora_exec)?;
-            let threads = &rayon::current_num_threads().to_string();
             let mut gt_args = vec!["-t", threads];
             if self.is_illumina {
                 gt_args.push("-I");
