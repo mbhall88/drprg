@@ -829,6 +829,7 @@ mod tests {
             outdir: PathBuf::from(outdir.path()),
             match_len: 5,
             force: false,
+            ..Build::default()
         };
         let result = builder.run();
         assert!(result.is_ok());
@@ -870,6 +871,7 @@ mod tests {
             outdir: outdir.to_owned(),
             match_len: 5,
             force: false,
+            ..Build::default()
         };
         let result = builder.run();
         assert!(result.is_ok());
@@ -908,6 +910,7 @@ mod tests {
             outdir: PathBuf::from(outdir.path()),
             match_len: 5,
             force: true,
+            ..Build::default()
         };
         let result = builder.run();
         assert!(result.is_ok());

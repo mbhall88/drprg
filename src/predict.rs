@@ -235,6 +235,10 @@ impl Predict {
         self.index.join("dr.update_DS")
     }
 
+    fn index_update_prgs_path(&self) -> PathBuf {
+        self.index.join("dr_prgs")
+    }
+
     fn sample_name(&self) -> &str {
         match &self.sample {
             Some(s) => s.as_str(),
@@ -261,6 +265,7 @@ impl Predict {
             self.index_vcf_ref_path(),
             self.index_prg_index_path(),
             self.index_prg_update_path(),
+            self.index_update_prgs_path(),
         ];
         for p in expected_paths {
             if !p.exists() {
@@ -732,6 +737,7 @@ mod tests {
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
             let _f = File::create(tmp_path.join("dr.update_DS")).unwrap();
+            let _f = std::fs::create_dir(tmp_path.join("dr_prgs")).unwrap();
         }
         assert!(predictor.validate_index().is_ok())
     }
@@ -870,6 +876,30 @@ mod tests {
 
         let actual = predictor.validate_index().unwrap_err();
         let expected = PredictError::InvalidIndex(tmp_path.join("dr.update_DS"));
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn validate_index_missing_update_prgs() {
+        let dir = tempfile::tempdir().unwrap();
+        let tmp_path = dir.path();
+        let predictor = Predict {
+            index: PathBuf::from(tmp_path),
+            ..Default::default()
+        };
+        {
+            let _f = File::create(tmp_path.join("dr.prg")).unwrap();
+            let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
+            let _f = File::create(tmp_path.join("genes.fa")).unwrap();
+            let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
+            let _f = File::create(tmp_path.join("dr.update_DS")).unwrap();
+        }
+
+        let actual = predictor.validate_index().unwrap_err();
+        let expected = PredictError::InvalidIndex(tmp_path.join("dr_prgs"));
 
         assert_eq!(actual, expected)
     }
