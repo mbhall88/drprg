@@ -66,6 +66,9 @@ pub enum DependencyError {
     /// An error associated with indexing VCFs with htslib
     #[error("Failed to index VCF with htslib: {0}")]
     HtslibIndexError(String),
+    /// Missing an expected output file after running a dependency
+    #[error("Missing expected output file {0}")]
+    MissingExpectedOutput(String),
 }
 
 pub struct Bcftools {
@@ -146,12 +149,17 @@ impl MakePrg {
     {
         let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
         let prefix = "dr";
+        let outdir = output_prg.parent().unwrap_or_else(|| Path::new("."));
+        let logstream = File::create(outdir.join("makeprg.log"))
+            .map_err(|source| DependencyError::FileError { source })?;
         let cmd_result = Command::new(&self.executable)
             .current_dir(&dir)
             .arg("from_msa")
             .args(args)
-            .args(&["-o", prefix, "-i"])
+            .args(&["-v", "-o", prefix, "-i"])
             .arg(input)
+            .stdout(Stdio::null())
+            .stderr(logstream)
             .output();
 
         match cmd_result {
@@ -200,6 +208,72 @@ impl MakePrg {
             }
             Err(err) => {
                 error!("make_prg failed to run with error: {}", err.to_string());
+                Err(DependencyError::ProcessError(err))
+            }
+        }
+    }
+
+    /// Update a PRG with make_prg
+    pub fn update<I, S>(
+        &self,
+        update_ds: &Path,
+        denovo_paths: &Path,
+        outdir: &Path,
+        args: I,
+        mafft: String,
+    ) -> Result<PathBuf, DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
+        let prefix = "dr";
+        let logstream = File::create(outdir.join("update.log"))
+            .map_err(|source| DependencyError::FileError { source })?;
+
+        let fixed_args = vec!["-v", "-o", prefix, "--mafft", &mafft];
+
+        let cmd_result = Command::new(&self.executable)
+            .current_dir(&dir)
+            .arg("update")
+            .args(args)
+            .args(&fixed_args)
+            .arg("-d")
+            .arg(denovo_paths.canonicalize()?)
+            .arg("-u")
+            .arg(update_ds.canonicalize()?)
+            .stdout(Stdio::null())
+            .stderr(logstream)
+            .output();
+
+        match cmd_result {
+            Ok(cmd_output) if !cmd_output.status.success() => {
+                error!("Failed to run make_prg update. Check update.log",);
+                Err(DependencyError::ProcessError(
+                    std::io::Error::from_raw_os_error(
+                        cmd_output.status.code().unwrap_or(129),
+                    ),
+                ))
+            }
+            Ok(_) => {
+                debug!("make_prg update successfully ran");
+                let tmpfile = dir.path().join(prefix).with_extension("prg.fa");
+                let output_prg = outdir.join("updated.dr.prg");
+                if tmpfile.exists() {
+                    std::fs::copy(tmpfile, &output_prg)
+                        .map_err(|source| DependencyError::FileError { source })?;
+                    Ok(output_prg)
+                } else {
+                    Err(DependencyError::MissingExpectedOutput(
+                        tmpfile.to_string_lossy().to_string(),
+                    ))
+                }
+            }
+            Err(err) => {
+                error!(
+                    "make_prg update failed to run with error: {}",
+                    err.to_string()
+                );
                 Err(DependencyError::ProcessError(err))
             }
         }
@@ -253,22 +327,35 @@ impl Pandora {
         }
     }
 
+    /// Run pandora discover
     pub fn discover_with<I, S>(
         &self,
         prg: &Path,
         query_idx: &Path,
         outdir: &Path,
         args: I,
-    ) -> Result<(), DependencyError>
+    ) -> Result<PathBuf, DependencyError>
     where
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
+        if !outdir.exists() {
+            std::fs::create_dir(outdir)?;
+        }
         let logstream = File::create(outdir.join("discover.log"))
             .map_err(|source| DependencyError::FileError { source })?;
-        let fixed_args = &["discover", "-g", &MTB_GENOME_SIZE.to_string(), "-N 10"];
+        let fixed_args = &[
+            "discover",
+            "-g",
+            &MTB_GENOME_SIZE.to_string(),
+            "-N",
+            "10",
+            "-v",
+            "-o",
+        ];
         let cmd_output = Command::new(&self.executable)
             .args(fixed_args)
+            .arg(&outdir)
             .args(args)
             .arg(prg)
             .arg(query_idx)
@@ -288,9 +375,15 @@ impl Pandora {
                 ),
             ))
         } else {
-            Ok(())
+            let denovo_paths = outdir.join("denovo_paths.txt");
+            if denovo_paths.exists() {
+                Ok(denovo_paths)
+            } else {
+                Err(DependencyError::MissingExpectedOutput(
+                    denovo_paths.to_string_lossy().to_string(),
+                ))
+            }
         }
-        todo!("cleanup")
     }
 
     pub fn genotype_with<I, S>(
@@ -341,7 +434,7 @@ impl Pandora {
         } else {
             Ok(())
         }
-        todo!("cleanup")
+        // todo!("cleanup")
     }
 
     pub fn vcf_filename() -> String {
@@ -350,7 +443,7 @@ impl Pandora {
 }
 
 pub struct MultipleSeqAligner {
-    executable: String,
+    pub executable: String,
 }
 
 impl MultipleSeqAligner {

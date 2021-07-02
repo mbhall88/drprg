@@ -17,7 +17,9 @@ use thiserror::Error;
 use uuid::Uuid;
 
 use drprg::filter::{Filter, Filterer};
-use drprg::{unwrap_or_continue, Pandora, PathExt, VcfExt};
+use drprg::{
+    unwrap_or_continue, MakePrg, MultipleSeqAligner, Pandora, PathExt, VcfExt,
+};
 
 use crate::cli::check_path_exists;
 use crate::panel::{Residue, Variant};
@@ -97,6 +99,24 @@ pub struct Predict {
         value_name = "FILE"
     )]
     pandora_exec: Option<PathBuf>,
+    /// Path to make_prg executable. Will try in src/ext or $PATH if not given
+    #[structopt(
+        short = "m",
+        long = "makeprg",
+        parse(from_os_str),
+        hidden_short_help = true,
+        value_name = "FILE"
+    )]
+    makeprg_exec: Option<PathBuf>,
+    /// Path to MAFFT executable. Will try in src/ext or $PATH if not given
+    #[structopt(
+        short = "M",
+        long = "mafft",
+        parse(from_os_str),
+        hidden_short_help = true,
+        value_name = "FILE"
+    )]
+    mafft_exec: Option<PathBuf>,
     /// Directory containing the index (produced by `drprg build`)
     #[structopt(short = "x", long, required = true, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
     index: PathBuf,
@@ -136,9 +156,6 @@ pub struct Predict {
     is_illumina: bool,
     #[structopt(flatten)]
     filterer: Filterer,
-    /// Force overwriting existing files. Use this if you want to build from scratch
-    #[structopt(short = "F", long)]
-    force: bool,
 }
 
 impl Runner for Predict {
@@ -156,15 +173,20 @@ impl Runner for Predict {
         self.validate_index()?;
         debug!("Index is valid");
         let threads = &rayon::current_num_threads().to_string();
+        let pandora = Pandora::from_path(&self.pandora_exec)?;
+        let mut prg_path = self.index_prg_path();
 
         if self.discover {
-            let pandora = Pandora::from_path(&self.pandora_exec)?;
+            info!("Discovering novel variants...");
             let tsvpath = self.outdir.join("query.tsv");
             {
-                let mut file = File::create(tsvpath)
+                let mut file = File::create(&tsvpath)
                     .context("Failed to create sample TSV file")?;
-                let content =
-                    format!("{}\t{}", self.sample_name(), self.input.to_string_lossy());
+                let content = format!(
+                    "{}\t{}\n",
+                    self.sample_name(),
+                    self.input.canonicalize()?.to_string_lossy()
+                );
                 file.write_all(content.as_bytes())
                     .context("Failed to write content to TSV file")?;
             }
@@ -172,37 +194,49 @@ impl Runner for Predict {
             if self.is_illumina {
                 args.push("-I");
             }
-            pandora
+
+            debug!("Running pandora discover...");
+            let denovo_paths = pandora
                 .discover_with(
                     &self.index_prg_path(),
                     &tsvpath,
-                    &self.outdir.join("discover"),
+                    &self.discover_dir(),
                     &args,
                 )
                 .context("Failed to run pandora discover")?;
-            todo!("make prg update");
-            todo!("cleanup")
+            std::fs::remove_file(tsvpath).context("Failed to delete TSV file")?;
+
+            debug!("Running make_prg update...");
+            let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
+            let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
+            prg_path = makeprg
+                .update(
+                    &self.index_prg_update_path().canonicalize()?,
+                    &denovo_paths.canonicalize()?,
+                    &self.outdir,
+                    &["-t", threads],
+                    mafft.executable,
+                )
+                .context("Failed to update discover PRG")?;
+
+            debug!("Indexing updated PRG with pandora index...");
+            pandora.index_with(&prg_path, &["-t", threads])?;
         }
 
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
-        if !pandora_vcf_path.exists() || self.force {
-            info!("Genotyping reads against the panel with pandora");
-            let pandora = Pandora::from_path(&self.pandora_exec)?;
-            let mut gt_args = vec!["-t", threads];
-            if self.is_illumina {
-                gt_args.push("-I");
-            }
-            pandora.genotype_with(
-                &self.index_prg_path(),
-                &self.index_vcf_ref_path(),
-                &self.input,
-                &self.outdir,
-                &gt_args,
-            )?;
-            info!("Successfully genotyped reads");
-        } else {
-            info!("Pandora output already present..skipping..");
+        info!("Genotyping reads against the panel with pandora");
+        let mut gt_args = vec!["-t", threads];
+        if self.is_illumina {
+            gt_args.push("-I");
         }
+        pandora.genotype_with(
+            &prg_path,
+            &self.index_vcf_ref_path(),
+            &self.input,
+            &self.outdir,
+            &gt_args,
+        )?;
+        info!("Successfully genotyped reads");
 
         info!("Making predictions from variants...");
         let predict_vcf_path = self.predict_from_pandora_vcf(&pandora_vcf_path)?;
@@ -272,6 +306,10 @@ impl Predict {
     fn predict_vcf_filename(&self) -> PathBuf {
         let path = PathBuf::from(self.sample_name());
         path.add_extension(".drprg.bcf".as_ref())
+    }
+
+    fn discover_dir(&self) -> PathBuf {
+        self.outdir.join("discover")
     }
 
     fn json_filename(&self) -> PathBuf {
