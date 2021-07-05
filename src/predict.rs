@@ -371,7 +371,12 @@ impl Predict {
                 .context("Pandora VCF is missing a contig from the header")?;
             let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(chrom));
             let iv = record.range();
-            unwrap_or_continue!(vcfidx.fetch(idx_rid, iv.start as u64, iv.end as u64));
+            // fetch start and end are BOTH 0-based INCLUSIVE
+            unwrap_or_continue!(vcfidx.fetch(
+                idx_rid,
+                iv.start as u64,
+                (iv.end - 1) as u64
+            ));
             let mut record_has_match_in_idx = false;
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
