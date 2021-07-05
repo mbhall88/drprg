@@ -88,6 +88,17 @@ pub struct Build {
         value_name = "DIR"
     )]
     outdir: PathBuf,
+    /// A prebuilt PRG to use.
+    ///
+    /// Only build the panel VCF and reference sequences - not the PRG. This directory MUST
+    /// contain a PRG file named `dr.prg`, a PRG update data structure named `dr.update_DS`, along
+    /// with the PRG directory output by `make_prg`, which should be called `dr_prgs/`. There can
+    /// optionally also be a pandora index file, but if not, the indexing will be performed by
+    /// drprg. Note: the PRG is expected to contain the reference sequence for each gene according
+    /// to the annotation and reference genome given (along with padding) and must be in the
+    /// forward strand orientation.
+    #[structopt(short = "d", long, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
+    prebuilt_prg: Option<PathBuf>,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
     #[structopt(
         short = "-l",
@@ -106,9 +117,6 @@ pub struct Build {
         value_name = "INT"
     )]
     max_nesting: u32,
-    /// Force overwriting existing files. Use this if you want to build from scratch
-    #[structopt(short = "F", long)]
-    force: bool,
 }
 
 impl Build {
@@ -133,6 +141,71 @@ impl Build {
         }
         header
     }
+
+    fn prg_path(&self) -> PathBuf {
+        self.outdir.join("dr.prg")
+    }
+    fn update_prgs_path(&self) -> PathBuf {
+        self.outdir.join("dr_prgs")
+    }
+    fn update_ds_path(&self) -> PathBuf {
+        self.prg_path().with_extension("update_DS")
+    }
+    fn prg_index_path(&self) -> PathBuf {
+        self.prg_path().add_extension(".k15.w14.idx".as_ref())
+    }
+    fn prg_index_kmer_prgs_path(&self) -> PathBuf {
+        self.outdir.join("kmer_prgs")
+    }
+    fn organise_prebuilt_prg(&self) -> Result<(), BuildError> {
+        let prebuilt_dir = match &self.prebuilt_prg {
+            Some(d) => d.canonicalize().unwrap(), // we know it exists so safe to unwrap
+            _ => return Ok(()),
+        };
+        //todo are all expected files there?
+        let prg = prebuilt_dir.join(&self.prg_path().file_name().unwrap());
+        if !prg.exists() {
+            return Err(BuildError::MissingFile(prg));
+        }
+        let update_ds = prebuilt_dir.join(&self.update_ds_path().file_name().unwrap());
+        if !update_ds.exists() {
+            return Err(BuildError::MissingFile(update_ds));
+        }
+        let update_prgs =
+            prebuilt_dir.join(&self.update_prgs_path().file_name().unwrap());
+        if !update_prgs.exists() {
+            return Err(BuildError::MissingFile(update_prgs));
+        }
+        let prg_index = prebuilt_dir.join(&self.prg_index_path().file_name().unwrap());
+        let prg_index_kmer_prgs =
+            prebuilt_dir.join(&self.prg_index_kmer_prgs_path().file_name().unwrap());
+        let index_exists = prg_index.exists() && prg_index_kmer_prgs.exists();
+
+        if self.outdir == prebuilt_dir {
+            Ok(())
+        } else {
+            let copyopts = fs_extra::dir::CopyOptions {
+                overwrite: true,
+                skip_exist: false,
+                buffer_size: 64000,
+                copy_inside: true,
+                content_only: false,
+                depth: 0,
+            };
+            let mut to_copy = vec![prg, update_prgs, update_ds];
+            if index_exists {
+                to_copy.push(prg_index);
+                to_copy.push(prg_index_kmer_prgs);
+            }
+            match fs_extra::copy_items(&to_copy, &self.outdir, &copyopts) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(BuildError::CopyError(format!(
+                    "Failed to copy prebuilt PRG files with error message {}",
+                    e.to_string()
+                ))),
+            }
+        }
+    }
 }
 
 impl Runner for Build {
@@ -146,6 +219,10 @@ impl Runner for Build {
             .outdir
             .canonicalize()
             .context("Failed to canonicalize outdir")?;
+
+        self.organise_prebuilt_prg()
+            .context("Failed to organise prebuilt PRG files")?;
+
         let premsa_dir = self.outdir.join("premsa");
         let msa_dir = self.outdir.join("msa");
         info!("Building panel index...");
@@ -169,82 +246,80 @@ impl Runner for Build {
 
         let panel_vcf_path = self.outdir.join("panel.bcf");
         let gene_refs_path = self.outdir.join("genes.fa");
-        if !self.force && panel_vcf_path.exists() && gene_refs_path.exists() {
-            info!("Using existing panel VCF and gene reference files")
-        } else {
-            debug!("Creating VCF header...");
-            let vcf_header = self.create_vcf_header(&annotations);
-            debug!("VCF header created");
-            let unsorted_panel_vcf_path = panel_vcf_path.with_extension("unsorted.bcf");
-            {
-                let mut vcf_writer = bcf::Writer::from_path(
-                    &unsorted_panel_vcf_path,
-                    &vcf_header,
-                    false,
-                    bcf::Format::BCF,
+        debug!("Creating VCF header...");
+        let vcf_header = self.create_vcf_header(&annotations);
+        debug!("VCF header created");
+        let unsorted_panel_vcf_path = panel_vcf_path.with_extension("unsorted.bcf");
+        {
+            let mut vcf_writer = bcf::Writer::from_path(
+                &unsorted_panel_vcf_path,
+                &vcf_header,
+                false,
+                bcf::Format::BCF,
+            )?;
+            debug!("Loading the reference genome index...");
+            let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
+            debug!("Loaded the reference genome index");
+            let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
+            if !premsa_dir.exists() {
+                debug!("Pre-MSA directory doesn't exist...creating...");
+                std::fs::create_dir(&premsa_dir)
+                    .context(format!("Failed to create {:?}", &premsa_dir))?;
+            } else {
+                debug!("Existing pre-MSA directory found...removing...");
+                std::fs::remove_dir_all(&premsa_dir)
+                    .and_then(|_| std::fs::create_dir(&premsa_dir))
+                    .context(format!(
+                        "Failed to remove and recreate {:?}",
+                        &premsa_dir
+                    ))?;
+            }
+
+            info!("Converting the panel to a VCF...");
+            for (gene, gff_record) in &annotations {
+                let seq =
+                    extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
+                fa_writer.write(
+                    gene,
+                    Some(&format!("padding={}", self.padding)),
+                    &seq,
                 )?;
-                debug!("Loading the reference genome index...");
-                let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
-                debug!("Loaded the reference genome index");
-                let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
-                if !premsa_dir.exists() {
-                    debug!("Pre-MSA directory doesn't exist...creating...");
-                    std::fs::create_dir(&premsa_dir)
-                        .context(format!("Failed to create {:?}", &premsa_dir))?;
-                } else if self.force {
-                    debug!("Existing pre-MSA directory found...removing...");
-                    std::fs::remove_dir_all(&premsa_dir)
-                        .and_then(|_| std::fs::create_dir(&premsa_dir))
-                        .context(format!(
-                            "Failed to remove and recreate {:?}",
-                            &premsa_dir
-                        ))?;
-                }
+                let premsa_path = premsa_dir.join(format!("{}.fa", gene));
+                let mut premsa_writer = fasta::Writer::to_file(&premsa_path)?;
+                premsa_writer.write(
+                    gene,
+                    Some(&format!("padding={}", self.padding)),
+                    &seq,
+                )?;
 
-                info!("Converting the panel to a VCF...");
-                for (gene, gff_record) in &annotations {
-                    let seq =
-                        extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
-                    fa_writer.write(
-                        gene,
-                        Some(&format!("padding={}", self.padding)),
-                        &seq,
-                    )?;
-                    let premsa_path = premsa_dir.join(format!("{}.fa", gene));
-                    let mut premsa_writer = fasta::Writer::to_file(premsa_path)?;
-                    premsa_writer.write(
-                        gene,
-                        Some(&format!("padding={}", self.padding)),
-                        &seq,
-                    )?;
-
-                    let panel_records_for_gene = &panel[gene];
-                    for panel_record in panel_records_for_gene {
-                        let mut vcf_record = vcf_writer.empty_record();
-                        match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
-                            Err(PanelError::PosOutOfRange(pos, gene)) => {
-                                warn!(
+                let panel_records_for_gene = &panel[gene];
+                for panel_record in panel_records_for_gene {
+                    let mut vcf_record = vcf_writer.empty_record();
+                    match panel_record.to_vcf(&mut vcf_record, &seq, self.padding) {
+                        Err(PanelError::PosOutOfRange(pos, gene)) => {
+                            warn!(
                                 "Position {} is out of range for gene {} [Skipping]",
                                 pos, gene
                             );
-                                continue;
-                            }
-                            Err(e) => return Err(anyhow!(e)),
-                            _ => (),
+                            continue;
                         }
-                        // we use unwrap as we have already confirmed above that the strand is + or -
-                        let strand =
-                            gff_record.strand().unwrap().strand_symbol().to_owned();
-                        vcf_record
-                            .push_info_string(b"ST", &[strand.as_bytes()])
-                            .context(format!(
-                                "Couldn't set INFO field ST for {}",
-                                panel_record.name()
-                            ))?;
-                        vcf_writer.write(&vcf_record)?;
+                        Err(e) => return Err(anyhow!(e)),
+                        _ => (),
+                    }
+                    // we use unwrap as we have already confirmed above that the strand is + or -
+                    let strand =
+                        gff_record.strand().unwrap().strand_symbol().to_owned();
+                    vcf_record
+                        .push_info_string(b"ST", &[strand.as_bytes()])
+                        .context(format!(
+                            "Couldn't set INFO field ST for {}",
+                            panel_record.name()
+                        ))?;
+                    vcf_writer.write(&vcf_record)?;
 
-                        let s: usize = vcf_record.pos() as usize;
-                        let e: usize = s + vcf_record.inner().rlen as usize;
+                    let s: usize = vcf_record.pos() as usize;
+                    let e: usize = s + vcf_record.inner().rlen as usize;
+                    if self.prebuilt_prg.is_none() {
                         for (i, allele) in vcf_record.alleles()[1..].iter().enumerate()
                         {
                             let mutated_seq =
@@ -259,71 +334,53 @@ impl Runner for Build {
                     }
                 }
             }
-            debug!("Sorting the original panel VCF...");
-            let bcftools = Bcftools::from_path(&self.bcftools_exec)?;
-            bcftools
-                .sort(&unsorted_panel_vcf_path, &panel_vcf_path)
-                .context("Failed to sort the panel VCF")?;
-            if let Err(e) = std::fs::remove_file(unsorted_panel_vcf_path) {
-                warn!(
-                    "Failed to remove the unsorted/original panel VCF with error:\n{}",
-                    e.to_string()
-                );
-            }
-            debug!("Panel VCF sorted and original removed");
-            info!(
-                "Panel successfully converted to a VCF at {:?}",
-                panel_vcf_path
+        }
+        debug!("Sorting the original panel VCF...");
+        let bcftools = Bcftools::from_path(&self.bcftools_exec)?;
+        bcftools
+            .sort(&unsorted_panel_vcf_path, &panel_vcf_path)
+            .context("Failed to sort the panel VCF")?;
+        if let Err(e) = std::fs::remove_file(unsorted_panel_vcf_path) {
+            warn!(
+                "Failed to remove the unsorted/original panel VCF with error:\n{}",
+                e.to_string()
             );
         }
+        debug!("Panel VCF sorted and original removed");
+        info!(
+            "Panel successfully converted to a VCF at {:?}",
+            panel_vcf_path
+        );
 
-        let panel_vcf_index_path = panel_vcf_path.add_extension(".csi".as_ref());
-        if !self.force && panel_vcf_index_path.exists() {
-            info!("Using existing panel VCF index")
-        } else {
-            info!("Indexing the panel VCF...");
-            index_vcf(&panel_vcf_path).context("Failed to index the panel VCF")?;
-            info!("Panel VCF successfully indexed");
-        }
+        info!("Indexing the panel VCF...");
+        index_vcf(&panel_vcf_path).context("Failed to index the panel VCF")?;
+        info!("Panel VCF successfully indexed");
 
-        info!("Generating multiple sequence alignments and reference graphs for all genes and their variants...");
-        let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
+        if self.prebuilt_prg.is_none() {
+            info!("Generating multiple sequence alignments and reference graphs for all genes and their variants...");
+            let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
 
-        if !msa_dir.exists() {
-            debug!("MSA directory doesn't exist...creating...");
-            std::fs::create_dir(&msa_dir)
-                .context(format!("Failed to create {:?}", &msa_dir))?;
-        } else if self.force {
-            info!("Existing MSA directory found...removing...");
-            std::fs::remove_dir_all(&msa_dir)
-                .and_then(|_| std::fs::create_dir(&msa_dir))
-                .context(format!("Failed to remove and recreate {:?}", &msa_dir))?;
-        }
-
-        genes.par_iter().try_for_each(|gene| {
-            let premsa_path = premsa_dir.join(format!("{}.fa", gene));
-            let msa_path = msa_dir.join(format!("{}.fa", gene));
-            if !self.force && msa_path.exists() {
-                Ok(())
+            if !msa_dir.exists() {
+                debug!("MSA directory doesn't exist...creating...");
+                std::fs::create_dir(&msa_dir)
+                    .context(format!("Failed to create {:?}", &msa_dir))?;
             } else {
+                info!("Existing MSA directory found...removing...");
+                std::fs::remove_dir_all(&msa_dir)
+                    .and_then(|_| std::fs::create_dir(&msa_dir))
+                    .context(format!("Failed to remove and recreate {:?}", &msa_dir))?;
+            }
+
+            genes.par_iter().try_for_each(|gene| {
+                let premsa_path = premsa_dir.join(format!("{}.fa", gene));
+                let msa_path = msa_dir.join(format!("{}.fa", gene));
                 debug!("Running MSA for {}", gene);
                 mafft.run_with(&premsa_path, &msa_path, &["--auto", "--thread", "-1"])
-            }
-        })?;
-        info!("Successfully generated MSAs");
+            })?;
+            info!("Successfully generated MSAs");
 
-        info!("Building reference graphs for genes...");
-        let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
-        let prg_path = self.outdir.join("dr.prg");
-        let prg_update_prgs = self.outdir.join("dr_prgs");
-        let prg_update_ds = prg_path.with_extension("update_DS");
-        if !self.force
-            && prg_path.exists()
-            && prg_update_ds.exists()
-            && prg_update_prgs.exists()
-        {
-            info!("Existing reference graph found...skipping...");
-        } else {
+            info!("Building reference graphs for genes...");
+            let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
             let make_prg_args = &[
                 "-t",
                 &rayon::current_num_threads().to_string(),
@@ -334,9 +391,9 @@ impl Runner for Build {
             ];
             makeprg.from_msas_with(
                 &msa_dir,
-                &prg_path,
-                &prg_update_ds,
-                &prg_update_prgs,
+                &self.prg_path(),
+                &self.update_ds_path(),
+                &self.update_prgs_path(),
                 make_prg_args,
             )?;
             info!("Successfully created panel reference graph");
@@ -344,14 +401,23 @@ impl Runner for Build {
         info!("Indexing reference graph with pandora...");
         let pandora = Pandora::from_path(&self.pandora_exec)?;
         let pandora_args = &["-t", &rayon::current_num_threads().to_string()];
-        let pandora_index = prg_path.add_extension(".k15.w14.idx".as_ref());
-        if !self.force && pandora_index.exists() {
+        if self.prebuilt_prg.is_some() && self.prg_index_path().exists() {
             info!("Existing pandora index found...skipping...");
         } else {
-            pandora.index_with(&prg_path, pandora_args)?;
+            pandora.index_with(&self.prg_path(), pandora_args)?;
             info!("Reference graph indexed successfully");
         }
         info!("Panel index built");
+
+        debug!("Cleaning up temporary files...");
+        if premsa_dir.exists() {
+            std::fs::remove_dir_all(&premsa_dir)
+                .context(format!("Failed to remove {:?}", &msa_dir))?;
+        }
+        if msa_dir.exists() {
+            std::fs::remove_dir_all(&msa_dir)
+                .context(format!("Failed to remove {:?}", &msa_dir))?;
+        }
         Ok(())
     }
 }
@@ -368,6 +434,12 @@ pub enum BuildError {
     /// GFF record doesn't have a strand
     #[error("No strand information in GFF for {0}")]
     MissingStrand(String),
+    /// An expected file is missing
+    #[error("Missing expected file {0:?}")]
+    MissingFile(PathBuf),
+    /// File copying error
+    #[error("{0}")]
+    CopyError(String),
 }
 
 fn load_annotations_for_genes<R>(
@@ -828,7 +900,6 @@ mod tests {
             padding: 100,
             outdir: PathBuf::from(outdir.path()),
             match_len: 5,
-            force: false,
             ..Build::default()
         };
         let result = builder.run();
@@ -870,7 +941,6 @@ mod tests {
             padding: 100,
             outdir: outdir.to_owned(),
             match_len: 5,
-            force: false,
             ..Build::default()
         };
         let result = builder.run();
@@ -879,45 +949,6 @@ mod tests {
         let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
         let mut file2 =
             std::fs::File::open(format!("{}/dr.prg", outdir.to_string_lossy()))
-                .unwrap();
-
-        let mut contents = String::new();
-        file1.read_to_string(&mut contents).unwrap();
-        let mut other = String::new();
-        file2.read_to_string(&mut other).unwrap();
-
-        let mut sorted1 = contents.as_bytes().to_owned();
-        sorted1.sort_unstable();
-
-        let mut sorted2 = other.as_bytes().to_owned();
-        sorted2.sort_unstable();
-
-        assert_eq!(sorted1, sorted2);
-    }
-
-    #[test]
-    fn build_runner_with_force() {
-        let outdir = tempfile::tempdir().unwrap();
-        let mut builder = Build {
-            bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            makeprg_exec: Some(PathBuf::from("src/ext/make_prg")),
-            mafft_exec: Some(PathBuf::from("src/ext/mafft/bin/mafft")),
-            gff_file: ANNOTATION.parse().unwrap(),
-            panel_file: PANEL.parse().unwrap(),
-            reference_file: REF.parse().unwrap(),
-            padding: 100,
-            outdir: PathBuf::from(outdir.path()),
-            match_len: 5,
-            force: true,
-            ..Build::default()
-        };
-        let result = builder.run();
-        assert!(result.is_ok());
-
-        let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
-        let mut file2 =
-            std::fs::File::open(format!("{}/dr.prg", outdir.path().to_string_lossy()))
                 .unwrap();
 
         let mut contents = String::new();

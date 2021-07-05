@@ -15,6 +15,7 @@ use thiserror::Error;
 use crate::filter::Tags;
 use crate::interval::IntervalOp;
 use std::cmp::min;
+use std::io::ErrorKind;
 
 pub mod filter;
 pub mod interval;
@@ -100,15 +101,15 @@ impl Bcftools {
             .map_err(DependencyError::ProcessError)?;
 
         if !cmd_output.status.success() {
-            error!(
-                "Failed to run bcftools sort with sterr:\n{}",
-                cmd_output.stderr.to_str_lossy()
-            );
-            Err(DependencyError::ProcessError(
-                std::io::Error::from_raw_os_error(
-                    cmd_output.status.code().unwrap_or(129),
+            let exit_code = cmd_output.status.to_string();
+            Err(DependencyError::ProcessError(std::io::Error::new(
+                ErrorKind::Other,
+                format!(
+                    "{} with stderr: {}",
+                    exit_code,
+                    cmd_output.stderr.to_str_lossy()
                 ),
-            ))
+            )))
         } else {
             Ok(())
         }
