@@ -77,7 +77,7 @@ impl Default for Prediction {
 }
 
 impl Prediction {
-    fn to_bytes(&self) -> &[u8] {
+    fn to_bytes(self) -> &'static [u8] {
         match self {
             Self::Susceptible => b"S",
             Self::Resistant => b"R",

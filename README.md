@@ -56,6 +56,8 @@ $ singularity exec "docker://$URI" drprg --help
 
 ### Local
 
+**Minimum supported Rust version**: `1.52.1`
+
 ```
 $ cargo build --release
 $ target/release/drprg -h
