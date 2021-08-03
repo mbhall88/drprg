@@ -79,7 +79,7 @@ pub struct Bcftools {
 impl Bcftools {
     pub fn from_path(path: &Option<PathBuf>) -> Result<Self, DependencyError> {
         let default = dependency_dir().join(BCFTOOLS_BIN);
-        let executable = from_path_or(&path, &default);
+        let executable = from_path_or(path, &default);
         match (path, executable) {
             (_, Some(exec)) => Ok(Self { executable: exec }),
             (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
@@ -124,7 +124,7 @@ impl MakePrg {
     /// Creates a MakePrg object from a path or from default if None given
     pub fn from_path(path: &Option<PathBuf>) -> Result<MakePrg, DependencyError> {
         let default = dependency_dir().join(MAKE_PRG_BIN);
-        let executable = from_path_or(&path, &default);
+        let executable = from_path_or(path, &default);
         match (path, executable) {
             (_, Some(exec)) => Ok(Self { executable: exec }),
             (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
@@ -288,7 +288,7 @@ pub struct Pandora {
 impl Pandora {
     pub fn from_path(path: &Option<PathBuf>) -> Result<Pandora, DependencyError> {
         let default = dependency_dir().join(PANDORA_BIN);
-        let executable = from_path_or(&path, &default);
+        let executable = from_path_or(path, &default);
         match (path, executable) {
             (_, Some(exec)) => Ok(Self { executable: exec }),
             (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
@@ -451,7 +451,7 @@ impl MultipleSeqAligner {
         path: &Option<PathBuf>,
     ) -> Result<MultipleSeqAligner, DependencyError> {
         let default = dependency_dir().join(MAFFT_BIN);
-        let executable = from_path_or(&path, &default);
+        let executable = from_path_or(path, &default);
         match (path, executable) {
             (_, Some(exec)) => Ok(Self { executable: exec }),
             (Some(p), None) => Err(DependencyError::NotExecutable(String::from(
@@ -685,7 +685,7 @@ impl VcfExt for bcf::Record {
         };
         let allele = self.alleles()[gt];
         let allele_iv = self.pos()..self.pos() + allele.len() as i64;
-        let isec = match allele_iv.intersect(&iv) {
+        let isec = match allele_iv.intersect(iv) {
             Some(i) => {
                 let s = (i.start - self.pos()) as usize;
                 let e = min(s + (i.end - i.start) as usize, allele.len());

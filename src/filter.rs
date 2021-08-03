@@ -159,12 +159,12 @@ pub trait Filter {
     fn has_strand_bias(&self, record: &bcf::Record) -> bool;
     fn filter(&self, record: &mut bcf::Record) -> Result<(), FilterError> {
         let status = FilterStatus {
-            low_covg: self.is_low_covg(&record),
-            high_covg: self.is_high_covg(&record),
-            strand_bias: self.has_strand_bias(&record),
-            low_gt_conf: self.is_low_gt_conf(&record),
-            long_indel: self.is_long_indel(&record),
-            low_support: self.is_low_support(&record),
+            low_covg: self.is_low_covg(record),
+            high_covg: self.is_high_covg(record),
+            strand_bias: self.has_strand_bias(record),
+            low_gt_conf: self.is_low_gt_conf(record),
+            long_indel: self.is_long_indel(record),
+            low_support: self.is_low_support(record),
         };
 
         status.apply_filters_to(record)?;
@@ -237,12 +237,12 @@ impl Filter for Filterer {
     }
 
     fn is_low_covg(&self, record: &Record) -> bool {
-        let covg = self._covg_for_gt(&record);
+        let covg = self._covg_for_gt(record);
         covg < self.min_covg
     }
 
     fn is_high_covg(&self, record: &Record) -> bool {
-        let covg = self._covg_for_gt(&record);
+        let covg = self._covg_for_gt(record);
         covg > self.max_covg
     }
 

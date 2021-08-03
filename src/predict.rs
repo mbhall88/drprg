@@ -359,7 +359,7 @@ impl Predict {
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
             record
-                .set_id(&Uuid::new_v4().to_string()[..8].as_bytes())
+                .set_id(Uuid::new_v4().to_string()[..8].as_bytes())
                 .context("Duplicate ID found - 1/270,000,000 chance of this happening - buy a lottery ticket!")?;
             let rid = record.rid().context(format!(
                 "Pandora variant number {} does not have a CHROM",
@@ -1008,7 +1008,7 @@ mod tests {
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
 
-        let result = pred.predict_from_pandora_vcf(&pandora_vcf_path);
+        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
         assert!(result.is_ok());
 
         let mut expected_rdr =
@@ -1076,7 +1076,7 @@ mod tests {
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
 
-        let result = pred.predict_from_pandora_vcf(&pandora_vcf_path);
+        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
         assert!(result.is_ok());
 
         let mut expected_rdr =
@@ -1144,7 +1144,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out.bcf");
-        let result = pred.vcf_to_json(&vcf_path);
+        let result = pred.vcf_to_json(vcf_path);
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -1234,7 +1234,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out2.bcf");
-        let result = pred.vcf_to_json(&vcf_path);
+        let result = pred.vcf_to_json(vcf_path);
         assert!(result.is_ok());
 
         let json_path = result.unwrap();

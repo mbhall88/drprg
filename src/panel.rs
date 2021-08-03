@@ -393,7 +393,7 @@ impl PanelRecord {
             .map_err(|_| {
                 PanelError::SetVcfFieldFailed("DRUGS".to_owned(), self.name())
             })?;
-        let ref_allele = self.check_ref(&refseq, padding)?;
+        let ref_allele = self.check_ref(refseq, padding)?;
         let alt_alleles = self.all_alt_alleles()?;
         let mut alleles = vec![ref_allele];
         alleles.extend(alt_alleles);

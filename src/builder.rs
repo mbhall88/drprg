@@ -278,7 +278,7 @@ impl Runner for Build {
             info!("Converting the panel to a VCF...");
             for (gene, gff_record) in &annotations {
                 let seq =
-                    extract_gene_from_index(&gff_record, &mut faidx, self.padding)?;
+                    extract_gene_from_index(gff_record, &mut faidx, self.padding)?;
                 fa_writer.write(
                     gene,
                     Some(&format!("padding={}", self.padding)),
