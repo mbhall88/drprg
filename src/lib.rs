@@ -435,7 +435,6 @@ impl Pandora {
         } else {
             Ok(())
         }
-        // todo!("cleanup")
     }
 
     pub fn vcf_filename() -> String {
@@ -547,6 +546,7 @@ pub fn index_vcf(path: &Path) -> Result<(), DependencyError> {
         }
     }
 }
+
 pub fn dependency_dir() -> PathBuf {
     std::env::current_exe()
         .unwrap()
@@ -696,19 +696,40 @@ impl VcfExt for bcf::Record {
         &self.alleles()[gt][isec]
     }
 
-    /// Looks to matching sequencing between the record and another. This will match the called
+    /// Looks to match sequences between the record and another. This will match the called
     /// allele for Self with any of the alleles of `other`. Returns `Some` if there is a match, or
-    /// `None` otherwise
+    /// `None` otherwise. If there are multiple matches, it will return the logest length match. If
+    /// there are multiple matches of the same length, it will return the match with the biggest
+    /// difference to the reference allele i.e., it will return the longest indel match
     fn argmatch(&self, other: &Self) -> Option<usize> {
-        let seq = self.slice(&other.range(), None);
-        if seq.is_empty() {
-            None
-        } else {
-            (0..other.allele_count()).position(|i| {
-                let other_seq = other.slice(&self.range(), Some(i as usize));
-                seq == other_seq
-            })
+        let called_len = match self.called_allele() {
+            i if i < 1 => self.rlen(), // we use ref if null gt
+            i => self.alleles()[i as usize].len() as i64,
+        };
+        let mut match_len = 0;
+        let mut match_ix = None;
+        let mut match_diff = -1;
+
+        let other_alleles = other.alleles();
+        for (i, al) in other_alleles.iter().enumerate() {
+            let iv = other.pos()..(other.pos() + al.len() as i64);
+            let seq = self.slice(&iv, None);
+            if seq.is_empty() {
+                continue;
+            }
+            let l = seq.len();
+
+            let other_iv = self.pos()..(self.pos() + called_len);
+            let other_seq = other.slice(&other_iv, Some(i));
+            let diff = (other.rlen() - al.len() as i64).abs();
+
+            if seq == other_seq && l >= match_len && diff > match_diff {
+                match_len = l;
+                match_ix = Some(i);
+                match_diff = diff;
+            }
         }
+        match_ix
     }
 }
 
@@ -1594,7 +1615,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_argmatch_multiple_matches_returns_first() {
+    fn test_record_argmatch_multiple_matches_returns_longest() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1658,7 +1679,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_argmatch_single_base_del() {
+    fn test_record_argmatch_single_base_deletion() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1684,7 +1705,103 @@ mod tests {
         other.set_pos(161);
 
         let actual = record.argmatch(&other);
-        let expected = None;
+        let expected = Some(1);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_deletion_matches_longest() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCCCC", b"C"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(161);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCCCC", b"CCC", b"C"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(161);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(2);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_single_base_insertion() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"G", b"GT"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(2197);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"G", b"GT", b"ACC", b"ACA", b"ACG"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(2197);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(1);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_insertion_matches_longest() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"C", b"CCCCC"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(161);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"C", b"CCC", b"CCCCC"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(161);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(2);
 
         assert_eq!(actual, expected)
     }

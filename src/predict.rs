@@ -1167,6 +1167,12 @@ mod tests {
                   "residue": "DNA",
                   "variant": "CTG607TTA",
                   "vcfid": "."
+                },
+                {
+                  "gene": "katG",
+                  "residue": "DNA",
+                  "variant": "G2097GT",
+                  "vcfid": "."
                 }
               ],
               "predict": "R"
@@ -1250,6 +1256,12 @@ mod tests {
                   "gene": "fabG1",
                   "residue": "DNA",
                   "variant": "CTG607TTA",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "katG",
+                  "residue": "DNA",
+                  "variant": "G2097GT",
                   "vcfid": "."
                 }
               ],
