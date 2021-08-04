@@ -659,13 +659,17 @@ impl VcfExt for bcf::Record {
         let called_covg = (fc[gt] + rc[gt]) as f32;
         let mut other_covg = 0;
 
-        for (i, (f_cov, r_cov)) in fc.iter().zip(&rc).enumerate() {
-            if i == gt {
-                continue;
-            } else {
-                let cov: i32 = f_cov + r_cov;
-                if cov > other_covg {
-                    other_covg = cov;
+        if gt > 0 {
+            other_covg = fc[0] + rc[0];
+        } else {
+            for (i, (f_cov, r_cov)) in fc.iter().zip(&rc).enumerate() {
+                if i == gt {
+                    continue;
+                } else {
+                    let cov: i32 = f_cov + r_cov;
+                    if cov > other_covg {
+                        other_covg = cov;
+                    }
                 }
             }
         }
@@ -1148,8 +1152,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_fraction_read_support_more_than_two_alleles_chooses_highest_and_called(
-    ) {
+    fn test_record_fraction_read_support_called_alt_compares_to_ref() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1162,7 +1165,25 @@ mod tests {
         bcf_record_set_gt(&mut record, 1);
 
         let actual = record.fraction_read_support();
-        let expected = Some(14.0 / (14.0 + 8.0));
+        let expected = Some(14.0 / (14.0 + 4.0));
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_fraction_read_support_called_ref_compares_to_highest_alt() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[4, 4, 7], &[0, 10, 1]);
+        bcf_record_set_gt(&mut record, 0);
+
+        let actual = record.fraction_read_support();
+        let expected = Some(4.0 / (14.0 + 4.0));
         assert_eq!(actual, expected)
     }
 
