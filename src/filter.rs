@@ -57,8 +57,8 @@ impl Tags {
     /// Returns the string representation of the tag
     pub fn value(&self) -> &[u8] {
         match *self {
-            Tags::FwdCovg => b"MED_FWD_COVG",
-            Tags::RevCovg => b"MED_REV_COVG",
+            Tags::FwdCovg => b"MEAN_FWD_COVG",
+            Tags::RevCovg => b"MEAN_REV_COVG",
             Tags::LowCovg => b"ld",
             Tags::HighCovg => b"hd",
             Tags::StrandBias => b"sb",
@@ -78,8 +78,8 @@ impl FromStr for Tags {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "MED_FWD_COVG" => Ok(Tags::FwdCovg),
-            "MED_REV_COVG" => Ok(Tags::RevCovg),
+            "MEAN_FWD_COVG" => Ok(Tags::FwdCovg),
+            "MEAN_REV_COVG" => Ok(Tags::RevCovg),
             "ld" => Ok(Tags::LowCovg),
             "hd" => Ok(Tags::HighCovg),
             "sb" => Ok(Tags::StrandBias),
@@ -458,8 +458,8 @@ pub(crate) mod test {
 
     pub(crate) fn populate_bcf_header(header: &mut bcf::Header) {
         header.push_sample(b"sample")
-            .push_record(br#"##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#)
-            .push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(
+            .push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#)
+            .push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         ).push_record(br#"##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">"#);
         header.push_record(br#"##contig=<ID=chrom>"#);
@@ -471,10 +471,10 @@ pub(crate) mod test {
         rev_covg: &[i32],
     ) {
         record
-            .push_format_integer(b"MED_FWD_COVG", fwd_covg)
+            .push_format_integer(b"MEAN_FWD_COVG", fwd_covg)
             .expect("Failed to set forward coverage");
         record
-            .push_format_integer(b"MED_REV_COVG", rev_covg)
+            .push_format_integer(b"MEAN_REV_COVG", rev_covg)
             .expect("Failed to set reverse coverage");
     }
 

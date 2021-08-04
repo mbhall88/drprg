@@ -934,17 +934,17 @@ mod tests {
         let path = tmp.path();
         let mut header = Header::new();
 
-        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#);
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
         record
-            .push_format_integer(b"MED_FWD_COVG", &[5, 0])
+            .push_format_integer(b"MEAN_FWD_COVG", &[5, 0])
             .expect("Failed to set forward coverage");
         record
-            .push_format_integer(b"MED_REV_COVG", &[6, 1])
+            .push_format_integer(b"MEAN_REV_COVG", &[6, 1])
             .expect("Failed to set reverse coverage");
 
         let actual = record.coverage();
