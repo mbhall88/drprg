@@ -538,8 +538,8 @@ impl Predict {
                     .collect::<Vec<String>>(),
                 None => continue,
             };
-            for (p, v) in preds.iter().zip(varids.iter()) {
-                if *p != Prediction::Susceptible {
+            for (prediction, v) in preds.iter().zip(varids.iter()) {
+                if *prediction != Prediction::Susceptible {
                     let (drugs, residue) = panel
                         .get(v)
                         .context(format!("Variant {} in VCF is not in the panel", v))?;
@@ -557,8 +557,25 @@ impl Predict {
                         let entry = json
                             .entry(drug.to_string())
                             .or_insert_with(Susceptibility::default);
-                        entry.predict = *p;
-                        entry.evidence.push(ev.to_owned());
+                        match (entry.predict, *prediction) {
+                            (p1, p2) if p1 == p2 => entry.evidence.push(ev.to_owned()),
+                            (Prediction::Resistant, _) => {}
+                            (_, Prediction::Resistant) => {
+                                entry.predict = Prediction::Resistant;
+                                entry.evidence = vec![ev.to_owned()];
+                            }
+                            (Prediction::Unknown, _) => {}
+                            (_, Prediction::Unknown) => {
+                                entry.predict = Prediction::Unknown;
+                                entry.evidence = vec![ev.to_owned()];
+                            }
+                            (Prediction::Failed, _) => {}
+                            (_, Prediction::Failed) => {
+                                entry.predict = Prediction::Failed;
+                                entry.evidence = vec![ev.to_owned()];
+                            }
+                            _ => {}
+                        }
                     }
                 }
             }
@@ -1234,6 +1251,110 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out2.bcf");
+        let result = pred.vcf_to_json(vcf_path);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+        let expected = r#"
+        {
+          "sample": "test",
+          "susceptibility": {
+            "Isoniazid": {
+              "evidence": [
+                {
+                  "gene": "fabG1",
+                  "residue": "DNA",
+                  "variant": "CTG607TTA",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "katG",
+                  "residue": "DNA",
+                  "variant": "G2097GT",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "R"
+            },
+            "Ofloxacin": {
+              "evidence": [
+                {
+                  "gene": "inhA",
+                  "residue": "PROT",
+                  "variant": "I194T",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "F"
+            },
+            "Rifampicin": {
+              "evidence": [
+                {
+                  "gene": "inhA",
+                  "residue": "PROT",
+                  "variant": "I21T",
+                  "vcfid": "."
+                }
+              ],
+              "predict": "U"
+            },
+            "Streptomycin": {
+              "evidence": [
+                {
+                  "gene": "gid",
+                  "residue": "PROT",
+                  "variant": "R47W",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "rpsL",
+                  "residue": "PROT",
+                  "variant": "K43R",
+                  "vcfid": "."
+                }
+               ],
+              "predict": "R"
+            }
+          }
+        }
+        "#
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn vcf_to_json_strep_has_resistant_and_unknown_only_evidence_for_resistant() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.7,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            filterer: filt,
+            discover: true,
+            require_genotype: true,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/out3.bcf");
         let result = pred.vcf_to_json(vcf_path);
         assert!(result.is_ok());
 
