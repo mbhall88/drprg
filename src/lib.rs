@@ -723,10 +723,16 @@ impl VcfExt for bcf::Record {
             let other_seq = other.slice(&other_iv, Some(i));
             let diff = (other.rlen() - al.len() as i64).abs();
 
-            if seq == other_seq && l >= match_len && diff > match_diff {
-                match_len = l;
-                match_ix = Some(i);
-                match_diff = diff;
+            if seq == other_seq {
+                if self.called_allele() == 0 && i == 0 {
+                    // if self if REF and matches other's REF, we short-circuit and say it matches
+                    // REF regardless of if it has longer matches
+                    return Some(0);
+                } else if l >= match_len && diff > match_diff {
+                    match_len = l;
+                    match_ix = Some(i);
+                    match_diff = diff;
+                }
             }
         }
         match_ix
