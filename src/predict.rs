@@ -608,7 +608,7 @@ impl Predict {
                         residue: residue.to_owned(),
                         vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
                     };
-                    for drug in drugs {
+                    for drug in drugs.iter().filter(|d| *d != NONE_DRUG) {
                         let entry = json
                             .entry(drug.to_string())
                             .or_insert_with(Susceptibility::default);
