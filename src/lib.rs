@@ -609,6 +609,7 @@ pub trait VcfExt {
     fn end(&self) -> i64;
     fn rlen(&self) -> i64;
     fn range(&self) -> Range<i64>;
+    fn contig(&self) -> String;
     fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)>;
     fn fraction_read_support(&self) -> Option<f32>;
     fn gt_conf(&self) -> Option<f32>;
@@ -629,6 +630,15 @@ impl VcfExt for bcf::Record {
         self.pos()..self.end()
     }
 
+    fn contig(&self) -> String {
+        String::from_utf8_lossy(&*Vec::from(
+            self.header()
+                .rid2name(self.rid().expect("rid not set"))
+                .expect("unable to find rid in header"),
+        ))
+        .to_string()
+    }
+
     /// Returns the coverage on the forward and reverse strand (for the first sample only)
     fn coverage(&self) -> Option<(Vec<i32>, Vec<i32>)> {
         let fwd_covgs = self.format(Tags::FwdCovg.value()).integer().ok()?;
@@ -639,13 +649,28 @@ impl VcfExt for bcf::Record {
 
     fn fraction_read_support(&self) -> Option<f32> {
         let (fc, rc) = self.coverage()?;
-        let total_covg = fc.iter().chain(&rc).sum::<i32>() as f32;
+        if fc.len() < 2 {
+            return Some(1.0);
+        }
         let gt = match self.called_allele() {
             i if i < 0 => return None,
             i => i,
         } as usize;
         let called_covg = (fc[gt] + rc[gt]) as f32;
-        match called_covg / total_covg {
+        let mut other_covg = 0;
+
+        for (i, (f_cov, r_cov)) in fc.iter().zip(&rc).enumerate() {
+            if i == gt {
+                continue;
+            } else {
+                let cov: i32 = f_cov + r_cov;
+                if cov > other_covg {
+                    other_covg = cov;
+                }
+            }
+        }
+
+        match called_covg / (called_covg + other_covg as f32) {
             f if f.is_nan() => None,
             f => Some(f),
         }
@@ -1120,6 +1145,25 @@ mod tests {
 
         let actual = record.fraction_read_support();
         assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_record_fraction_read_support_more_than_two_alleles_chooses_highest_and_called(
+    ) {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        populate_bcf_header(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        bcf_record_set_covg(&mut record, &[4, 4, 7], &[0, 10, 1]);
+        bcf_record_set_gt(&mut record, 1);
+
+        let actual = record.fraction_read_support();
+        let expected = Some(14.0 / (14.0 + 8.0));
+        assert_eq!(actual, expected)
     }
 
     #[test]

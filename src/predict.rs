@@ -502,9 +502,23 @@ impl Predict {
 
     fn vcf_to_json(&self, vcf_path: &Path) -> Result<PathBuf> {
         let json_path = self.outdir.join(self.json_filename());
+
         debug!("Loading the panel...");
-        let panel = self.load_var_to_drugs()?;
+        let var2drugs = self.load_var_to_drugs()?;
+        let mut gene2drugs: HashMap<String, HashSet<String>> = HashMap::new();
+        for (var, (drugs, _)) in &var2drugs {
+            let (chrom, _) = var
+                .split_once("_")
+                .context(format!("Couldn't split variant ID {} at underscore", var))?;
+            let entry = gene2drugs
+                .entry(chrom.to_string())
+                .or_insert_with(HashSet::new);
+            drugs.iter().for_each(|d| {
+                entry.insert(d.to_owned());
+            });
+        }
         debug!("Loaded panel");
+
         let mut json: BTreeMap<String, Susceptibility> = BTreeMap::new();
         let mut reader =
             bcf::Reader::from_path(vcf_path).context("Failed to open predict VCF")?;
@@ -525,7 +539,7 @@ impl Predict {
                     .iter()
                     .map(|el| Prediction::from_str(el.to_str_lossy().as_ref()).unwrap())
                     .collect::<Vec<Prediction>>(),
-                None => continue,
+                None => vec![],
             };
             let varids = match record
                 .info(InfoField::VarId.id().as_bytes())
@@ -536,11 +550,52 @@ impl Predict {
                     .iter()
                     .map(|el| String::from_utf8_lossy(el).to_string())
                     .collect::<Vec<String>>(),
-                None => continue,
+                None => vec![],
             };
+            if preds.is_empty()
+                && varids.is_empty()
+                && self.discover
+                && record.called_allele() > 0
+            {
+                // for novel variants, add 'U' for all drugs this gene is associated with
+                let chrom = record.contig();
+                match gene2drugs.get(&chrom) {
+                    Some(d) => {
+                        let var = format!(
+                            "{}{}{}",
+                            record.alleles()[0].to_str_lossy(),
+                            record.pos() + 1,
+                            record.alleles()[record.called_allele() as usize]
+                                .to_str_lossy()
+                        );
+                        let ev = Evidence {
+                            variant: Variant::from_str(&var)?,
+                            gene: chrom.to_owned(),
+                            residue: Residue::Nucleic,
+                            vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
+                        };
+                        for drug in d {
+                            let entry = json
+                                .entry(drug.to_string())
+                                .or_insert_with(Susceptibility::default);
+                            match entry.predict {
+                                Prediction::Susceptible | Prediction::Failed => {
+                                    entry.evidence = vec![ev.to_owned()];
+                                    entry.predict = Prediction::Unknown;
+                                }
+                                Prediction::Unknown => {
+                                    entry.evidence.push(ev.to_owned())
+                                }
+                                Prediction::Resistant => {}
+                            }
+                        }
+                    }
+                    None => continue,
+                }
+            }
             for (prediction, v) in preds.iter().zip(varids.iter()) {
                 if *prediction != Prediction::Susceptible {
-                    let (drugs, residue) = panel
+                    let (drugs, residue) = var2drugs
                         .get(v)
                         .context(format!("Variant {} in VCF is not in the panel", v))?;
                     let (chrom, var) = v.split_once("_").context(format!(
@@ -580,7 +635,7 @@ impl Predict {
                 }
             }
         }
-        for (_, (drugs, _)) in panel {
+        for (_, (drugs, _)) in var2drugs {
             for d in drugs {
                 if d != NONE_DRUG {
                     json.entry(d).or_insert_with(Susceptibility::default);
@@ -1334,6 +1389,7 @@ mod tests {
     }
 
     #[test]
+    /// Also, there is a mutation that doesn't overlap the panel that gets added as unknown
     fn vcf_to_json_strep_has_resistant_and_unknown_only_evidence_for_resistant() {
         use std::io::Read;
         use std::iter::Iterator;
@@ -1392,12 +1448,12 @@ mod tests {
               "evidence": [
                 {
                   "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "I194T",
+                  "residue": "DNA",
+                  "variant": "ATC780ACT",
                   "vcfid": "."
                 }
               ],
-              "predict": "F"
+              "predict": "U"
             },
             "Rifampicin": {
               "evidence": [
@@ -1405,6 +1461,12 @@ mod tests {
                   "gene": "inhA",
                   "residue": "PROT",
                   "variant": "I21T",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "inhA",
+                  "residue": "DNA",
+                  "variant": "ATC780ACT",
                   "vcfid": "."
                 }
               ],
