@@ -727,18 +727,22 @@ impl VcfExt for bcf::Record {
 
     /// Looks to match sequences between the record and another. This will match the called
     /// allele for Self with any of the alleles of `other`. Returns `Some` if there is a match, or
-    /// `None` otherwise. If there are multiple matches, it will return the logest length match. If
+    /// `None` otherwise. If there are multiple matches, it will return the longest length match. If
     /// there are multiple matches of the same length, it will return the match with the biggest
     /// difference to the reference allele i.e., it will return the longest indel match
     fn argmatch(&self, other: &Self) -> Option<usize> {
         let called_len = match self.called_allele() {
-            i if i < 1 => self.rlen(), // we use ref if null gt
-            i => self.alleles()[i as usize].len() as i64,
+            0 => self.rlen(),
+            i if i > 0 => self.alleles()[i as usize].len() as i64,
+            _ => return None,
         };
-        let mut match_len = 0;
-        let mut match_ix = None;
-        let mut match_diff = -1;
+        let called_diff = (called_len - self.rlen()).abs();
 
+        let mut match_ix = None;
+        let mut match_diff: Option<i64> = None;
+
+        let other_iv = self.pos()..(self.pos() + called_len);
+        let other_ref = other.slice(&(self.pos()..i64::MAX), Some(0));
         let other_alleles = other.alleles();
         for (i, al) in other_alleles.iter().enumerate() {
             let iv = other.pos()..(other.pos() + al.len() as i64);
@@ -746,21 +750,18 @@ impl VcfExt for bcf::Record {
             if seq.is_empty() {
                 continue;
             }
-            let l = seq.len();
 
-            let other_iv = self.pos()..(self.pos() + called_len);
             let other_seq = other.slice(&other_iv, Some(i));
-            let diff = (other.rlen() - al.len() as i64).abs();
+            let diff = (other_ref.len() as i64 - al.len() as i64).abs() as i64;
 
             if seq == other_seq {
-                if self.called_allele() == 0 && i == 0 {
-                    // if self if REF and matches other's REF, we short-circuit and say it matches
-                    // REF regardless of if it has longer matches
-                    return Some(0);
-                } else if l >= match_len && diff > match_diff {
-                    match_len = l;
-                    match_ix = Some(i);
-                    match_diff = diff;
+                let diff_diff = (called_diff - diff).abs();
+                match match_diff {
+                    Some(i) if i <= diff_diff => {}
+                    _ => {
+                        match_diff = Some(diff_diff);
+                        match_ix = Some(i);
+                    }
                 }
             }
         }
@@ -1686,7 +1687,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_argmatch_multiple_matches_returns_longest() {
+    fn test_record_argmatch_multiple_matches_returns_shortest_indel() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1712,7 +1713,7 @@ mod tests {
         other.set_pos(7);
 
         let actual = record.argmatch(&other);
-        let expected = Some(1);
+        let expected = Some(2);
 
         assert_eq!(actual, expected)
     }
@@ -1814,6 +1815,70 @@ mod tests {
     }
 
     #[test]
+    fn test_record_argmatch_deletion_matches_closest() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCCCC", b"CCC"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(161);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCCCC", b"CCCC", b"C"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(161);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(1);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_deletion_matches_closest_overlap() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCCCC", b"CCC"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(160);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCCCC", b"CCCC", b"C"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(161);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(1);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
     fn test_record_argmatch_single_base_insertion() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -1878,7 +1943,7 @@ mod tests {
     }
 
     #[test]
-    fn test_record_argmatch_null_uses_ref() {
+    fn test_record_argmatch_null_returns_none() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -1904,7 +1969,7 @@ mod tests {
         other.set_pos(161);
 
         let actual = record.argmatch(&other);
-        let expected = Some(0);
+        let expected = None;
 
         assert_eq!(actual, expected)
     }
