@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::string::ToString;
 
 use anyhow::{Context, Result};
+use clap::{AppSettings, Parser};
 use log::{debug, info};
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
@@ -10,8 +11,6 @@ use rust_htslib::bcf::{Format, Read};
 use serde::{de, Deserialize, Deserializer, Serialize};
 use serde_json::json;
 use std::collections::BTreeMap;
-use structopt::clap::AppSettings;
-use structopt::StructOpt;
 use strum_macros::EnumString;
 use thiserror::Error;
 use uuid::Uuid;
@@ -87,12 +86,12 @@ impl Prediction {
     }
 }
 
-#[derive(StructOpt, Debug, Default)]
-#[structopt(setting = AppSettings::DeriveDisplayOrder)]
+#[derive(Parser, Debug, Default)]
+#[clap(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Predict {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "p",
+    #[clap(
+        short = 'p',
         long = "pandora",
         parse(from_os_str),
         hidden_short_help = true,
@@ -100,8 +99,8 @@ pub struct Predict {
     )]
     pandora_exec: Option<PathBuf>,
     /// Path to make_prg executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "m",
+    #[clap(
+        short = 'm',
         long = "makeprg",
         parse(from_os_str),
         hidden_short_help = true,
@@ -109,8 +108,8 @@ pub struct Predict {
     )]
     makeprg_exec: Option<PathBuf>,
     /// Path to MAFFT executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "M",
+    #[clap(
+        short = 'M',
         long = "mafft",
         parse(from_os_str),
         hidden_short_help = true,
@@ -118,15 +117,15 @@ pub struct Predict {
     )]
     mafft_exec: Option<PathBuf>,
     /// Directory containing the index (produced by `drprg build`)
-    #[structopt(short = "x", long, required = true, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
+    #[clap(short = 'x', long, required = true, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
     index: PathBuf,
     /// Sample reads to predict resistance from
     ///
     /// Both fasta and fastq are accepted, along with compressed or uncompressed.
-    #[structopt(short, long, required = true, parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short, long, required = true, parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     input: PathBuf,
     /// Directory to place output
-    #[structopt(
+    #[clap(
         short,
         long,
         default_value = ".",
@@ -137,24 +136,24 @@ pub struct Predict {
     /// Identifier to use for the sample
     ///
     /// If not provided, this will be set to the input reads file path prefix
-    #[structopt(short, long)]
+    #[clap(short, long)]
     sample: Option<String>,
     /// Attempt to discover novel variants (i.e. variants not in the panel)
     ///
     /// If a novel variant is discovered, a prediciton of "unknown" is returned for the drug(s)
     /// associated with that gene
-    #[structopt(short = "u", long = "unknown")]
+    #[clap(short = 'u', long = "unknown")]
     discover: bool,
     /// Require all resistance-associated sites to be genotyped
     ///
     /// If a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
     /// "failed" is returned for the drug(s) associated with that site.
-    #[structopt(short = "f", long = "failed")]
+    #[clap(short = 'f', long = "failed")]
     require_genotype: bool,
     /// Sample reads are from Illumina sequencing
-    #[structopt(short = "I", long = "illumina")]
+    #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
-    #[structopt(flatten)]
+    #[clap(flatten)]
     filterer: Filterer,
 }
 

@@ -6,11 +6,10 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Context, Result};
 use bio::alphabets::dna::revcomp;
 use bio::io::{fasta, gff};
+use clap::{AppSettings, Parser};
 use log::{debug, info, warn};
 use rayon::prelude::*;
 use rust_htslib::bcf;
-use structopt::clap::AppSettings;
-use structopt::StructOpt;
 use thiserror::Error;
 
 use drprg::{index_vcf, Bcftools, MakePrg, Pandora};
@@ -23,12 +22,12 @@ use crate::Runner;
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[derive(StructOpt, Debug, Default)]
-#[structopt(setting = AppSettings::DeriveDisplayOrder)]
+#[derive(Parser, Debug, Default)]
+#[clap(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Build {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "p",
+    #[clap(
+        short = 'p',
         long = "pandora",
         parse(from_os_str),
         hidden_short_help = true,
@@ -36,8 +35,8 @@ pub struct Build {
     )]
     pandora_exec: Option<PathBuf>,
     /// Path to make_prg executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "m",
+    #[clap(
+        short = 'm',
         long = "makeprg",
         parse(from_os_str),
         hidden_short_help = true,
@@ -45,8 +44,8 @@ pub struct Build {
     )]
     makeprg_exec: Option<PathBuf>,
     /// Path to MAFFT executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "M",
+    #[clap(
+        short = 'M',
         long = "mafft",
         parse(from_os_str),
         hidden_short_help = true,
@@ -54,8 +53,8 @@ pub struct Build {
     )]
     mafft_exec: Option<PathBuf>,
     /// Path to bcftools executable. Will try in src/ext or $PATH if not given
-    #[structopt(
-        short = "B",
+    #[clap(
+        short = 'B',
         long = "bcftools",
         parse(from_os_str),
         hidden_short_help = true,
@@ -63,24 +62,24 @@ pub struct Build {
     )]
     bcftools_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
-    #[structopt(short = "a", long = "gff", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short = 'a', long = "gff", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     gff_file: PathBuf,
     /// Panel to build index from
-    #[structopt(short = "i", long = "panel", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short = 'i', long = "panel", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
-    #[structopt(short = "f", long = "fasta", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short = 'f', long = "fasta", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     reference_file: PathBuf,
     /// Number of bases of padding to add to start and end of each gene
-    #[structopt(
-        short = "P",
+    #[clap(
+        short = 'P',
         long = "padding",
         default_value = "100",
         value_name = "INT"
     )]
     padding: u32,
     /// Directory to place output
-    #[structopt(
+    #[clap(
         short,
         long,
         default_value = ".",
@@ -97,21 +96,21 @@ pub struct Build {
     /// drprg. Note: the PRG is expected to contain the reference sequence for each gene according
     /// to the annotation and reference genome given (along with padding) and must be in the
     /// forward strand orientation.
-    #[structopt(short = "d", long, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
+    #[clap(short = 'd', long, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
     prebuilt_prg: Option<PathBuf>,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
-    #[structopt(
-        short = "-l",
-        long = "--match-len",
+    #[clap(
+        short = 'l',
+        long = "match-len",
         default_value = "7",
         hidden_short_help = true,
         value_name = "INT"
     )]
     match_len: u32,
     /// Maximum nesting level when constructing the panel graph with make_prg
-    #[structopt(
-        short = "-N",
-        long = "--max-nesting",
+    #[clap(
+        short = 'N',
+        long = "max-nesting",
         default_value = "5",
         hidden_short_help = true,
         value_name = "INT"

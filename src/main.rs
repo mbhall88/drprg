@@ -2,10 +2,10 @@
 extern crate lazy_static;
 
 use anyhow::Result;
+use clap::Parser;
 use env_logger::Builder;
 use log::LevelFilter;
 use log::{debug, info};
-use structopt::StructOpt;
 
 pub use crate::cli::Cli;
 use crate::cli::Command;
@@ -21,7 +21,7 @@ pub trait Runner {
 }
 
 fn main() -> Result<()> {
-    let args: Cli = Cli::from_args();
+    let args = Cli::parse();
     // setup logging
     let log_lvl = if args.verbose {
         LevelFilter::Debug

@@ -1,36 +1,36 @@
-use structopt::StructOpt;
+use clap::Parser;
 
 use crate::builder::Build;
 use crate::predict::Predict;
-use std::ffi::{OsStr, OsString};
+use std::ffi::OsStr;
 use std::path::PathBuf;
 
-pub fn check_path_exists(s: &OsStr) -> Result<PathBuf, OsString> {
+/// A utility function that allows the CLI to error if a path doesn't exist
+pub fn check_path_exists<S: AsRef<OsStr> + ?Sized>(s: &S) -> Result<PathBuf, String> {
     let path = PathBuf::from(s);
     if path.exists() {
         Ok(path)
     } else {
-        Err(OsString::from(format!("{:?} does not exist", path)))
+        Err(format!("{:?} does not exist", path))
     }
 }
 
-// https://docs.rs/structopt/0.3.21/structopt/#subcommands
 /// Drug Resistance Prediction with Reference Graphs
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct Cli {
     /// Use verbose output
-    #[structopt(short, long, global = true)]
+    #[clap(short, long, global = true)]
     pub verbose: bool,
     /// Maximum number of threads to use
     ///
     /// Use 0 to select the number automatically
-    #[structopt(short, long, global = true, default_value = "1", value_name = "INT")]
+    #[clap(short, long, global = true, default_value = "1", value_name = "INT")]
     pub threads: u8,
-    #[structopt(subcommand)] // Note that we mark a field as a subcommand
+    #[clap(subcommand)] // Note that we mark a field as a subcommand
     pub(crate) cmd: Command,
 }
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub enum Command {
     /// Build a drprg panel from a mykrobe-style panel
     Build(Build),

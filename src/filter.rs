@@ -1,12 +1,12 @@
 use std::io::Write;
 use std::str::FromStr;
 
+use clap::Parser;
 use float_cmp::approx_eq;
 use lazy_static::lazy_static;
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::Record;
-use structopt::StructOpt;
 use thiserror::Error;
 
 use crate::VcfExt;
@@ -173,26 +173,26 @@ pub trait Filter {
 }
 
 /// A struct to hold all of the values for the filter
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
 pub struct Filterer {
     /// Minimum depth of coverage allowed on variants
-    #[structopt(short = "d", long, default_value = &MIN_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
+    #[clap(short = 'd', long, default_value = &MIN_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
     pub min_covg: i32,
     /// Maximum depth of coverage allowed on variants
-    #[structopt(short = "D", long, default_value = &MAX_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
+    #[clap(short = 'D', long, default_value = &MAX_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
     pub max_covg: i32,
     /// Minimum strand bias ratio allowed on variants
     ///
     /// For example, setting to 0.25 requires >=25% of total (allele) coverage on both
     /// strands for an allele.
-    #[structopt(short = "b", long, default_value = &MIN_SB_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
+    #[clap(short = 'b', long, default_value = &MIN_SB_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_strand_bias: f32,
     /// Minimum genotype confidence (GT_CONF) score allow on variants
-    #[structopt(short = "g", long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT, allow_hyphen_values = true")]
+    #[clap(short = 'g', long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT, allow_hyphen_values = true")]
     pub min_gt_conf: f32,
     /// Maximum (absolute) length of insertions/deletions allowed
-    #[structopt(
-        short = "L",
+    #[clap(
+        short = 'L',
         long,
         hidden_short_help = true,
         value_name = "INT",
@@ -203,7 +203,7 @@ pub struct Filterer {
     ///
     /// For example, setting to 0.9 requires >=90% of coverage for the variant to be on the called
     /// allele
-    #[structopt(short = "K", long, default_value = &MIN_FRS_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
+    #[clap(short = 'K', long, default_value = &MIN_FRS_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_frs: f32,
 }
 
