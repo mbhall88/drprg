@@ -299,7 +299,7 @@ impl Predict {
     fn sample_name(&self) -> &str {
         match &self.sample {
             Some(s) => s.as_str(),
-            None => self.input.file_prefix().unwrap(),
+            None => self.input.prefix().unwrap(),
         }
     }
 
@@ -508,7 +508,7 @@ impl Predict {
         let mut gene2drugs: HashMap<String, HashSet<String>> = HashMap::new();
         for (var, (drugs, _)) in &var2drugs {
             let (chrom, _) = var
-                .split_once("_")
+                .split_once('_')
                 .context(format!("Couldn't split variant ID {} at underscore", var))?;
             let entry = gene2drugs
                 .entry(chrom.to_string())
@@ -598,7 +598,7 @@ impl Predict {
                     let (drugs, residue) = var2drugs
                         .get(v)
                         .context(format!("Variant {} in VCF is not in the panel", v))?;
-                    let (chrom, var) = v.split_once("_").context(format!(
+                    let (chrom, var) = v.split_once('_').context(format!(
                         "Couldn't split variant ID {} at underscore",
                         v
                     ))?;

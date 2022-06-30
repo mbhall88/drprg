@@ -575,7 +575,7 @@ pub fn is_executable(program: &str) -> Option<String> {
 
 pub trait PathExt {
     fn add_extension(&self, extension: &OsStr) -> PathBuf;
-    fn file_prefix(&self) -> Option<&str>;
+    fn prefix(&self) -> Option<&str>;
 }
 
 impl PathExt for Path {
@@ -593,7 +593,7 @@ impl PathExt for Path {
     /// * The entire file name if there is no embedded `.`;
     /// * The entire file name if the file name begins with `.` and has no other `.`s within;
     /// * Otherwise, the portion of the file name before the first `.`
-    fn file_prefix(&self) -> Option<&str> {
+    fn prefix(&self) -> Option<&str> {
         let stem = self.file_stem()?;
         let s = stem.to_str()?;
         if let Some(i) = s.find('.') {
@@ -888,7 +888,7 @@ mod tests {
     fn file_prefix_no_file_ext() {
         let path = Path::new("dir/foo");
 
-        let actual = path.file_prefix().unwrap();
+        let actual = path.prefix().unwrap();
         let expected = OsStr::new("foo");
 
         assert_eq!(actual, expected)
@@ -898,7 +898,7 @@ mod tests {
     fn file_prefix_one_ext() {
         let path = Path::new("dir/foo.txt");
 
-        let actual = path.file_prefix().unwrap();
+        let actual = path.prefix().unwrap();
         let expected = OsStr::new("foo");
 
         assert_eq!(actual, expected)
@@ -908,7 +908,7 @@ mod tests {
     fn file_prefix_two_ext() {
         let path = Path::new("dir/foo.tar.gz");
 
-        let actual = path.file_prefix().unwrap();
+        let actual = path.prefix().unwrap();
         let expected = OsStr::new("foo");
 
         assert_eq!(actual, expected)

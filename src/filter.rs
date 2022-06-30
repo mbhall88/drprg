@@ -224,15 +224,13 @@ impl Filter for Filterer {
     fn _covg_for_gt(&self, record: &Record) -> i32 {
         // safe to unwrap as we are providing a default
         let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
-        let covg: i32;
         let gt = record.called_allele();
-        if gt < 0 {
+        let covg: i32 = if gt < 0 {
             // if GT is null, we use total covg on all alleles
-            covg = fc.iter().chain(rc.iter()).sum();
+            fc.iter().chain(rc.iter()).sum()
         } else {
-            covg =
-                fc.get(gt as usize).unwrap_or(&0) + rc.get(gt as usize).unwrap_or(&0);
-        }
+            fc.get(gt as usize).unwrap_or(&0) + rc.get(gt as usize).unwrap_or(&0)
+        };
         covg
     }
 

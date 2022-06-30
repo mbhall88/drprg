@@ -201,7 +201,7 @@ impl Build {
                 Ok(_) => Ok(()),
                 Err(e) => Err(BuildError::CopyError(format!(
                     "Failed to copy prebuilt PRG files with error message {}",
-                    e.to_string()
+                    e
                 ))),
             }
         }

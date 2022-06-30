@@ -302,8 +302,7 @@ impl PanelRecord {
                 Residue::Amino => Ok(AMINO_ACIDS
                     .iter()
                     .filter(|&c| *c != self.ref_allele()[0])
-                    .map(|c| amino_to_codons(*c))
-                    .flatten()
+                    .flat_map(|c| amino_to_codons(*c))
                     .collect()),
             }
         }
