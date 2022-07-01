@@ -8,7 +8,8 @@ use log::{debug, info};
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
 use rust_htslib::bcf::{Format, Read};
-use serde::{de, Deserialize, Deserializer, Serialize};
+use serde::{de, Deserialize, Deserializer};
+use serde_derive::Serialize;
 use serde_json::json;
 use std::collections::BTreeMap;
 use strum_macros::EnumString;
@@ -874,7 +875,7 @@ mod tests {
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
             let _f = File::create(tmp_path.join("dr.update_DS")).unwrap();
-            let _f = std::fs::create_dir(tmp_path.join("dr_prgs")).unwrap();
+            std::fs::create_dir(tmp_path.join("dr_prgs")).unwrap();
         }
         assert!(predictor.validate_index().is_ok())
     }

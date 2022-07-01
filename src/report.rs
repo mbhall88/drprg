@@ -1,6 +1,6 @@
 use crate::panel::{Residue, Variant};
 use crate::predict::Prediction;
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct Susceptibility {

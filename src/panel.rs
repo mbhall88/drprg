@@ -7,7 +7,8 @@ use std::str::FromStr;
 use bstr::ByteSlice;
 use regex::Regex;
 use rust_htslib::bcf;
-use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
+use serde::{self, de, Deserialize, Deserializer, Serialize, Serializer};
+use serde_derive::Deserialize;
 use std::path::Path;
 use thiserror::Error;
 

@@ -1,18 +1,25 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
-use std::io::{Read, Seek};
+use std::convert::TryFrom;
+use std::fs::File;
+use std::io::{BufRead, BufReader, BufWriter, Seek};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
-use bio::alphabets::dna::revcomp;
-use bio::io::{fasta, gff};
 use clap::{AppSettings, Parser};
 use log::{debug, info, warn};
+use noodles::core::Position;
+use noodles::fasta::fai;
+use noodles::fasta::record::{Definition, Sequence};
+use noodles::fasta::repository::adapters::IndexedReader;
+use noodles::fasta::repository::Adapter;
+use noodles::gff::record::Strand;
+use noodles::{fasta, gff};
 use rayon::prelude::*;
 use rust_htslib::bcf;
 use thiserror::Error;
 
-use drprg::{index_vcf, Bcftools, MakePrg, Pandora};
+use drprg::{index_vcf, revcomp, Bcftools, GffExt, MakePrg, Pandora};
 use drprg::{MultipleSeqAligner, PathExt};
 
 use crate::cli::check_path_exists;
@@ -131,8 +138,9 @@ impl Build {
         header.push_record(format!("{}source=drprgV{}", META, VERSION).as_bytes());
         // add contigs to vcf header
         for (gene, gff_record) in annotations {
-            let length: u64 = (gff_record.end() + 1) - gff_record.start()
-                + (&self.padding * 2) as u64;
+            let length: u64 = ((usize::from(gff_record.end()) + 1)
+                - usize::from(gff_record.start())
+                + (&self.padding * 2) as usize) as u64;
             header.push_record(&*vcf_contig_field(gene, length));
         }
         for entry in PanelRecord::vcf_header_entries() {
@@ -155,6 +163,9 @@ impl Build {
     }
     fn prg_index_kmer_prgs_path(&self) -> PathBuf {
         self.outdir.join("kmer_prgs")
+    }
+    fn reference_index_file(&self) -> PathBuf {
+        self.reference_file.add_extension(".fai".as_ref())
     }
     fn organise_prebuilt_prg(&self) -> Result<(), BuildError> {
         let prebuilt_dir = match &self.prebuilt_prg {
@@ -233,7 +244,9 @@ impl Runner for Build {
 
         info!("Loading genome annotation for panel genes...");
         debug!("Panel genes: {:?}", genes);
-        let gff_reader = gff::Reader::from_file(&self.gff_file, gff::GffType::GFF3)?;
+        let gff_reader = File::open(&self.gff_file)
+            .map(BufReader::new)
+            .map(gff::Reader::new)?;
         let annotations = load_annotations_for_genes(gff_reader, &genes);
         if genes.len() != annotations.len() {
             let annotation_genes: HashSet<String> =
@@ -257,9 +270,19 @@ impl Runner for Build {
                 bcf::Format::BCF,
             )?;
             debug!("Loading the reference genome index...");
-            let mut faidx = fasta::IndexedReader::from_file(&self.reference_file)?;
+
+            let fa_reader = File::open(&self.reference_file)
+                .map(BufReader::new)
+                .map(fasta::Reader::new)?;
+            let index = File::open(&self.reference_index_file())
+                .map(BufReader::new)
+                .map(fai::Reader::new)?
+                .read_index()?;
+            let mut faidx = IndexedReader::new(fa_reader, index);
             debug!("Loaded the reference genome index");
-            let mut fa_writer = fasta::Writer::to_file(gene_refs_path)?;
+            let mut fa_writer = File::create(gene_refs_path)
+                .map(BufWriter::new)
+                .map(fasta::Writer::new)?;
             if !premsa_dir.exists() {
                 debug!("Pre-MSA directory doesn't exist...creating...");
                 std::fs::create_dir(&premsa_dir)
@@ -278,18 +301,17 @@ impl Runner for Build {
             for (gene, gff_record) in &annotations {
                 let seq =
                     extract_gene_from_index(gff_record, &mut faidx, self.padding)?;
-                fa_writer.write(
-                    gene,
-                    Some(&format!("padding={}", self.padding)),
-                    &seq,
-                )?;
+                let definition =
+                    Definition::new(gene, Some(format!("padding={}", self.padding)));
+                let fa_record =
+                    fasta::Record::new(definition, Sequence::from(seq.to_owned()));
+                fa_writer.write_record(&fa_record)?;
+
                 let premsa_path = premsa_dir.join(format!("{}.fa", gene));
-                let mut premsa_writer = fasta::Writer::to_file(&premsa_path)?;
-                premsa_writer.write(
-                    gene,
-                    Some(&format!("padding={}", self.padding)),
-                    &seq,
-                )?;
+                let mut premsa_writer = File::create(&premsa_path)
+                    .map(BufWriter::new)
+                    .map(fasta::Writer::new)?;
+                premsa_writer.write_record(&fa_record)?;
 
                 let panel_records_for_gene = &panel[gene];
                 for panel_record in panel_records_for_gene {
@@ -305,11 +327,10 @@ impl Runner for Build {
                         Err(e) => return Err(anyhow!(e)),
                         _ => (),
                     }
-                    // we use unwrap as we have already confirmed above that the strand is + or -
-                    let strand =
-                        gff_record.strand().unwrap().strand_symbol().to_owned();
+
+                    let strand = gff_record.strand();
                     vcf_record
-                        .push_info_string(b"ST", &[strand.as_bytes()])
+                        .push_info_string(b"ST", &[strand.as_ref().as_bytes()])
                         .context(format!(
                             "Couldn't set INFO field ST for {}",
                             panel_record.name()
@@ -324,11 +345,15 @@ impl Runner for Build {
                             let mutated_seq =
                                 [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
                                     .concat();
-                            premsa_writer.write(
-                                &format!("{}_{}", panel_record.name(), i),
-                                None,
-                                &mutated_seq,
-                            )?;
+
+                            let mutated_record = fasta::Record::new(
+                                Definition::new(
+                                    format!("{}_{}", panel_record.name(), i),
+                                    None,
+                                ),
+                                Sequence::from(mutated_seq),
+                            );
+                            premsa_writer.write_record(&mutated_record)?;
                         }
                     }
                 }
@@ -446,19 +471,23 @@ fn load_annotations_for_genes<R>(
     genes: &HashSet<String>,
 ) -> HashMap<String, gff::Record>
 where
-    R: std::io::Read,
+    R: BufRead,
 {
     let mut records = reader.records();
     let mut annotations: HashMap<String, gff::Record> = HashMap::new();
 
     while let Some(Ok(record)) = records.next() {
-        if record.feature_type() != "gene" {
+        if record.ty() != "gene" {
             continue;
         }
 
-        if let Some(g) = record.attributes().get("gene") {
-            if genes.contains(g) {
-                annotations.insert(g.to_string(), record.to_owned());
+        if let Some(entry) = record
+            .attributes()
+            .iter()
+            .find(|&entry| entry.key() == "Name")
+        {
+            if genes.contains(entry.value()) {
+                annotations.insert(entry.value().to_string(), record.to_owned());
             }
         }
     }
@@ -467,66 +496,64 @@ where
 
 fn extract_gene_from_index<R>(
     record: &gff::Record,
-    faidx: &mut fasta::IndexedReader<R>,
+    faidx: &mut IndexedReader<R>,
     padding: u32,
 ) -> Result<Vec<u8>, BuildError>
 where
-    R: Read + Seek,
+    R: BufRead + Seek,
 {
-    let mut contig_len: u64 = 0;
-    for contig in faidx.index.sequences() {
-        if contig.name == record.seqname() {
-            contig_len = contig.len;
-            break;
+    let idx_record = faidx.get(record.reference_sequence_name());
+    let contig = match &idx_record {
+        Some(Ok(contig)) => contig,
+        _ => {
+            return Err(BuildError::MissingContig(
+                record.reference_sequence_name().to_string(),
+            ))
         }
-    }
-    if contig_len == 0 {
-        return Err(BuildError::MissingContig(record.seqname().to_string()));
-    }
+    };
+    let contig_len = contig.sequence().len() as u64;
 
     // GFF3 start is 1-based, inclusive. We want to make it 0-based, inclusive
     let start: u64 = max(
-        (*record.start() as isize - padding as isize - 1) as isize,
+        (usize::from(record.start()) as isize - padding as isize - 1) as isize,
         0,
     ) as u64;
     // GFF3 end is 1-based, inclusive. We want to make it 0-based, exclusive
-    let end: u64 = min(record.end() + padding as u64, contig_len);
+    let end: u64 = min(
+        usize::from(record.end()) as u64 + padding as u64,
+        contig_len,
+    );
     if start > end {
         return Err(BuildError::FetchError(
-            record.seqname().to_string(),
+            record.reference_sequence_name().to_string(),
             start,
             end,
         ));
     }
 
-    if faidx.fetch(record.seqname(), start, end).is_err() {
-        return Err(BuildError::FetchError(
-            record.seqname().to_string(),
+    // noodles sequence slice/positions are 1-based
+    let fetch_slice = Position::try_from((start + 1) as usize).unwrap()
+        ..=Position::try_from(end as usize).unwrap();
+    match contig.sequence().slice(fetch_slice) {
+        None => Err(BuildError::FetchError(
+            record.reference_sequence_name().to_string(),
             start,
             end,
-        ));
-    } else {
-        let mut seq: Vec<u8> = Vec::with_capacity((end - start) as usize);
-        let is_rev = match record.strand() {
-            Some(strand) => strand.strand_symbol() == "-",
-            _ => {
-                return Err(BuildError::MissingStrand(
-                    record.attributes().get("gene").unwrap().to_string(),
-                ))
-            }
-        };
-        match faidx.read(&mut seq) {
-            Err(_) => Err(BuildError::FetchError(
-                record.seqname().to_string(),
-                start,
-                end,
-            )),
-            Ok(_) => {
-                if is_rev {
-                    Ok(revcomp(seq))
-                } else {
-                    Ok(seq.to_owned())
+        )),
+        Some(seq) => {
+            let is_rev = match record.strand() {
+                Strand::Reverse => true,
+                Strand::Forward => false,
+                _ => {
+                    return Err(BuildError::MissingStrand(
+                        record.name().unwrap_or("No Name").to_string(),
+                    ))
                 }
+            };
+            if is_rev {
+                Ok(revcomp(seq.as_ref()))
+            } else {
+                Ok(Vec::from(seq.as_ref()))
             }
         }
     }
@@ -540,11 +567,9 @@ fn vcf_contig_field(id: &str, length: u64) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
-    use std::io::Write;
+    use std::io::{Cursor, Read, Write};
     use std::iter::FromIterator;
     use std::str::FromStr;
-
-    use bio::io::fasta::IndexedReader;
 
     use crate::panel::{Residue, Variant};
 
@@ -557,7 +582,7 @@ mod tests {
     #[test]
     fn load_annotations_when_no_genes_in_common_returns_empty() {
         const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let reader = gff::Reader::new(GFF);
         let genes = HashSet::from_iter(vec!["geneX".to_string()]);
 
         let actual = load_annotations_for_genes(reader, &genes);
@@ -567,19 +592,19 @@ mod tests {
     #[test]
     fn load_annotations_for_genes_one_gene_in_common() {
         const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let reader = gff::Reader::new(GFF);
         let genes = HashSet::from_iter(vec!["geneX".to_string(), "dnaA".to_string()]);
 
         let actual = load_annotations_for_genes(reader, &genes);
         let (actual_gene, actual_record) = actual.iter().next().unwrap();
         assert_eq!(actual_gene, "dnaA");
-        assert_eq!(actual_record.end(), &1524u64)
+        assert_eq!(actual_record.end(), Position::new(1524).unwrap())
     }
 
     #[test]
     fn load_annotations_for_genes_is_cds_returns_empty() {
         const GFF: &[u8] = b"NC_000962.3\tRefSeq\tCDS\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let reader = gff::Reader::new(GFF);
         let genes = HashSet::from_iter(vec!["geneX".to_string(), "dnaA".to_string()]);
 
         let actual = load_annotations_for_genes(reader, &genes);
@@ -589,13 +614,15 @@ mod tests {
     #[test]
     fn extract_gene_from_index_gene_not_in_index() {
         let padding = 0;
-        const GFF: &[u8] = b"NC_000962.3\tRefSeq\tCDS\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"NC_000962.3\tRefSeq\tCDS\t1\t1524\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap_err();
         let expected = BuildError::MissingContig("NC_000962.3".to_string());
@@ -605,13 +632,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_interval_out_of_bounds() {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t100\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t100\t1524\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap_err();
         let expected = BuildError::FetchError("chr1".to_string(), 99, 16);
@@ -621,13 +649,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_first_base() {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t1\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t1\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"G";
@@ -637,13 +666,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_too_much_padding_left_wraps_to_start() {
         let padding = 2;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t1\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t1\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"GTA";
@@ -653,13 +683,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_too_much_padding_right_wraps_to_end() {
         let padding = 4;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t16\t16\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t16\t16\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"ACCCC";
@@ -669,13 +700,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_no_padding_start_and_end_exactly_the_same_as_gene() {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"GTAGGCTGAAAACCCC";
@@ -685,13 +717,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_on_reverse_strand() {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t-\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t-\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = revcomp(b"GTAGGCTGAAAACCCC");
@@ -701,13 +734,14 @@ mod tests {
     #[test]
     fn extract_gene_from_index_no_strand() {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t.\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t16\t.\t.\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap_err();
         let expected = BuildError::MissingStrand("dnaA".to_string());
@@ -718,13 +752,14 @@ mod tests {
     fn extract_gene_from_index_no_padding_start_same_as_gene_end_minus_one_from_gene_length(
     ) {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t15\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t1\t15\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"GTAGGCTGAAAACCC";
@@ -735,13 +770,14 @@ mod tests {
     fn extract_gene_from_index_no_padding_start_plus_one_from_gene_start_end_same_as_gene(
     ) {
         let padding = 0;
-        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t2\t16\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
-        let mut reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        const GFF: &[u8] = b"chr1\tRefSeq\tCDS\t2\t16\t.\t+\t0\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
         let record = reader.records().next().unwrap().unwrap();
         const FASTA_FILE: &[u8] = b">chr1\nGTAGGCTGAAAA\nCCCC";
         const FAI_FILE: &[u8] = b"chr1\t16\t6\t12\t13";
-        let mut faidx =
-            IndexedReader::new(std::io::Cursor::new(FASTA_FILE), FAI_FILE).unwrap();
+        let fa_reader = fasta::Reader::new(Cursor::new(FASTA_FILE));
+        let index = fai::Reader::new(FAI_FILE).read_index().unwrap();
+        let mut faidx = IndexedReader::new(fa_reader, index);
 
         let actual = extract_gene_from_index(&record, &mut faidx, padding).unwrap();
         let expected = b"TAGGCTGAAAACCCC";
@@ -869,7 +905,7 @@ mod tests {
     fn create_vcf_header() {
         let builder = Build::default();
         const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Name=dnaA;gene=dnaA\n";
-        let reader = gff::Reader::new(GFF, gff::GffType::GFF3);
+        let reader = gff::Reader::new(GFF);
         let genes = HashSet::from_iter(vec!["dnaA".to_string()]);
         let annotations = load_annotations_for_genes(reader, &genes);
         let tmp = tempfile::NamedTempFile::new().unwrap();

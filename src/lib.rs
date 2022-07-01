@@ -14,6 +14,7 @@ use thiserror::Error;
 
 use crate::filter::Tags;
 use crate::interval::IntervalOp;
+use noodles::gff;
 use std::cmp::min;
 use std::io::ErrorKind;
 
@@ -769,6 +770,45 @@ impl VcfExt for bcf::Record {
     }
 }
 
+pub trait GffExt {
+    fn name(&self) -> Option<&str>;
+}
+
+impl GffExt for gff::Record {
+    fn name(&self) -> Option<&str> {
+        match self
+            .attributes()
+            .iter()
+            .find(|&entry| entry.key() == "Name")
+        {
+            None => None,
+            Some(entry) => Some(entry.value()),
+        }
+    }
+}
+
+/// Reverse complement a DNA sequence
+///
+/// # Example
+///
+/// ```rust
+/// use drprg::revcomp;
+/// let seq = b"ATGCTTCCAGAA";
+///
+/// let actual = revcomp(seq);
+/// let expected = b"TTCTGGAAGCAT";///
+/// assert_eq!(actual, expected)
+/// ```
+///
+/// # Note
+/// Implementation is taken from https://doi.org/10.1101/082214
+pub fn revcomp(seq: &[u8]) -> Vec<u8> {
+    seq.iter()
+        .rev()
+        .map(|c| if c & 2 != 0 { c ^ 4 } else { c ^ 21 })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use rust_htslib::bcf;
@@ -781,6 +821,16 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn test_revcomp() {
+        let seq = b"ATGCTTCCAGAA";
+
+        let actual = revcomp(seq);
+        let expected = b"TTCTGGAAGCAT";
+
+        assert_eq!(actual, expected)
+    }
 
     #[test]
     fn path_is_executable() {
@@ -1972,5 +2022,23 @@ mod tests {
         let expected = None;
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_gff_record_name_is_present() {
+        const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;Name=dnaA;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
+        let record = reader.records().next().unwrap().unwrap();
+
+        assert_eq!(record.name(), Some("dnaA"))
+    }
+
+    #[test]
+    fn test_gff_record_name_is_not_present() {
+        const GFF: &[u8] = b"NC_000962.3\tRefSeq\tgene\t1\t1524\t.\t+\t.\tID=gene-Rv0001;Dbxref=GeneID:885041;experiment=DESCRIPTION:Mutation analysis%2C gene expression[PMID: 10375628];gbkey=Gene;gene=dnaA;gene_biotype=protein_coding;locus_tag=Rv0001\n";
+        let mut reader = gff::Reader::new(GFF);
+        let record = reader.records().next().unwrap().unwrap();
+
+        assert!(record.name().is_none())
     }
 }
