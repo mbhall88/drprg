@@ -1,0 +1,45 @@
+# Build and run:
+#   docker build -t clion/drprg/rust-env -f Dockerfile.dev .
+
+FROM ubuntu:20.04
+
+RUN DEBIAN_FRONTEND="noninteractive" apt-get update && apt-get -y install tzdata
+
+RUN apt-get update \
+  && apt-get install -y build-essential \
+      gcc \
+      g++ \
+      gdb \
+      clang \
+      make \
+      ninja-build \
+      cmake \
+      autoconf \
+      automake \
+      locales-all \
+      dos2unix \
+      rsync \
+      tar \
+      python \
+      python-dev \
+  && apt-get clean
+
+ARG MAFFT_URL="https://mafft.cbrc.jp/alignment/software/mafft_7.475-1_amd64.deb"
+ARG DEB="/mafft.deb"
+ENV EXTDIR="/usr/bin"
+
+ARG PKGS="ca-certificates wget perl zlib1g-dev libbz2-dev liblzma-dev libcurl4-gnutls-dev libssl-dev libperl-dev libgsl0-dev"
+
+COPY /Makefile .
+
+RUN apt-get install --no-install-recommends -y $PKGS \
+    && update-ca-certificates -f \
+    && make EXTDIR=$EXTDIR pandora \
+    && make EXTDIR=$EXTDIR makeprg \
+    && make EXTDIR=$EXTDIR bcftools \
+    && wget -O "$DEB" "$MAFFT_URL" \
+    && dpkg -i "$DEB" \
+    && rm -f "$DEB"
+
+ENV PATH="/root/.cargo/bin:${PATH}"
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y

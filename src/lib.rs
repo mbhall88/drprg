@@ -698,7 +698,7 @@ impl VcfExt for bcf::Record {
     }
 
     fn is_pass(&self) -> bool {
-        self.has_filter(Id(0))
+        self.has_filter(&Id(0))
     }
 
     /// Slice the specified allele with the given interval. If `None` is provided for the index,
@@ -970,7 +970,7 @@ mod tests {
         let path = tmp.path();
         let header = Header::new();
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         assert_eq!(record.rlen(), 0);
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
@@ -984,7 +984,7 @@ mod tests {
         let path = tmp.path();
         let header = Header::new();
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -999,7 +999,7 @@ mod tests {
         let path = tmp.path();
         let header = Header::new();
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1016,7 +1016,7 @@ mod tests {
 
         header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1041,7 +1041,7 @@ mod tests {
 
         header.push_sample(b"sample");
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1060,7 +1060,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1083,7 +1083,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1104,7 +1104,7 @@ mod tests {
 
         header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         record
             .push_format_float(Tags::GtypeConf.value(), &[3.4])
@@ -1124,7 +1124,7 @@ mod tests {
 
         header.push_sample(b"sample");
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let record = vcf.empty_record();
         let actual = record.gt_conf();
         assert!(actual.is_none())
@@ -1138,7 +1138,7 @@ mod tests {
 
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
         bcf_record_set_gt(&mut record, 0);
@@ -1157,7 +1157,7 @@ mod tests {
 
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
         bcf_record_set_gt(&mut record, 1);
@@ -1176,7 +1176,7 @@ mod tests {
 
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[0, 0], &[0, 0]);
         bcf_record_set_gt(&mut record, 1);
@@ -1193,7 +1193,7 @@ mod tests {
 
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[4, 4], &[0, 10]);
         bcf_record_set_gt(&mut record, -1);
@@ -1210,7 +1210,7 @@ mod tests {
 
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[4, 4, 7], &[0, 10, 1]);
         bcf_record_set_gt(&mut record, 1);
@@ -1228,7 +1228,7 @@ mod tests {
 
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[4, 4, 7], &[0, 10, 1]);
         bcf_record_set_gt(&mut record, 0);
@@ -1247,10 +1247,12 @@ mod tests {
             .push_record(br#"##FILTER=<ID=foo,Description="sample is a foo fighter">"#);
         header.push_record(br#"##FILTER=<ID=bar,Description="a horse walks into...">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         assert!(record.is_pass());
-        record.push_filter(record.header().name_to_id(b"foo").unwrap());
+        record
+            .push_filter(&record.header().name_to_id(b"foo").unwrap())
+            .unwrap();
         assert!(!record.is_pass());
     }
 
@@ -1277,7 +1279,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1302,7 +1304,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1328,7 +1330,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1354,7 +1356,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1380,7 +1382,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1406,7 +1408,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1432,7 +1434,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1458,7 +1460,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1484,7 +1486,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1510,7 +1512,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1537,7 +1539,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1564,7 +1566,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGAAG", b"TGAAAGGAAA", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1591,7 +1593,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"ACG", b"AGAAA", b"GAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1618,7 +1620,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1650,7 +1652,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1682,7 +1684,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1714,7 +1716,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1746,7 +1748,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1778,7 +1780,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TGAAA"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1810,7 +1812,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"ATC", b"ACT", b"ACC", b"ACA", b"ACG", b"AC"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1842,7 +1844,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"CCCCC", b"C"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1874,7 +1876,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"CCCCC", b"CCC"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1906,7 +1908,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"CCCCC", b"CCC"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1938,7 +1940,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"G", b"GT"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1970,7 +1972,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"C", b"CCCCC"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -2002,7 +2004,7 @@ mod tests {
             br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
         );
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"ATC", b"ACT", b"ACC", b"ACA", b"ACG", b"AC"];
         record.set_alleles(alleles).expect("Failed to set alleles");

@@ -789,7 +789,7 @@ mod tests {
         header.push_record(br#"##contig=<ID=gene,length=10>"#);
         let tmpfile = NamedTempFile::new().unwrap();
         let tmppath = tmpfile.path();
-        let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let vcf = Writer::from_path(tmppath, &header, true, Format::Vcf).unwrap();
         let mut vcf_record = vcf.empty_record();
 
         let actual = record.to_vcf(&mut vcf_record, &[], padding).unwrap_err();
@@ -810,7 +810,7 @@ mod tests {
         header.push_record(r#"##contig=<ID=foo,length=10>"#.as_bytes());
         let tmpfile = NamedTempFile::new().unwrap();
         let tmppath = tmpfile.path();
-        let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let vcf = Writer::from_path(tmppath, &header, true, Format::Vcf).unwrap();
         let mut vcf_record = vcf.empty_record();
 
         let actual = record.to_vcf(&mut vcf_record, &[], padding).unwrap_err();
@@ -834,7 +834,7 @@ mod tests {
         }
         let tmpfile = NamedTempFile::new().unwrap();
         let tmppath = tmpfile.path();
-        let vcf = Writer::from_path(tmppath, &header, true, Format::VCF).unwrap();
+        let vcf = Writer::from_path(tmppath, &header, true, Format::Vcf).unwrap();
         let mut vcf_record = vcf.empty_record();
         let refseq = b"A".to_vec();
 

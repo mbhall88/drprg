@@ -267,7 +267,7 @@ impl Runner for Build {
                 &unsorted_panel_vcf_path,
                 &vcf_header,
                 false,
-                bcf::Format::BCF,
+                bcf::Format::Bcf,
             )?;
             debug!("Loading the reference genome index...");
 
@@ -913,7 +913,7 @@ mod tests {
         let header = builder.create_vcf_header(&annotations);
 
         let writer =
-            bcf::Writer::from_path(tmp.path(), &header, false, bcf::Format::VCF)
+            bcf::Writer::from_path(tmp.path(), &header, false, bcf::Format::Vcf)
                 .unwrap();
         let view = writer.header();
 

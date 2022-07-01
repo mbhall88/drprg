@@ -5,7 +5,6 @@ use clap::Parser;
 use float_cmp::approx_eq;
 use lazy_static::lazy_static;
 use rust_htslib::bcf;
-use rust_htslib::bcf::header::Id;
 use rust_htslib::bcf::Record;
 use thiserror::Error;
 
@@ -134,16 +133,15 @@ impl FilterStatus {
     }
 
     fn apply_filters_to(&self, record: &mut bcf::Record) -> Result<(), FilterError> {
-        let mut ids: Vec<Id> = vec![];
-        for tag in self.tags() {
-            let id = record.header().name_to_id(tag.value()).map_err(|_| {
-                FilterError::TagNotInHeader(
-                    String::from_utf8_lossy(tag.value()).to_string(),
-                )
-            })?;
-            ids.push(id);
-        }
-        record.set_filters(&ids);
+        let tags = self.tags();
+        let ids: Vec<&[u8]> = tags.iter().map(|t| t.value()).collect();
+        record.set_filters(&ids).map_err(|e| {
+            let id = match e {
+                rust_htslib::errors::Error::BcfUnknownID { id: i } => i,
+                _ => "Unknown ID".to_string(),
+            };
+            FilterError::TagNotInHeader(id)
+        })?;
         Ok(())
     }
 }
@@ -501,7 +499,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5], &[5]);
         bcf_record_set_gt(&mut record, 0);
@@ -521,7 +519,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1], &[1]);
         bcf_record_set_gt(&mut record, 0);
@@ -541,7 +539,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1], &[1]);
         bcf_record_set_gt(&mut record, 0);
@@ -561,7 +559,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
@@ -581,7 +579,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[6, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
@@ -603,7 +601,7 @@ pub(crate) mod test {
         header.remove_format(Tags::FwdCovg.value());
         header.remove_format(Tags::RevCovg.value());
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
@@ -624,7 +622,7 @@ pub(crate) mod test {
         header.remove_format(Tags::FwdCovg.value());
         header.remove_format(Tags::RevCovg.value());
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
@@ -640,7 +638,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5], &[5]);
         bcf_record_set_gt(&mut record, 0);
@@ -660,7 +658,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1], &[1]);
         bcf_record_set_gt(&mut record, 0);
@@ -680,7 +678,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[2], &[2]);
         bcf_record_set_gt(&mut record, 0);
@@ -700,7 +698,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[10, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
@@ -720,7 +718,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 3], &[1, 3]);
         bcf_record_set_gt(&mut record, -1);
@@ -742,7 +740,7 @@ pub(crate) mod test {
         header.remove_format(Tags::FwdCovg.value());
         header.remove_format(Tags::RevCovg.value());
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
@@ -763,7 +761,7 @@ pub(crate) mod test {
         header.remove_format(Tags::FwdCovg.value());
         header.remove_format(Tags::RevCovg.value());
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_gt(&mut record, -1);
 
@@ -780,7 +778,7 @@ pub(crate) mod test {
         populate_bcf_header(&mut header);
         header.remove_format(Tags::GtypeConf.value());
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let record = vcf.empty_record();
 
         let filt = Filterer::default();
@@ -795,7 +793,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let conf = 11.1;
         bcf_record_set_gt_conf(&mut record, conf);
@@ -815,7 +813,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let conf = 11.1;
         bcf_record_set_gt_conf(&mut record, conf);
@@ -835,7 +833,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let conf = 11.1;
         bcf_record_set_gt_conf(&mut record, conf);
@@ -855,7 +853,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let conf = 0.0;
         bcf_record_set_gt_conf(&mut record, conf);
@@ -872,7 +870,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
         bcf_record_set_gt(&mut record, 1);
@@ -892,7 +890,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
         bcf_record_set_gt(&mut record, 0);
@@ -912,7 +910,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5, 0], &[4, 1]);
         bcf_record_set_gt(&mut record, 0);
@@ -932,7 +930,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5, 10], &[4, 1]);
         bcf_record_set_gt(&mut record, -1);
@@ -952,7 +950,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[0, 0], &[0, 0]);
         bcf_record_set_gt(&mut record, 1);
@@ -972,7 +970,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[5, 5], &[5, 5]);
         bcf_record_set_gt(&mut record, 1);
@@ -989,7 +987,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TCGAG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1010,7 +1008,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1031,7 +1029,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TCGAG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1052,7 +1050,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1073,7 +1071,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"TCGAG"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1094,7 +1092,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1115,7 +1113,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1136,7 +1134,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1157,7 +1155,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"AGG", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1175,7 +1173,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         record.set_alleles(alleles).expect("Failed to set alleles");
@@ -1196,7 +1194,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 30], &[1, 31]);
         bcf_record_set_gt(&mut record, 0);
@@ -1217,7 +1215,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 1], &[1, 9]);
         bcf_record_set_gt(&mut record, 1);
@@ -1238,7 +1236,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 1], &[1, 9]);
         bcf_record_set_gt(&mut record, 1);
@@ -1259,7 +1257,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 0], &[1, 0]);
         bcf_record_set_gt(&mut record, 1);
@@ -1280,7 +1278,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         bcf_record_set_covg(&mut record, &[1, 0, 4], &[1, 0, 40]);
         bcf_record_set_gt(&mut record, -1);
@@ -1308,7 +1306,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         bcf_record_set_covg(&mut record, &[1, 0], &[1, 0]);
@@ -1330,7 +1328,7 @@ pub(crate) mod test {
         populate_bcf_header(&mut header);
         header.push_record(br#"##FILTER=<ID=ld,Description="low covg">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         bcf_record_set_covg(&mut record, &[1, 10], &[1, 0]);
@@ -1345,7 +1343,7 @@ pub(crate) mod test {
         filt.filter(&mut record).unwrap();
 
         let id = record.header().name_to_id(Tags::LowCovg.value()).unwrap();
-        assert!(record.has_filter(id));
+        assert!(record.has_filter(&id));
         assert!(!record.is_pass())
     }
 
@@ -1358,7 +1356,7 @@ pub(crate) mod test {
         header.push_record(br#"##FILTER=<ID=hd,Description="low covg">"#);
         header.push_record(br#"##FILTER=<ID=frs,Description="low covg">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
@@ -1374,12 +1372,12 @@ pub(crate) mod test {
         filt.filter(&mut record).unwrap();
 
         let mut id = record.header().name_to_id(Tags::HighCovg.value()).unwrap();
-        assert!(record.has_filter(id));
+        assert!(record.has_filter(&id));
         id = record
             .header()
             .name_to_id(Tags::LowSupport.value())
             .unwrap();
-        assert!(record.has_filter(id));
+        assert!(record.has_filter(&id));
         assert!(!record.is_pass())
     }
 
@@ -1391,7 +1389,7 @@ pub(crate) mod test {
         populate_bcf_header(&mut header);
         header.push_record(br#"##FILTER=<ID=hd,Description="low covg">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
@@ -1425,7 +1423,7 @@ pub(crate) mod test {
         header.push_record(br#"##FILTER=<ID=sb,Description="low covg">"#);
         header.push_record(br#"##FILTER=<ID=lgc,Description="low covg">"#);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
@@ -1445,12 +1443,12 @@ pub(crate) mod test {
         stat.apply_filters_to(&mut record).unwrap();
 
         let mut id = record.header().name_to_id(Tags::LowGtConf.value()).unwrap();
-        assert!(record.has_filter(id));
+        assert!(record.has_filter(&id));
         id = record
             .header()
             .name_to_id(Tags::StrandBias.value())
             .unwrap();
-        assert!(record.has_filter(id));
+        assert!(record.has_filter(&id));
     }
 
     #[test]
@@ -1460,7 +1458,7 @@ pub(crate) mod test {
         let mut header = Header::new();
         populate_bcf_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let mut record = vcf.empty_record();
         let alleles: &[&[u8]] = &[b"A", b"T"];
         bcf_record_set_covg(&mut record, &[10, 10], &[10, 0]);
@@ -1483,7 +1481,7 @@ pub(crate) mod test {
         let filt = Filterer::default();
         filt.add_filter_headers(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let view = vcf.header();
 
         assert!(view.name_to_id(Tags::LowGtConf.value()).is_err())
@@ -1504,7 +1502,7 @@ pub(crate) mod test {
         };
         filt.add_filter_headers(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let view = vcf.header();
 
         assert!(view.name_to_id(Tags::LowGtConf.value()).is_ok());
@@ -1530,7 +1528,7 @@ pub(crate) mod test {
         };
         filt.add_filter_headers(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let view = vcf.header();
 
         assert!(view.name_to_id(Tags::LowGtConf.value()).is_ok());

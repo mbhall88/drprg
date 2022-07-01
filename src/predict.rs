@@ -344,7 +344,7 @@ impl Predict {
         self.filterer.add_filter_headers(&mut vcf_header);
         self.add_predict_info_to_header(&mut vcf_header);
         let mut writer =
-            bcf::Writer::from_path(&predict_vcf_path, &vcf_header, false, Format::BCF)
+            bcf::Writer::from_path(&predict_vcf_path, &vcf_header, false, Format::Bcf)
                 .context("Failed to create filtered VCF")?;
         let mut vcfidx = bcf::IndexedReader::from_path(self.index_vcf_path())
             .context("Failed to open panel VCF index")?;
@@ -375,7 +375,7 @@ impl Predict {
             unwrap_or_continue!(vcfidx.fetch(
                 idx_rid,
                 iv.start as u64,
-                (iv.end - 1) as u64
+                Some((iv.end - 1) as u64)
             ));
             let mut record_has_match_in_idx = false;
             for idx_res in vcfidx.records() {
@@ -1050,7 +1050,7 @@ mod tests {
         let pred = Predict::default();
         pred.add_predict_info_to_header(&mut header);
         let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::VCF).unwrap();
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
         let view = vcf.header();
 
         for field in &[InfoField::VarId, InfoField::Prediction] {
