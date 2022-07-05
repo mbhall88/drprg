@@ -848,7 +848,7 @@ mod tests {
 
     #[test]
     fn path_is_executable_resolves_full_path() {
-        let program = "src/ext/pandora";
+        let program = "/bin/mkdir";
         let expected = Path::new(program)
             .canonicalize()
             .unwrap()
