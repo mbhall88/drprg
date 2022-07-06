@@ -1,5 +1,5 @@
 PROJECT := "drprg"
-EXTDIR := "src/ext"
+EXTDIR := absolute_path("src/ext")
 
 make_extdir:
     mkdir -p {{ EXTDIR }}
