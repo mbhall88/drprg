@@ -12,7 +12,7 @@ makeprg: make_extdir
     wget "{{ MAKEPRG_URL }}" -O "{{ MAKEPRG }}"
     chmod +x "{{ MAKEPRG }}"
 
-PANDORA_VERSION := "0.9.0"
+PANDORA_VERSION := "0.9.1"
 PANDORA_URL := "https://github.com/rmcolq/pandora/releases/download/" + PANDORA_VERSION + "/pandora-linux-precompiled-v" + PANDORA_VERSION
 PANDORA := join(EXTDIR, "pandora")
 
@@ -21,7 +21,7 @@ pandora: make_extdir
     wget "{{ PANDORA_URL }}" -O "{{ PANDORA }}"
     chmod +x "{{ PANDORA }}"
 
-BCFTOOLS_VERSION := "1.12"
+BCFTOOLS_VERSION := "1.15.1"
 BCFTOOLS_URL := "https://github.com/samtools/bcftools/releases/download/" + BCFTOOLS_VERSION + "/bcftools-" + BCFTOOLS_VERSION + ".tar.bz2"
 BCFTOOLS := join(EXTDIR, "bcftools")
 
