@@ -4,6 +4,7 @@ on: [ push, pull_request ]
 
 env:
   CARGO_TERM_COLOR: always
+  V_JUST: '1.2'
 
 jobs:
   format:
@@ -24,15 +25,19 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
+      - uses: extractions/setup-just@v1
+        with:
+          just-version: ${{ env.V_JUST }}
+
       - uses: actions/cache@v2
         with:
           path: src/ext
-          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/Makefile') }}
+          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/justfile') }}
 
-      - name: Install external dependecies
+      - name: Install external dependencies
         run: |
           if [ ! -d "src/ext" ]; then
-            make deps
+            just deps
           fi
 
       - uses: actions/cache@v2
@@ -47,7 +52,7 @@ jobs:
         run: cargo build --verbose
 
       - name: Run tests
-        run: cargo test -v --all-targets --no-fail-fast
+        run: just test
 
   coverage:
     runs-on: ubuntu-latest
@@ -55,15 +60,19 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v2
 
+      - uses: extractions/setup-just@v1
+        with:
+          just-version: ${{ env.V_JUST }}
+
       - uses: actions/cache@v2
         with:
           path: src/ext
-          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/Makefile') }}
+          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/justfile') }}
 
-      - name: Install external dependecies
+      - name: Install external dependencies
         run: |
           if [ ! -d "src/ext" ]; then
-            make deps
+            just deps
           fi
 
       - name: Install stable toolchain
@@ -71,7 +80,7 @@ jobs:
         with:
           toolchain: stable
           override: true
-          
+
       - uses: actions/cache@v2
         with:
           path: |
@@ -83,7 +92,8 @@ jobs:
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
-          version: '0.16.0'
+          version: '0.20.1'
+          timeout: '300'
           args: '-- --test-threads 1'
 
       - name: Upload to codecov.io

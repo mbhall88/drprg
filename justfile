@@ -61,4 +61,4 @@ lint:
 
 # run all tests
 test:
-    cargo test --all
+    cargo test -v --all-targets --no-fail-fast
