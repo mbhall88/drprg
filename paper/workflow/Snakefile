@@ -1,5 +1,6 @@
 from pathlib import Path
 from itertools import product
+import pandas as pd
 
 
 # =====================================
@@ -20,7 +21,13 @@ PADDING: int = config["padding"]
 KS: list[int] = config["pandora"]["ks"]
 WS: list[int] = config["pandora"]["ws"]
 WKS = [(w, k) for w, k in product(WS, KS) if w < k]
+QC_DIR = Path(config["QC_dir"])
+MIN_ILLUMINA_COV = config["min_cov"]
+MIN_NANOPORE_COV = config["min_cov"]
 # =====================================
+
+inclusion_expr = f"illumina_covg >= {MIN_ILLUMINA_COV} and nanopore_covg >= {MIN_NANOPORE_COV} and lineage != 'mixed'"
+h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
 
 # =====================================
 target_files = set()
@@ -48,4 +55,7 @@ rule index_reference:
 
 
 # =====================================
+include: RULES / "common.smk"
 include: RULES / "panel.smk"
+include: RULES / "wk_sweep.smk"
+

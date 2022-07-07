@@ -1,7 +1,7 @@
 rule download_panel:
     output:
         panel=RESOURCES / "panel.original.tsv",
-        var2drug=RESOURCES / "var2drug.original.tsv",
+        var2drug=RESOURCES / "var2drug.original.json",
     log:
         LOGS / "download_panel.log",
     params:
@@ -25,9 +25,9 @@ rule download_panel:
             exit 1
         fi &>> {log}
         FNAME=$(tar -tzf $PANEL | grep {params.panel_fname_pattern}) 2>> {log}
-        tar -zxvOf "$PANEL" "$FNAME" > {output.panel} 2>> {log}
+        tar -zxOf "$PANEL" "$FNAME" > {output.panel} 2>> {log}
         FNAME=$(tar -tzf $PANEL | grep {params.var2drug_fname_pattern}) 2>> {log}
-        tar -zxvOf "$PANEL" "$FNAME" > {output.var2drug} 2>> {log}
+        tar -zxOf "$PANEL" "$FNAME" > {output.var2drug} 2>> {log}
         """
 
 
