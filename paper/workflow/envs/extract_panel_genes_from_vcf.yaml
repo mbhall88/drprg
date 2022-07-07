@@ -1,0 +1,11 @@
+name: extract_panel_genes_from_vcf
+channels:
+  - bioconda
+  - conda-forge
+  - defaults
+dependencies:
+  - loguru=0.5.3
+  - python>=3.8
+  - intervaltree=3.1.0
+  - cyvcf2=0.30.8
+  - bcftools=1.10

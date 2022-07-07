@@ -15,6 +15,7 @@ RESOURCES = Path("resources").resolve()
 LOGS = Path("logs/rules").resolve()
 CONTAINERS = config["containers"]
 GB = 1_024
+PADDING: int = config["padding"]
 # =====================================
 
 # =====================================

@@ -1,6 +1,8 @@
 panel:
   url: "https://figshare.com/ndownloader/files/35965220"
   md5: "4f276071d45bb3ade8d3af1b073ba8df"
+population_vcf: "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
+padding: 100  # number of bases to add to the end and start of each gene/PRG
 
 containers:
   base:   "docker://bash:5.1"

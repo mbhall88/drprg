@@ -31,7 +31,7 @@ rule download_panel:
         """
 
 
-rule alter_inhA_mutation:
+rule convert_mutations:
     """There is an inhA promotor mutation which is actually a fabG1 synonymous mutation.
     For drprg it is probably better represented as the synonymous mutation.
     In addition, we need to create a panel that has a column for drug."""
@@ -51,22 +51,52 @@ rule alter_inhA_mutation:
         new="fabG1_CTG606CTA",
         new_alphabet="DNA",
     script:
-        str(SCRIPTS / "alter_inhA_mutation.py")
+        str(SCRIPTS / "convert_mutations.py")
 
 
 rule extract_panel_genes_from_popn_vcf:
     input:
-        annotation=RESOURCES / "h37rv.gff3",
-        vcf=BuildPrg("vcfs/filtered/sparse.filtered.vcf.gz"),
-        index=BuildPrg("vcfs/filtered/sparse.filtered.vcf.gz.csi"),
-        panel=RESULTS / "drprg/panel/panel.tsv",
+        annotation=RESOURCES / "NC_000962.3.gff3",
+        vcf=config["population_vcf"],
+        index=config["population_vcf"] + ".csi",
+        panel=rules.convert_mutations.output.panel,
     output:
         vcf=RESULTS / "drprg/popn_prg/popn.bcf",
     log:
-        LOGS / "extract_panel_genes_from_vcf.log",
+        LOGS / "extract_panel_genes_from_popn_vcf.log",
     params:
-        padding=config.get("padding", 100),
+        padding=PADDING,
     conda:
         str(ENVS / "extract_panel_genes_from_vcf.yaml")
     script:
         str(SCRIPTS / "extract_panel_genes_from_vcf.py")
+
+
+rule index_popn_vcf:
+    input:
+        rules.extract_panel_genes_from_popn_vcf.output.vcf,
+    output:
+        RESULTS / "drprg/popn_prg/popn.bcf.csi",
+    params:
+        extra="-f",
+    wrapper:
+        "0.76.0/bio/bcftools/index"
+
+
+rule create_references:
+    input:
+        genome=RESOURCES / "NC_000962.3.fa",
+        faidx=RESOURCES / "NC_000962.fa.fai",
+        annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
+        panel=rules.extract_panel_genes_from_popn_vcf.input.panel,
+    output:
+        fasta=RESULTS / "drprg/popn_prg/genes.fa",
+        faidx=RESULTS / "drprg/popn_prg/genes.fa.fai",
+    log:
+        LOGS / "create_references.log",
+    params:
+        padding=rules.extract_panel_genes_from_popn_vcf.params.padding,
+    conda:
+        str(ENVS / "create_references.yaml")
+    script:
+        str(SCRIPTS / "create_references.py")
