@@ -1,0 +1,3 @@
+__default__:
+  - "-E \"/nfs/research/zi/mbhall/Software/singularity_preexec_test/singularity_test.sh -x -t 20s /\""
+  - "-q research"
