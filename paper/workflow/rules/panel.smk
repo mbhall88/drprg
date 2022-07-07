@@ -100,3 +100,17 @@ rule create_references:
         str(ENVS / "create_references.yaml")
     script:
         str(SCRIPTS / "create_references.py")
+
+rule create_popn_pre_msas:
+    input:
+        vcf=rules.extract_panel_genes_from_popn_vcf.output,
+        vcfidx=rules.index_popn_vcf.output[0],
+        references=rules.create_references.output.fasta,
+    output:
+        directory(RESULTS / "drprg/popn_prg/pre_msas"),
+    log:
+        LOGS / "create_popn_pre_msas.log",
+    conda:
+        str(ENVS / "create_popn_pre_msas.yaml")
+    script:
+        str(SCRIPTS / "create_popn_pre_msas.py")
