@@ -4,6 +4,16 @@ panel:
 population_vcf: "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
 padding:        100  # number of bases to add to the end and start of each gene/PRG
 match_len:      7  # minimum match length parameter to use in make_prg
+pandora:
+  ks:
+    - 15  # current default
+    - 21  # value used for short reads by minimap2
+    - 31  # best illumina value found in Rachel's thesis
+  ws:
+    - 10  # default (nanopore) in minimap2
+    - 11  # short read default in minimap2
+    - 14  # pandora default
+    - 19  # best illumina found in Rachel's thesis
 
 containers:
   base:   "docker://bash:5.1"

@@ -165,3 +165,34 @@ rule make_popn_prgs:
           -o {params.prefix} -i {input.msas} > {log} 2>&1 
         mv {output.prg}.fa {output.prg} 2>> {log}
         """
+
+
+rule index_popn_prg:
+    input:
+        prg=rules.make_popn_prgs.output.prg,
+        update_ds=rules.make_popn_prgs.output.update_ds,
+        prgs=rules.make_popn_prgs.output.prgs,
+    output:
+        index=RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr.prg.k{k}.w{w}.idx",
+        kmer_prgs=directory(
+            RESULTS / "drprg/popn_prg/prgs/w{w}/l{k}/kmer_prgs",
+        ),
+        prg=RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr.prg",
+        update_ds=RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr.update_DS",
+        prgs=directory(RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr_prgs"),
+    log:
+        LOGS / "index_popn_prg/w{w}/k{k}.log",
+    params:
+        options="-v",
+        outdir=lambda wildcards, output: Path(output.prg).parent,
+    threads: 4
+    container:
+        CONTAINERS["drprg"]
+    shell:
+        """
+        cp -R {input.prg} {output.prg} 2> {log}
+        cp -R {input.update_ds} {output.update_ds} 2>> {log}
+        cp -R {input.prgs} {output.prgs} 2>> {log}
+        pandora index {params.options} -t {threads} -w {wildcards.w} -k {wildcards.k} \
+            {output.prg} 2>> {log}
+        """
