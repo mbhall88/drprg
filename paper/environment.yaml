@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - python=3.10
+  - ca-certificates
+  - openssl
+  - snakemake=7.8
+  - pandas=1.4

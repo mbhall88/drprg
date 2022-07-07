@@ -1,0 +1,32 @@
+from pathlib import Path
+
+
+# =====================================
+# Workflow config items
+configfile: "config/config.yaml"
+
+
+WORKFLOW = Path("workflow").resolve()
+RULES = WORKFLOW / "rules"
+ENVS = WORKFLOW / "envs"
+SCRIPTS = WORKFLOW / "scripts"
+RESULTS = Path("results").resolve()
+RESOURCES = Path("resources").resolve()
+LOGS = Path("logs/rules").resolve()
+CONTAINERS = config["containers"]
+GB = 1_024
+# =====================================
+
+# =====================================
+target_files = set()
+
+
+rule all:
+    input:
+        target_files,
+
+
+# =====================================
+
+# =====================================
+include: RULES / "panel.smk"

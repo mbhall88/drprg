@@ -1,0 +1,7 @@
+panel:
+  url: "https://figshare.com/ndownloader/files/35965220"
+  md5: "4f276071d45bb3ade8d3af1b073ba8df"
+
+containers:
+  base:   "docker://bash:5.1"
+  python: "docker://python:3.10.4-slim-bullseye"
