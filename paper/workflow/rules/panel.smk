@@ -101,6 +101,7 @@ rule create_references:
     script:
         str(SCRIPTS / "create_references.py")
 
+
 rule create_popn_pre_msas:
     input:
         vcf=rules.extract_panel_genes_from_popn_vcf.output,
@@ -114,3 +115,26 @@ rule create_popn_pre_msas:
         str(ENVS / "create_popn_pre_msas.yaml")
     script:
         str(SCRIPTS / "create_popn_pre_msas.py")
+
+
+rule create_popn_msas:
+    input:
+        pre_msas=rules.create_popn_pre_msas.output[0],
+    output:
+        directory(RESULTS / "drprg/popn_prg/msas"),
+    log:
+        LOGS / "create_popn_msas.log",
+    container:
+        CONTAINERS["mafft"]
+    threads: 8
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * int(4 * GB),
+    shell:
+        """
+        mkdir -p {output[0]} 2> {log}
+        for f in {input.pre_msas}/*.fa
+        do
+            outname={output[0]}/$(basename "$f")
+            mafft --auto --thread {threads} "$f" > "$outname"
+        done 2>> {log}
+        """
