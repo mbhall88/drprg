@@ -77,10 +77,14 @@ rule index_popn_vcf:
         rules.extract_panel_genes_from_popn_vcf.output.vcf,
     output:
         RESULTS / "drprg/popn_prg/popn.bcf.csi",
+    log:
+        LOGS / "index_popn_vcf.log"
     params:
         extra="-f",
-    wrapper:
-        "0.76.0/bio/bcftools/index"
+    container:
+        CONTAINERS["bcftools"]
+    shell:
+        "bcftools index {params.extra} {input} 2> {log}"
 
 
 rule create_references:

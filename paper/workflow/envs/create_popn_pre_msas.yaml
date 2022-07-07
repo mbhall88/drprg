@@ -1,11 +1,11 @@
 name: create_popn_pre_msas
 channels:
-  - bioconda
   - conda-forge
+  - bioconda
   - defaults
 dependencies:
-  - loguru=0.5.3
-  - python>=3.8
-  - cyvcf2=0.30.8
-  - bcftools=1.10
-  - pysam=0.16
+  - loguru>=0.5.3
+  - python >=3.8,<3.10
+  - cyvcf2 >=0.30,<1.0
+  - bcftools =1.13
+  - pysam =0.17

@@ -21,3 +21,4 @@ containers:
   mafft:    "docker://quay.io/biocontainers/mafft:7.475--h516909a_0"
   drprg:    "docker://quay.io/mbhall88/drprg:35305a7"
   samtools: "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
+  bcftools: "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
