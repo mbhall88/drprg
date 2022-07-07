@@ -91,7 +91,7 @@ rule create_references:
         panel=rules.extract_panel_genes_from_popn_vcf.input.panel,
     output:
         fasta=RESULTS / "drprg/popn_prg/genes.fa",
-        faidx=RESULTS / "drprg/popn_prg/genes.fa.fai",
+        faidx=rules.index_reference.output.index,
     log:
         LOGS / "create_references.log",
     params:

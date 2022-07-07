@@ -16,7 +16,8 @@ pandora:
     - 19  # best illumina found in Rachel's thesis
 
 containers:
-  base:   "docker://bash:5.1"
-  python: "docker://python:3.10.4-slim-bullseye"
-  mafft:  "docker://quay.io/biocontainers/mafft:7.475--h516909a_0"
-  drprg:  "docker://quay.io/mbhall88/drprg:35305a7"
+  base:     "docker://bash:5.1"
+  python:   "docker://python:3.10.4-slim-bullseye"
+  mafft:    "docker://quay.io/biocontainers/mafft:7.475--h516909a_0"
+  drprg:    "docker://quay.io/mbhall88/drprg:35305a7"
+  samtools: "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
