@@ -86,12 +86,12 @@ rule index_popn_vcf:
 rule create_references:
     input:
         genome=RESOURCES / "NC_000962.3.fa",
-        faidx=RESOURCES / "NC_000962.fa.fai",
+        faidx=rules.index_reference.output.index,
         annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
         panel=rules.extract_panel_genes_from_popn_vcf.input.panel,
     output:
         fasta=RESULTS / "drprg/popn_prg/genes.fa",
-        faidx=rules.index_reference.output.index,
+        faidx=RESULTS / "drprg/popn_prg/genes.fa.fai",
     log:
         LOGS / "create_references.log",
     params:
