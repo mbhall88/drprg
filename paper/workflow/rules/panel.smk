@@ -39,9 +39,9 @@ rule convert_mutations:
         panel=rules.download_panel.output.panel,
         var2drug=rules.download_panel.output.var2drug,
     output:
-        panel=RESOURCES / "panel.altered.tsv",
+        panel=RESOURCES / "panel.converted.tsv",
     log:
-        LOGS / "alter_inhA_mutation.log",
+        LOGS / "convert_mutations.log",
     container:
         CONTAINERS["python"]
     resources:

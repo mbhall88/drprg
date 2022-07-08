@@ -16,15 +16,15 @@ def main():
         for line in map(str.rstrip, in_fp):
             gene, var, alphabet = line.split(DELIM)
             mut = f"{gene}_{var}"
+            drugs: list[str] = var2drug[mut]
 
             if mut == snakemake.params["old"]:
                 mut = snakemake.params["new"]
                 gene, var = mut.split("_")
                 alphabet = snakemake.params["new_alphabet"]
 
-            drugs: list[str] = var2drug[mut]
             for drug in drugs:
-                print(DELIM.join([gene, mut, alphabet, drug]), file=out_fp)
+                print(DELIM.join([gene, var, alphabet, drug]), file=out_fp)
 
 
 main()
