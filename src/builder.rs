@@ -19,7 +19,9 @@ use rayon::prelude::*;
 use rust_htslib::bcf;
 use thiserror::Error;
 
-use drprg::{index_vcf, revcomp, Bcftools, GffExt, MakePrg, Pandora};
+use drprg::{
+    find_prg_index_in, index_vcf, revcomp, Bcftools, GffExt, MakePrg, Pandora,
+};
 use drprg::{MultipleSeqAligner, PathExt};
 
 use crate::cli::check_path_exists;
@@ -123,6 +125,24 @@ pub struct Build {
         value_name = "INT"
     )]
     max_nesting: u32,
+    /// Kmer size to use for pandora
+    #[clap(
+        short = 'k',
+        long,
+        default_value = "15",
+        hidden_short_help = true,
+        value_name = "INT"
+    )]
+    pandora_k: u32,
+    /// Window size to use for pandora
+    #[clap(
+        short = 'w',
+        long,
+        default_value = "14",
+        hidden_short_help = true,
+        value_name = "INT"
+    )]
+    pandora_w: u32,
 }
 
 impl Build {
@@ -159,7 +179,8 @@ impl Build {
         self.prg_path().with_extension("update_DS")
     }
     fn prg_index_path(&self) -> PathBuf {
-        self.prg_path().add_extension(".k15.w14.idx".as_ref())
+        let ext = format!("k{}.w{}.idx", self.pandora_k, self.pandora_w);
+        self.prg_path().add_extension(ext.as_str().as_ref())
     }
     fn prg_index_kmer_prgs_path(&self) -> PathBuf {
         self.outdir.join("kmer_prgs")
@@ -186,7 +207,9 @@ impl Build {
         if !update_prgs.exists() {
             return Err(BuildError::MissingFile(update_prgs));
         }
-        let prg_index = prebuilt_dir.join(&self.prg_index_path().file_name().unwrap());
+        let prg_index = find_prg_index_in(&prebuilt_dir).ok_or_else(|| {
+            BuildError::MissingFile(prebuilt_dir.join("dr.prg.kX.wY.idx"))
+        })?;
         let prg_index_kmer_prgs =
             prebuilt_dir.join(&self.prg_index_kmer_prgs_path().file_name().unwrap());
         let index_exists = prg_index.exists() && prg_index_kmer_prgs.exists();
@@ -424,7 +447,14 @@ impl Runner for Build {
         }
         info!("Indexing reference graph with pandora...");
         let pandora = Pandora::from_path(&self.pandora_exec)?;
-        let pandora_args = &["-t", &rayon::current_num_threads().to_string()];
+        let pandora_args = &[
+            "-t",
+            &rayon::current_num_threads().to_string(),
+            "-k",
+            &self.pandora_k.to_string(),
+            "-w",
+            &self.pandora_w.to_string(),
+        ];
         if self.prebuilt_prg.is_some() && self.prg_index_path().exists() {
             info!("Existing pandora index found...skipping...");
         } else {
@@ -935,6 +965,9 @@ mod tests {
             padding: 100,
             outdir: PathBuf::from(outdir.path()),
             match_len: 5,
+            max_nesting: 7,
+            pandora_w: 14,
+            pandora_k: 15,
             ..Build::default()
         };
         let result = builder.run();
@@ -942,8 +975,7 @@ mod tests {
 
         let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
         let mut file2 =
-            std::fs::File::open(format!("{}/dr.prg", outdir.path().to_string_lossy()))
-                .unwrap();
+            File::open(format!("{}/dr.prg", outdir.path().to_string_lossy())).unwrap();
 
         let mut contents = String::new();
         file1.read_to_string(&mut contents).unwrap();
@@ -976,6 +1008,9 @@ mod tests {
             padding: 100,
             outdir: outdir.to_owned(),
             match_len: 5,
+            max_nesting: 7,
+            pandora_w: 14,
+            pandora_k: 15,
             ..Build::default()
         };
         let result = builder.run();

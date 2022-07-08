@@ -18,7 +18,8 @@ use uuid::Uuid;
 
 use drprg::filter::{Filter, Filterer};
 use drprg::{
-    unwrap_or_continue, MakePrg, MultipleSeqAligner, Pandora, PathExt, VcfExt,
+    extract_w_and_k, find_prg_index_in, unwrap_or_continue, MakePrg,
+    MultipleSeqAligner, Pandora, PathExt, VcfExt,
 };
 
 use crate::cli::check_path_exists;
@@ -26,10 +27,9 @@ use crate::panel::{Residue, Variant};
 use crate::report::{Evidence, Susceptibility};
 use crate::Runner;
 use bstr::ByteSlice;
-use regex::Regex;
+
 use std::collections::{HashMap, HashSet};
-use std::ffi::OsStr;
-use std::fs;
+
 use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
@@ -284,37 +284,15 @@ impl Predict {
             .map_err(|_| PredictError::MissingKmerAndWindowSize)?
             .to_string_lossy()
             .to_string();
-        let re = Regex::new(r"prg\.k(?P<k>\d+)\.w(?P<w>\d+)\.idx$").unwrap();
-        let captures = re
-            .captures(&fname)
-            .ok_or(PredictError::MissingKmerAndWindowSize)?;
-        let w = captures
-            .name("w")
-            .ok_or(PredictError::MissingKmerAndWindowSize)?
-            .as_str();
-        let k = captures
-            .name("k")
-            .ok_or(PredictError::MissingKmerAndWindowSize)?
-            .as_str();
-        Ok((w.to_owned(), k.to_owned()))
+        let (w, k) =
+            extract_w_and_k(&fname).ok_or(PredictError::MissingKmerAndWindowSize)?;
+        Ok((w, k))
     }
 
     fn index_prg_index_path(&self) -> Result<PathBuf, PredictError> {
-        let mut fname: Option<String> = None;
-        for entry in fs::read_dir(&self.index)
-            .map_err(|_| PredictError::InvalidIndex(self.index.to_owned()))?
-        {
-            let path = entry
-                .map_err(|_| PredictError::InvalidIndex(self.index.to_owned()))?
-                .path();
-            if path.extension() == Some(OsStr::new("idx")) {
-                fname = Some(path.file_name().unwrap().to_string_lossy().to_string());
-            }
-        }
-        match fname {
-            Some(f) => Ok(self.index.join(f)),
-            _ => Err(PredictError::InvalidIndex(self.index.to_owned())),
-        }
+        find_prg_index_in(&self.index).ok_or_else(|| {
+            PredictError::InvalidIndex(self.index.join("dr.prg.kX.wY.idx"))
+        })
     }
 
     fn index_kmer_prgs_path(&self) -> PathBuf {
@@ -844,10 +822,8 @@ mod tests {
             ..Default::default()
         };
 
-        let actual = predictor.index_prg_index_path().unwrap();
-        let expected = PathBuf::from("foo/dr.prg.k15.w14.idx");
-
-        assert_eq!(actual, expected)
+        let actual = predictor.index_prg_index_path();
+        assert!(actual.is_err())
     }
 
     #[test]
@@ -928,10 +904,18 @@ mod tests {
 
     #[test]
     fn validate_index_missing_prg() {
-        let predictor = Predict::default();
+        let dir = tempfile::tempdir().unwrap();
+        let tmp_path = dir.path();
+        let predictor = Predict {
+            index: PathBuf::from(tmp_path),
+            ..Default::default()
+        };
+        {
+            let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
+        }
 
         let actual = predictor.validate_index().unwrap_err();
-        let expected = PredictError::InvalidIndex(PathBuf::new().join("dr.prg"));
+        let expected = PredictError::InvalidIndex(tmp_path.join("dr.prg"));
 
         assert_eq!(actual, expected)
     }
@@ -946,6 +930,7 @@ mod tests {
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
+            let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -965,6 +950,7 @@ mod tests {
 
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
+            let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
         }
 
@@ -988,6 +974,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -1011,6 +998,7 @@ mod tests {
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
+            let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -1036,7 +1024,7 @@ mod tests {
         }
 
         let actual = predictor.validate_index().unwrap_err();
-        let expected = PredictError::InvalidIndex(tmp_path.join("dr.prg.k15.w14.idx"));
+        let expected = PredictError::InvalidIndex(tmp_path.join("dr.prg.kX.wY.idx"));
 
         assert_eq!(actual, expected)
     }

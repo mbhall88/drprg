@@ -15,7 +15,9 @@ use thiserror::Error;
 use crate::filter::Tags;
 use crate::interval::IntervalOp;
 use noodles::gff;
+use regex::Regex;
 use std::cmp::min;
+use std::fs;
 use std::io::ErrorKind;
 
 pub mod filter;
@@ -807,6 +809,25 @@ pub fn revcomp(seq: &[u8]) -> Vec<u8> {
         .rev()
         .map(|c| if c & 2 != 0 { c ^ 4 } else { c ^ 21 })
         .collect()
+}
+
+pub fn find_prg_index_in(dir: &Path) -> Option<PathBuf> {
+    let mut fname: Option<String> = None;
+    for entry in fs::read_dir(dir).ok()? {
+        let path = entry.ok()?.path();
+        if path.extension() == Some(OsStr::new("idx")) {
+            fname = Some(path.file_name().unwrap().to_string_lossy().to_string());
+        }
+    }
+    fname.map(|f| dir.join(f))
+}
+
+pub fn extract_w_and_k(path: &str) -> Option<(String, String)> {
+    let re = Regex::new(r"prg\.k(?P<k>\d+)\.w(?P<w>\d+)\.idx$").unwrap();
+    let captures = re.captures(path)?;
+    let w = captures.name("w")?.as_str();
+    let k = captures.name("k")?.as_str();
+    Some((w.to_owned(), k.to_owned()))
 }
 
 #[cfg(test)]
@@ -2042,5 +2063,27 @@ mod tests {
         let record = reader.records().next().unwrap().unwrap();
 
         assert!(record.name().is_none())
+    }
+
+    #[test]
+    fn extract_w_and_k_both_present() {
+        let w = 2;
+        let k = 12;
+        let p = format!("path/to/dr.prg.k{}.w{}.idx", k, w);
+
+        let actual = extract_w_and_k(&p);
+        let expected = Some((w.to_string(), k.to_string()));
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn extract_w_and_k_both_not_present() {
+        let w = 2;
+        let k = 12;
+        let p = format!("path/to/dr.prg.{}.w{}.idx", k, w);
+
+        let actual = extract_w_and_k(&p);
+        assert!(actual.is_none())
     }
 }
