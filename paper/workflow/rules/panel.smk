@@ -78,7 +78,7 @@ rule index_popn_vcf:
     output:
         RESULTS / "drprg/popn_prg/popn.bcf.csi",
     log:
-        LOGS / "index_popn_vcf.log"
+        LOGS / "index_popn_vcf.log",
     params:
         extra="-f",
     container:
@@ -200,3 +200,35 @@ rule index_popn_prg:
         pandora index {params.options} -t {threads} -w {wildcards.w} -k {wildcards.k} \
             {output.prg} 2>> {log}
         """
+
+
+rule download_who_panel:
+    output:
+        panel=RESOURCES / "who.panel.tsv",
+    log:
+        LOGS / "download_who_panel.log",
+    container:
+        CONTAINERS["base"]
+    params:
+        url=config["who_panel_url"],
+    shell:
+        "wget {params.url} -O {output.panel} 2> {log}"
+
+
+rule add_non_resistance_mutations:
+    input:
+        panel=rules.convert_mutations.output.panel,
+        known=rules.download_who_panel.output.panel,
+    output:
+        panel=RESOURCES / "panel.with_susceptible_mutations.tsv",
+    log:
+        LOGS / "add_non_resistance_mutations.log",
+    container:
+        CONTAINERS["python"]
+    resources:
+        mem_mb=int(0.5 * GB),
+    params:
+        keep_grades=(4, 5),
+        no_drug="NONE",
+    script:
+        str(SCRIPTS / "add_non_resistance_mutations.py")
