@@ -26,7 +26,10 @@ use crate::panel::{Residue, Variant};
 use crate::report::{Evidence, Susceptibility};
 use crate::Runner;
 use bstr::ByteSlice;
+use regex::Regex;
 use std::collections::{HashMap, HashSet};
+use std::ffi::OsStr;
+use std::fs;
 use std::fs::File;
 use std::io::Write;
 use std::iter::FromIterator;
@@ -39,6 +42,9 @@ pub enum PredictError {
     /// The index is not valid
     #[error("Index is not valid due to missing file {0:?}")]
     InvalidIndex(PathBuf),
+    /// Could not retrieve the kmer and window size of the index
+    #[error("Could not retrieve the kmer and window size of the index PRG")]
+    MissingKmerAndWindowSize,
 }
 
 /// All possible predictions
@@ -190,7 +196,9 @@ impl Runner for Predict {
                 file.write_all(content.as_bytes())
                     .context("Failed to write content to TSV file")?;
             }
-            let mut args = vec!["-t", threads];
+            // safe to unwrap as we have already validated the index, which checks this
+            let (w, k) = self.index_w_and_k().unwrap();
+            let mut args = vec!["-t", threads, "-w", &w, "-k", &k];
             if self.is_illumina {
                 args.push("-I");
             }
@@ -220,12 +228,14 @@ impl Runner for Predict {
                 .context("Failed to update discover PRG")?;
 
             debug!("Indexing updated PRG with pandora index...");
-            pandora.index_with(&prg_path, &["-t", threads])?;
+            pandora.index_with(&prg_path, &["-t", threads, "-w", &w, "-k", &k])?;
         }
 
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
         info!("Genotyping reads against the panel with pandora");
-        let mut gt_args = vec!["-t", threads];
+        // safe to unwrap as we have already validated the index, which checks this
+        let (w, k) = self.index_w_and_k().unwrap();
+        let mut gt_args = vec!["-t", threads, "-w", &w, "-k", &k];
         if self.is_illumina {
             gt_args.push("-I");
         }
@@ -268,8 +278,43 @@ impl Predict {
         self.index.join("dr.prg")
     }
 
-    fn index_prg_index_path(&self) -> PathBuf {
-        self.index.join("dr.prg.k15.w14.idx")
+    fn index_w_and_k(&self) -> Result<(String, String), PredictError> {
+        let fname = self
+            .index_prg_index_path()
+            .map_err(|_| PredictError::MissingKmerAndWindowSize)?
+            .to_string_lossy()
+            .to_string();
+        let re = Regex::new(r"prg\.k(?P<k>\d+)\.w(?P<w>\d+)\.idx$").unwrap();
+        let captures = re
+            .captures(&fname)
+            .ok_or(PredictError::MissingKmerAndWindowSize)?;
+        let w = captures
+            .name("w")
+            .ok_or(PredictError::MissingKmerAndWindowSize)?
+            .as_str();
+        let k = captures
+            .name("k")
+            .ok_or(PredictError::MissingKmerAndWindowSize)?
+            .as_str();
+        Ok((w.to_owned(), k.to_owned()))
+    }
+
+    fn index_prg_index_path(&self) -> Result<PathBuf, PredictError> {
+        let mut fname: Option<String> = None;
+        for entry in fs::read_dir(&self.index)
+            .map_err(|_| PredictError::InvalidIndex(self.index.to_owned()))?
+        {
+            let path = entry
+                .map_err(|_| PredictError::InvalidIndex(self.index.to_owned()))?
+                .path();
+            if path.extension() == Some(OsStr::new("idx")) {
+                fname = Some(path.file_name().unwrap().to_string_lossy().to_string());
+            }
+        }
+        match fname {
+            Some(f) => Ok(self.index.join(f)),
+            _ => Err(PredictError::InvalidIndex(self.index.to_owned())),
+        }
     }
 
     fn index_kmer_prgs_path(&self) -> PathBuf {
@@ -318,13 +363,14 @@ impl Predict {
     }
 
     fn validate_index(&self) -> Result<(), PredictError> {
+        let prg_index = self.index_prg_index_path()?;
         let expected_paths = &[
             self.index_prg_path(),
             self.index_kmer_prgs_path(),
             self.index_vcf_path(),
             self.index_vcf_index_path(),
             self.index_vcf_ref_path(),
-            self.index_prg_index_path(),
+            prg_index,
             self.index_prg_update_path(),
             self.index_update_prgs_path(),
         ];
@@ -798,7 +844,7 @@ mod tests {
             ..Default::default()
         };
 
-        let actual = predictor.index_prg_index_path();
+        let actual = predictor.index_prg_index_path().unwrap();
         let expected = PathBuf::from("foo/dr.prg.k15.w14.idx");
 
         assert_eq!(actual, expected)
