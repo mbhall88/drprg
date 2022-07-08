@@ -16,3 +16,16 @@ rule seqtk_mergepe:
     threads: 2
     wrapper:
         "0.75.0-7-g05edf56/bio/seqtk/mergepe"
+
+
+rule copy_nanopore_reads:
+    input:
+        reads=lambda wildcards: infer_h2h_reads(wildcards, tech="nanopore"),
+    output:
+        reads=WK_SWEEP / "reads/nanopore/{sample}.fq.gz",
+    log:
+        LOGS / "copy_nanopore_reads.log",
+    resources:
+        mem_mb=int(0.3 * GB),
+    shell:
+        "cp {input.reads} {output.reads} 2> {log}"
