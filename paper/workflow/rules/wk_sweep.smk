@@ -29,3 +29,29 @@ rule copy_nanopore_reads:
         mem_mb=int(0.3 * GB),
     shell:
         "cp {input.reads} {output.reads} 2> {log}"
+
+
+rule drprg_predict_sweep:
+    input:
+        index=rules.drprg_build.output.outdir,
+        reads=WK_SWEEP / "reads/{tech}/{sample}.fq.gz",
+    output:
+        outdir=directory(WK_SWEEP / "predict/w{w}/k{k}/{tech}/{sample}"),
+        report=WK_SWEEP / "predict/w{w}/k{k}/{tech}/{sample}/{sample}.drprg.json",
+        vcf=WK_SWEEP / "predict/w{w}/k{k}/{tech}/{sample}/{sample}.drprg.bcf",
+    log:
+        LOGS / "drprg_predict_sweep/w{w}/k{k}/{tech}/{sample}.log",
+    threads: 4
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * int(4 * GB),
+    container:
+        CONTAINERS["drprg"]
+    params:
+        opts=" ".join(["-v", "-s {sample}", "-u", "--failed"]),
+        filters=lambda wildcards: drprg_filter_args(wildcards),
+        tech_flag=lambda wildcards: "-I" if wildcards.tech == "illumina" else "",
+    shell:
+        """
+        drprg predict {params.opts} {params.filters} {params.tech_flag} \
+          -o {output.outdir} -i {input.reads} -x {input.index} -t {threads} 2> {log}
+        """

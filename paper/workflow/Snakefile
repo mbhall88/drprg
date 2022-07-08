@@ -32,7 +32,7 @@ h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
 # =====================================
 target_files = set()
 for w, k in WKS:
-    target_files.add(RESULTS / f"drprg/popn_prg/prgs/w{w}/k{k}/dr.prg.k{k}.w{w}.idx")
+    target_files.add(RESULTS / f"drprg/index/w{w}/k{k}/dr.prg")
 
 
 rule all:

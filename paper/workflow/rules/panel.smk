@@ -232,3 +232,35 @@ rule add_non_resistance_mutations:
         no_drug="NONE",
     script:
         str(SCRIPTS / "add_non_resistance_mutations.py")
+
+
+rule drprg_build:
+    input:
+        panel=rules.add_non_resistance_mutations.output.panel,
+        ref=rules.create_references.input.genome,
+        annotation=rules.create_references.input.annotation,
+        prg_index=rules.index_popn_prg.output.index,
+    output:
+        outdir=directory(RESULTS / "drprg/index/w{w}/k{k}"),
+        prg=RESULTS / "drprg/index/w{w}/k{k}/dr.prg",
+        vcf=RESULTS / "drprg/index/w{w}/k{k}/panel.bcf",
+        vcf_idx=RESULTS / "drprg/index/w{w}/k{k}/panel.bcf.csi",
+        ref=RESULTS / "drprg/index/w{w}/k{k}/genes.fa",
+    log:
+        LOGS / "drprg_build/w{w}/k{k}.log",
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * int(4 * GB),
+    threads: 2
+    container:
+        CONTAINERS["drprg"]
+    params:
+        options="-v -w {w} -k {k}",
+        match_len=config["match_len"],
+        padding=rules.create_references.params.padding,
+        prebuilt_dir=lambda wildcards, input: Path(input.prg_index).parent,
+    shell:
+        """
+        drprg build {params.options} -l {params.match_len} -P {params.padding} \
+            -a {input.annotation} -o {output.outdir} -i {input.panel} \
+            -f {input.ref} -t {threads} -d {params.prebuilt_dir} 2> {log}
+        """
