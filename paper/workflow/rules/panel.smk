@@ -179,7 +179,7 @@ rule index_popn_prg:
     output:
         index=RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr.prg.k{k}.w{w}.idx",
         kmer_prgs=directory(
-            RESULTS / "drprg/popn_prg/prgs/w{w}/l{k}/kmer_prgs",
+            RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/kmer_prgs",
         ),
         prg=RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr.prg",
         update_ds=RESULTS / "drprg/popn_prg/prgs/w{w}/k{k}/dr.update_DS",
@@ -198,7 +198,7 @@ rule index_popn_prg:
         cp -R {input.update_ds} {output.update_ds} 2>> {log}
         cp -R {input.prgs} {output.prgs} 2>> {log}
         pandora index {params.options} -t {threads} -w {wildcards.w} -k {wildcards.k} \
-            {output.prg} 2>> {log}
+            {output.prg} &>> {log}
         """
 
 

@@ -29,5 +29,3 @@ rule copy_nanopore_reads:
         mem_mb=int(0.3 * GB),
     shell:
         "cp {input.reads} {output.reads} 2> {log}"
-
-
