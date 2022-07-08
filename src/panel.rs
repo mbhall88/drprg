@@ -49,7 +49,7 @@ impl PanelExt for Panel {
 
 lazy_static! {
     static ref VARIANT_REGEX: Regex =
-        Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z]+)$").unwrap();
+        Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z\*]+)$").unwrap();
     static ref NUCLEOTIDES: Vec<&'static [u8]> = vec![b"A", b"C", b"G", b"T"];
 }
 static AMINO_ACIDS: &[u8] = b"ACDEFGHIKLMNPQRSTVWY";
@@ -482,6 +482,19 @@ mod tests {
             reference: "K".to_string(),
             pos: -1,
             new: "Q".to_string(),
+        };
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn variant_from_str_with_stop_codon() {
+        let s = "K2*";
+        let actual = Variant::from_str(s).unwrap();
+        let expected = Variant {
+            reference: "K".to_string(),
+            pos: 2,
+            new: "*".to_string(),
         };
 
         assert_eq!(actual, expected)
