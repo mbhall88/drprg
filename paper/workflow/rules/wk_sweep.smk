@@ -24,7 +24,7 @@ rule copy_nanopore_reads:
     output:
         reads=WK_SWEEP / "reads/nanopore/{sample}.fq.gz",
     log:
-        LOGS / "copy_nanopore_reads.log",
+        LOGS / "copy_nanopore_reads/{sample}.log",
     resources:
         mem_mb=int(0.3 * GB),
     shell:
