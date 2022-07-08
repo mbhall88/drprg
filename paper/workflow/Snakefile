@@ -24,6 +24,7 @@ WKS = [(w, k) for w, k in product(WS, KS) if w < k]
 QC_DIR = Path(config["QC_dir"])
 MIN_ILLUMINA_COV = config["min_cov"]
 MIN_NANOPORE_COV = config["min_cov"]
+TECHS = ["nanopore", "illumina"]
 # =====================================
 
 inclusion_expr = f"illumina_covg >= {MIN_ILLUMINA_COV} and nanopore_covg >= {MIN_NANOPORE_COV} and lineage != 'mixed'"
@@ -32,7 +33,11 @@ h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
 # =====================================
 target_files = set()
 for w, k in WKS:
-    target_files.add(RESULTS / f"drprg/index/w{w}/k{k}/dr.prg")
+    for s in h2h_df["sample"]:
+        for t in TECHS:
+            target_files.add(
+                RESULTS / f"drprg/wk_sweep/predict/w{w}/k{k}/{t}/{s}/{s}.drprg.json"
+            )
 
 
 rule all:
@@ -58,4 +63,3 @@ rule index_reference:
 include: RULES / "common.smk"
 include: RULES / "panel.smk"
 include: RULES / "wk_sweep.smk"
-
