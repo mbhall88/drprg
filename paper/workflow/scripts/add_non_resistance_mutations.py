@@ -8,6 +8,7 @@ def eprint(msg: str):
 
 
 def main():
+    exclude = set(snakemake.params.exclude)
     out_fp = open(snakemake.output.panel, "w")
 
     panel_genes: set[str] = set()
@@ -24,7 +25,9 @@ def main():
         for line in fp:
             fields = line.rstrip().split("\t")
             gene = fields[0]
-            if gene not in panel_genes:
+            var = fields[1]
+            mut = f"{gene}_{var}"
+            if gene not in panel_genes or mut in exclude:
                 continue
 
             grade = int(fields[-1])

@@ -230,6 +230,7 @@ rule add_non_resistance_mutations:
     params:
         keep_grades=(4, 5),
         no_drug="NONE",
+        exclude=["inhA_T4I"],  # incorrect variant that should be fabG1_T4I which is already in catalogue
     script:
         str(SCRIPTS / "add_non_resistance_mutations.py")
 
