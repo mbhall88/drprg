@@ -209,7 +209,7 @@ def is_variant_valid(
         expected_ref = refseq[pos]
         if ref != expected_ref:
             eprint(
-                f"Variant amino acid {ref} does not match reference {expected_ref} at position {pos} in {gene}"
+                f"[WARN]: Variant amino acid {ref} does not match reference {expected_ref} at position {pos} in {gene}"
             )
             return False
         else:
@@ -225,7 +225,7 @@ def is_variant_valid(
 
     if ref != expected_ref:
         eprint(
-            f"Variant nucleic acid {ref} does not match reference {expected_ref} at position {pos} in {gene}"
+            f"[WARN]: Variant nucleic acid {ref} does not match reference {expected_ref} at position {pos} in {gene}"
         )
         return False
     else:
@@ -293,7 +293,6 @@ def main():
 
     eprint(f"Loaded {len(panel_genes)} genes from panel")
     c = 0
-    failed = False
     with open(snakemake.input.known) as fp:
         _ = next(fp)  # skip header
         for line in map(str.rstrip, fp):
@@ -320,24 +319,17 @@ def main():
                     var = f"{ref}{pos}{alt}"
 
                 if is_variant_valid(gene, var, alpha, index, features[gene]):
-
                     print(
                         "\t".join([gene, var, alpha, snakemake.params.no_drug]),
                         file=out_fp,
                     )
                     c += 1
                 else:
-                    failed = True
-                    eprint(f"Variant {var} in {gene} is not valid")
+                    continue
 
     eprint(f"Added {c} non-resistant mutations to panel")
 
     out_fp.close()
-
-    if failed:
-        sys.exit(1)
-    else:
-        sys.exit(0)
 
 
 main()
