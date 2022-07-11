@@ -1,7 +1,6 @@
 import re
 import sys
 from dataclasses import dataclass
-from enum import Enum
 from itertools import repeat
 from typing import Dict, Tuple, TextIO, List
 
@@ -9,6 +8,7 @@ sys.stderr = open(snakemake.log[0], "w")
 
 TRANSLATE = str.maketrans("ATGC", "TACG")
 STOP = "*"
+REVERSE = "-"
 Contig = str
 Seq = str
 Index = Dict[Contig, Seq]
@@ -98,16 +98,6 @@ def complement(s: str) -> str:
     return s.upper().translate(TRANSLATE)
 
 
-class Strand(Enum):
-    Forward = "+"
-    Reverse = "-"
-    NotRelevant = "."
-    Unknown = "?"
-
-    def __str__(self) -> str:
-        return str(self.value)
-
-
 def translate(seq: str, stop_last=True) -> str:
     if len(seq) % 3 != 0:
         raise ValueError("Sequence length must be a multiple of 3")
@@ -131,7 +121,7 @@ class GffFeature:
     start: int  # 1-based inclusive
     end: int  # 1-based inclusive
     score: float
-    strand: Strand
+    strand: str
     phase: int
     attributes: Dict[str, str]
 
@@ -149,7 +139,7 @@ class GffFeature:
             start=int(fields[3]),
             end=int(fields[4]),
             score=score,
-            strand=Strand(fields[6]),
+            strand=fields[6],
             phase=phase,
             attributes=attributes,
         )
@@ -180,7 +170,7 @@ class GffFeature:
         nuc_seq = self._extract_sequence(
             index, start_offset=start_offset, end_offset=end_offset
         )
-        if self.strand is Strand.Reverse:
+        if self.strand == REVERSE:
             nuc_seq = revcomp(nuc_seq)
 
         return nuc_seq
@@ -309,11 +299,11 @@ def main():
             if grading in snakemake.params.keep_grades:
                 # The position of DNA mutations (inside genes) on the rev strand point to the *end* of the
                 # reference allele. See the data cleaning notebook for an explanation
-                is_promotor_mut = "-" in var
+                # is_promotor_mut = "-" in var
                 if (
-                    features[gene].strand is Strand.Reverse
+                    features[gene].strand == REVERSE
                     and alpha == "DNA"
-                    and not is_promotor_mut
+                    # and not is_promotor_mut
                 ):
                     ref, pos, alt = split_var_name(var)
                     ref = revcomp(ref)
