@@ -47,8 +47,8 @@ rule convert_mutations:
     resources:
         mem_mb=int(0.5 * GB),
     params:
-        old="inhA_G-154A",  # fabG1_L203L fabG1_ctg606cta fabG1_g608a
-        new="fabG1_CTG606CTA",
+        old="inhA_G-154A",  # fabG1_L203L fabG1_ctg607cta fabG1_g609a
+        new="fabG1_CTG607CTA",
         new_alphabet="DNA",
     script:
         str(SCRIPTS / "convert_mutations.py")

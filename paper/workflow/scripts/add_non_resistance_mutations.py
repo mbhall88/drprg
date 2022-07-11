@@ -218,7 +218,7 @@ def is_variant_valid(
         else:
             return True
 
-    offset = pos if pos >= 0 else pos - len(ref)
+    offset = 0 if pos >= 0 else pos - len(ref)
     refseq = feature.nucleotide_sequence(index, start_offset=offset, end_offset=offset)
 
     if pos < 0:
