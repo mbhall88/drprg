@@ -201,15 +201,18 @@ class GffFeature:
 def is_variant_valid(
     gene: str, variant: str, alphabet: str, index: Index, feature: GffFeature
 ):
-    ref, pos, alt = split_var_name(variant)
-    if pos >= 1:
-        pos -= 1
+    ref, original_pos, alt = split_var_name(variant)
+    if original_pos >= 1:
+        pos = original_pos - 1
+    else:
+        pos = original_pos
+
     if alphabet == "PROT":
         refseq = feature.protein_sequence(index)
         expected_ref = refseq[pos]
         if ref != expected_ref:
             eprint(
-                f"[WARN]: Variant amino acid {ref} does not match reference {expected_ref} at position {pos} in {gene}"
+                f"[WARN]: Variant amino acid {ref} does not match reference {expected_ref} at position {original_pos} in {gene}"
             )
             return False
         else:
@@ -225,7 +228,7 @@ def is_variant_valid(
 
     if ref != expected_ref:
         eprint(
-            f"[WARN]: Variant nucleic acid {ref} does not match reference {expected_ref} at position {pos} in {gene}"
+            f"[WARN]: Variant nucleic acid {ref} does not match reference {expected_ref} at position {original_pos} in {gene}"
         )
         return False
     else:
