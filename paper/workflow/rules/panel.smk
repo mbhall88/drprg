@@ -220,6 +220,7 @@ rule add_non_resistance_mutations:
         panel=rules.convert_mutations.output.panel,
         known=rules.download_who_panel.output.panel,
         features=rules.create_references.input.annotation,
+        reference=rules.create_references.input.genome,
     output:
         panel=RESOURCES / "panel.with_susceptible_mutations.tsv",
     log:
