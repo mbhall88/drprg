@@ -39,7 +39,7 @@ target_files = set()
 #                 RESULTS / f"drprg/wk_sweep/predict/w{w}/k{k}/{t}/{s}/{s}.drprg.json"
 #             )
 
-target_files.add(WK_SWEEP / "predict/results.csv")
+target_files.add(RESULTS / "drprg/wk_sweep/predict/results.csv")
 
 
 # =====================================
