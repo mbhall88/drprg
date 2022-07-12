@@ -29,6 +29,7 @@ TECHS = ["nanopore", "illumina"]
 
 inclusion_expr = f"illumina_covg >= {MIN_ILLUMINA_COV} and nanopore_covg >= {MIN_NANOPORE_COV} and lineage != 'mixed'"
 h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
+SAMPLES = set(h2h_df["sample"])
 
 # =====================================
 target_files = set()

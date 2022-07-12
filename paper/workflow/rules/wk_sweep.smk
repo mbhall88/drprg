@@ -64,6 +64,7 @@ rule aggregate_wk_results:
             tech=TECHS,
             w=list(zip(*WKS))[0],
             k=list(zip(*WKS))[1],
+            sample=SAMPLES,
         ),
     output:
         sheet=WK_SWEEP / "predict/results.csv",
