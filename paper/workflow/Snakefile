@@ -1,3 +1,4 @@
+from collections import defaultdict
 from pathlib import Path
 from itertools import product
 import pandas as pd
@@ -33,12 +34,14 @@ SAMPLES = set(h2h_df["sample"])
 
 # =====================================
 target_files = set()
-# for w, k in WKS:
-#     for s in h2h_df["sample"]:
-#         for t in TECHS:
-#             target_files.add(
-#                 RESULTS / f"drprg/wk_sweep/predict/w{w}/k{k}/{t}/{s}/{s}.drprg.json"
-#             )
+WK_WILDCARDS = defaultdict(list)
+for w, k in WKS:
+    for s in h2h_df["sample"]:
+        for t in TECHS:
+            WK_WILDCARDS["sample"].append(s)
+            WK_WILDCARDS["tech"].append(t)
+            WK_WILDCARDS["w"].append(w)
+            WK_WILDCARDS["k"].append(k)
 
 target_files.add(RESULTS / "drprg/wk_sweep/predict/results.csv")
 

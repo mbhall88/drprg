@@ -61,10 +61,11 @@ rule aggregate_wk_results:
     input:
         reports=expand(
             WK_SWEEP / "predict/w{w}/k{k}/{tech}/{sample}/{sample}.drprg.json",
-            tech=TECHS,
-            w=list(zip(*WKS))[0],
-            k=list(zip(*WKS))[1],
-            sample=SAMPLES,
+            zip,
+            tech=WK_WILDCARDS["tech"],
+            w=WK_WILDCARDS["w"],
+            k=WK_WILDCARDS["k"],
+            sample=WK_WILDCARDS["sample"],
         ),
     output:
         sheet=WK_SWEEP / "predict/results.csv",
