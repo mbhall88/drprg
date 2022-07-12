@@ -55,3 +55,23 @@ rule drprg_predict_sweep:
         drprg predict {params.opts} {params.filters} {params.tech_flag} \
           -o {output.outdir} -i {input.reads} -x {input.index} -t {threads} 2> {log}
         """
+
+
+rule aggregate_wk_results:
+    input:
+        reports=expand(
+            WK_SWEEP / "predict/w{w}/k{k}/{tech}/{sample}/{sample}.drprg.json",
+            tech=TECHS,
+            w=list(zip(*WKS))[0],
+            k=list(zip(*WKS))[1],
+        ),
+    output:
+        sheet=WK_SWEEP / "predict/results.csv",
+    log:
+        LOGS / "aggregate_wk_results.log",
+    container:
+        CONTAINERS["python"]
+    params:
+        delim=",",
+    script:
+        str(SCRIPTS / "aggregate_wk_results.py")

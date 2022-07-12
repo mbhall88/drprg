@@ -32,12 +32,14 @@ h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
 
 # =====================================
 target_files = set()
-for w, k in WKS:
-    for s in h2h_df["sample"]:
-        for t in TECHS:
-            target_files.add(
-                RESULTS / f"drprg/wk_sweep/predict/w{w}/k{k}/{t}/{s}/{s}.drprg.json"
-            )
+# for w, k in WKS:
+#     for s in h2h_df["sample"]:
+#         for t in TECHS:
+#             target_files.add(
+#                 RESULTS / f"drprg/wk_sweep/predict/w{w}/k{k}/{t}/{s}/{s}.drprg.json"
+#             )
+
+target_files.add(WK_SWEEP / "predict/results.csv")
 
 
 # =====================================
