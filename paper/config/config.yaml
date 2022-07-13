@@ -12,13 +12,17 @@ panel:
 pandora:
   ks:
     - 15  # current default
+    - 17
+    - 19
     - 21  # value used for short reads by minimap2
+    - 25
     - 31  # best illumina value found in Rachel's thesis
   ws:
     - 10  # default (nanopore) in minimap2
     - 11  # short read default in minimap2
     - 14  # pandora default
     - 19  # best illumina found in Rachel's thesis
+    - 24
 
 # filtering used on the pandora VCF in drprg
 filters:
