@@ -134,3 +134,5 @@ src/ext
 tmp_*/
 tmp
 .ipynb_checkpoints/
+results/
+notepad.ipynb
