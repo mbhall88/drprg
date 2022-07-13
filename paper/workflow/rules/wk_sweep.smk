@@ -77,3 +77,25 @@ rule aggregate_wk_results:
         delim=",",
     script:
         str(SCRIPTS / "aggregate_wk_results.py")
+
+
+rule plot_wk_results:
+    input:
+        sheet=rules.aggregate_wk_results.output.sheet,
+        phenotypes=config["h2h_phenotypes"]
+    output:
+        plot=report(PLOTS / "wk_sweep.png", caption=CAPTIONS / "wk_sweep.rst", category="W & K sweep"),
+        table=report(TABLES / "wk_sweep.csv", category="W & K sweep")
+    log:
+        LOGS / "plot_wk_results.log"
+    conda:
+        str(ENVS / "plot_wk_sweep.yaml")
+    params:
+        unknown_is_resistant=False,
+        failed_is_resistant=False,
+        style="ggplot",
+        figsize=(13, 8),
+        dpi=300,
+        fontsize=14,
+    script:
+        str(SCRIPTS / "plot_wk_results.py")
