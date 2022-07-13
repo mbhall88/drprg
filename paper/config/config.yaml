@@ -22,7 +22,6 @@ pandora:
     - 11  # short read default in minimap2
     - 14  # pandora default
     - 19  # best illumina found in Rachel's thesis
-    - 24
 
 # filtering used on the pandora VCF in drprg
 filters:
