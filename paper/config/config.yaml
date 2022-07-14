@@ -20,7 +20,9 @@ pandora:
   ws:
     - 10  # default (nanopore) in minimap2
     - 11  # short read default in minimap2
+    - 13
     - 14  # pandora default
+    - 15
     - 19  # best illumina found in Rachel's thesis
 
 # filtering used on the pandora VCF in drprg
