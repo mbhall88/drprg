@@ -29,11 +29,14 @@ QC_DIR = Path(config["QC_dir"])
 MIN_ILLUMINA_COV = config["min_cov"]
 MIN_NANOPORE_COV = config["min_cov"]
 TECHS = ["nanopore", "illumina"]
+W = config["W"]
+K = config["K"]
 # =====================================
 
 inclusion_expr = f"illumina_covg >= {MIN_ILLUMINA_COV} and nanopore_covg >= {MIN_NANOPORE_COV} and lineage != 'mixed'"
 h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
-SAMPLES = set(h2h_df["sample"])
+illumina_df = pd.read_csv(config["illumina_samplesheet"], index_col="run", low_memory=False)
+ont_df = pd.read_csv(config["nanopore_samplesheet"], index_col="run", low_memory=False)
 
 # =====================================
 target_files = set()

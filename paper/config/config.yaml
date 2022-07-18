@@ -1,11 +1,13 @@
-population_vcf:  "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
-padding:         100  # number of bases to add to the end and start of each gene/PRG
-match_len:       7  # minimum match length parameter to use in make_prg
-h2h_samplesheet: "config/h2h.samplesheet.csv"
-h2h_phenotypes:  "config/h2h.phenotypes.csv"
-min_cov:         3
-QC_dir:          "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
-who_panel_url:   "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"
+population_vcf:       "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
+padding:              100  # number of bases to add to the end and start of each gene/PRG
+match_len:            7  # minimum match length parameter to use in make_prg
+illumina_samplesheet: "config/illumina.samplesheet.csv"
+nanopore_samplesheet: "config/nanopore.samplesheet.csv"
+h2h_samplesheet:      "config/h2h.samplesheet.csv"
+h2h_phenotypes:       "config/h2h.phenotypes.csv"
+min_cov:              3
+QC_dir:               "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
+who_panel_url:        "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"
 panel:
   url: "https://figshare.com/ndownloader/files/35965220"
   md5: "4f276071d45bb3ade8d3af1b073ba8df"
@@ -24,6 +26,10 @@ pandora:
     - 14  # pandora default
     - 15
     - 19  # best illumina found in Rachel's thesis
+
+# selected from https://github.com/mbhall88/drprg/issues/6
+W:                    11
+K:                    17
 
 # filtering used on the pandora VCF in drprg
 filters:
