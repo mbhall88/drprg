@@ -12,7 +12,7 @@ ERR9030278,S,PRJEB49093,SAMEA13188733,R,S,nan,R,S,nan,S,R,nan,R,S,R
 ERR9030280,S,PRJEB49093,SAMEA13188787,nan,nan,R,nan,nan,nan,S,nan,nan,nan,nan,nan
 ERR9030283,S,PRJEB49093,SAMEA13188777,nan,nan,S,nan,nan,nan,R,nan,nan,nan,nan,nan
 ERR9030284,R,PRJEB49093,SAMEA13188766,nan,nan,nan,nan,nan,nan,S,nan,nan,nan,nan,nan
-ERR9030286,N,PRJEB49093,SAMEA13188665,N,S,nan,S,N,nan,N,S,nan,S,S,R
+ERR9030286,nan,PRJEB49093,SAMEA13188665,nan,S,nan,S,nan,nan,nan,S,nan,S,S,R
 ERR9030287,S,PRJEB49093,SAMEA13188764,nan,nan,nan,nan,nan,nan,S,nan,nan,nan,nan,nan
 ERR9030299,S,PRJEB49093,SAMEA13188666,S,S,nan,R,S,nan,S,nan,nan,R,S,nan
 ERR9030304,S,PRJEB49093,SAMEA13188688,S,R,nan,R,S,nan,S,S,nan,R,R,R
@@ -80,7 +80,7 @@ ERR9030429,S,PRJEB49093,SAMEA13188722,S,S,nan,R,S,nan,S,S,nan,R,S,R
 ERR9030430,S,PRJEB49093,SAMEA13188683,S,S,nan,R,S,nan,S,S,nan,R,S,R
 ERR9030431,S,PRJEB49093,SAMEA13188778,nan,nan,nan,nan,nan,nan,S,nan,nan,nan,nan,nan
 ERR9030432,S,PRJEB49093,SAMEA13188728,S,S,nan,R,S,nan,S,S,nan,R,S,R
-ERR9030433,N,PRJEB49093,SAMEA13188710,N,S,nan,R,N,nan,N,S,nan,S,S,R
+ERR9030433,nan,PRJEB49093,SAMEA13188710,nan,S,nan,R,nan,nan,nan,S,nan,S,S,R
 ERR9030434,nan,PRJEB49093,SAMEA13188732,nan,S,nan,S,nan,nan,nan,S,nan,S,S,R
 ERR9030435,nan,PRJEB49093,SAMEA13188748,nan,S,nan,S,nan,nan,nan,nan,nan,S,S,nan
 ERR9030437,S,PRJEB49093,SAMEA13188696,S,R,nan,R,S,nan,S,S,nan,R,R,R
@@ -89,7 +89,7 @@ ERR9030439,nan,PRJEB49093,SAMEA13188742,nan,S,nan,S,nan,nan,nan,S,nan,S,S,R
 ERR9030440,S,PRJEB49093,SAMEA13188773,nan,nan,S,nan,nan,nan,S,nan,nan,nan,nan,nan
 ERR9030448,nan,PRJEB49093,SAMEA13188695,nan,S,nan,S,nan,nan,nan,nan,nan,S,S,nan
 ERR9030449,S,PRJEB49093,SAMEA13188697,S,S,nan,S,S,nan,S,R,nan,S,S,R
-ERR9030452,N,PRJEB49093,SAMEA13188737,N,S,nan,S,N,nan,N,S,nan,S,S,R
+ERR9030452,nan,PRJEB49093,SAMEA13188737,nan,S,nan,S,nan,nan,nan,S,nan,S,S,R
 ERR9030454,nan,PRJEB49093,SAMEA13188769,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan
 ERR9030462,R,PRJEB49093,SAMEA13188779,nan,nan,nan,nan,nan,nan,S,nan,nan,nan,nan,nan
 ERR9030465,S,PRJEB49093,SAMEA13188781,nan,nan,nan,S,nan,nan,S,nan,nan,nan,nan,nan
@@ -108,7 +108,7 @@ ERR9030488,S,PRJEB49093,SAMEA13188758,nan,nan,nan,nan,nan,nan,R,nan,nan,nan,nan,
 ERR9030488,nan,PRJEB49093,SAMEA13188758,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan,nan
 ERR9030489,R,PRJEB49093,SAMEA13188761,nan,nan,nan,nan,nan,nan,R,nan,nan,nan,nan,nan
 ERR9030498,S,PRJEB49093,SAMEA13188774,nan,nan,nan,nan,nan,nan,R,nan,nan,nan,nan,nan
-ERR9030501,N,PRJEB49093,SAMEA13188711,N,S,nan,S,N,nan,N,S,nan,S,S,R
+ERR9030501,nan,PRJEB49093,SAMEA13188711,nan,S,nan,S,nan,nan,nan,S,nan,S,S,R
 ERR9030506,R,PRJEB49093,SAMEA13188770,nan,nan,nan,nan,nan,nan,R,nan,nan,nan,nan,nan
 ERR9030507,nan,PRJEB49093,SAMEA13188690,nan,S,nan,S,nan,nan,nan,nan,nan,S,S,nan
 ERR9030508,S,PRJEB49093,SAMEA13188674,S,S,nan,S,S,nan,S,S,nan,R,S,R
