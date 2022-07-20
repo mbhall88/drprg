@@ -151,22 +151,22 @@ pub struct Predict {
     /// If not provided, this will be set to the input reads file path prefix
     #[clap(short, long)]
     sample: Option<String>,
-    /// Attempt to discover novel variants (i.e. variants not in the panel)
+    /// Do not output unknown (off-catalogue) variants
     ///
-    /// If a novel variant is discovered, a prediciton of "unknown" is returned for the drug(s)
-    /// associated with that gene
-    #[clap(short = 'u', long = "unknown")]
-    discover: bool,
+    /// If a novel variant is discovered, a prediction of "unknown" ('U') is returned for the drug(s)
+    /// associated with that gene. Using this flag will turn this off an ignore those variants.
+    #[clap(short = 'U', long)]
+    no_unknown: bool,
     /// Require all resistance-associated sites to be genotyped
     ///
     /// If a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
-    /// "failed" is returned for the drug(s) associated with that site.
+    /// "failed" ('F') is returned for the drug(s) associated with that site.
     #[clap(short = 'f', long = "failed")]
     require_genotype: bool,
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
-    /// Ignore unknown (off-catalogue) mutations that cause a synonymous substitution
+    /// Ignore unknown (off-catalogue) variants that cause a synonymous substitution
     #[clap(short = 'S', long)]
     ignore_synonymous: bool,
     #[clap(flatten)]
@@ -189,56 +189,53 @@ impl Runner for Predict {
         debug!("Index is valid");
         let threads = &rayon::current_num_threads().to_string();
         let pandora = Pandora::from_path(&self.pandora_exec)?;
-        let mut prg_path = self.index_prg_path();
 
-        if self.discover {
-            info!("Discovering novel variants...");
-            let tsvpath = self.outdir.join("query.tsv");
-            {
-                let mut file = File::create(&tsvpath)
-                    .context("Failed to create sample TSV file")?;
-                let content = format!(
-                    "{}\t{}\n",
-                    self.sample_name(),
-                    self.input.canonicalize()?.to_string_lossy()
-                );
-                file.write_all(content.as_bytes())
-                    .context("Failed to write content to TSV file")?;
-            }
-            // safe to unwrap as we have already validated the index, which checks this
-            let (w, k) = self.index_w_and_k().unwrap();
-            let mut args = vec!["-t", threads, "-w", &w, "-k", &k];
-            if self.is_illumina {
-                args.push("-I");
-            }
-
-            debug!("Running pandora discover...");
-            let denovo_paths = pandora
-                .discover_with(
-                    &self.index_prg_path(),
-                    &tsvpath,
-                    &self.discover_dir(),
-                    &args,
-                )
-                .context("Failed to run pandora discover")?;
-            std::fs::remove_file(tsvpath).context("Failed to delete TSV file")?;
-
-            debug!("Running make_prg update...");
-            let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
-            let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
-            prg_path = makeprg
-                .update(
-                    &self.index_prg_update_path().canonicalize()?,
-                    &denovo_paths.canonicalize()?,
-                    &self.outdir,
-                    &["-t", threads],
-                    mafft.executable,
-                )
-                .context("Failed to update discover PRG")?;
-
-            debug!("Indexing updated PRG with pandora index...");
-            pandora.index_with(&prg_path, &["-t", threads, "-w", &w, "-k", &k])?;
+        info!("Discovering variants...");
+        let tsvpath = self.outdir.join("query.tsv");
+        {
+            let mut file =
+                File::create(&tsvpath).context("Failed to create sample TSV file")?;
+            let content = format!(
+                "{}\t{}\n",
+                self.sample_name(),
+                self.input.canonicalize()?.to_string_lossy()
+            );
+            file.write_all(content.as_bytes())
+                .context("Failed to write content to TSV file")?;
         }
+        // safe to unwrap as we have already validated the index, which checks this
+        let (w, k) = self.index_w_and_k().unwrap();
+        let mut args = vec!["-t", threads, "-w", &w, "-k", &k];
+        if self.is_illumina {
+            args.push("-I");
+        }
+
+        debug!("Running pandora discover...");
+        let denovo_paths = pandora
+            .discover_with(
+                &self.index_prg_path(),
+                &tsvpath,
+                &self.discover_dir(),
+                &args,
+            )
+            .context("Failed to run pandora discover")?;
+        std::fs::remove_file(tsvpath).context("Failed to delete TSV file")?;
+
+        debug!("Running make_prg update...");
+        let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
+        let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
+        let prg_path = makeprg
+            .update(
+                &self.index_prg_update_path().canonicalize()?,
+                &denovo_paths.canonicalize()?,
+                &self.outdir,
+                &["-t", threads],
+                mafft.executable,
+            )
+            .context("Failed to update discover PRG")?;
+
+        debug!("Indexing updated PRG with pandora index...");
+        pandora.index_with(&prg_path, &["-t", threads, "-w", &w, "-k", &k])?;
 
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
         info!("Genotyping reads against the panel with pandora");
@@ -419,7 +416,7 @@ impl Predict {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
-                        None if self.discover => {
+                        None if !self.no_unknown => {
                             if record_has_match_in_idx {
                                 prediction = Prediction::Susceptible
                             } else {
@@ -587,7 +584,7 @@ impl Predict {
             };
             if preds.is_empty()
                 && varids.is_empty()
-                && self.discover
+                && !self.no_unknown
                 && record.called_allele() > 0
             {
                 // for novel variants, add 'U' for all drugs this gene is associated with
@@ -823,7 +820,7 @@ mod tests {
             pandora_exec: None,
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: None,
-            discover: false,
+            no_unknown: false,
             require_genotype: false,
             is_illumina: false,
             ..Default::default()
@@ -841,7 +838,7 @@ mod tests {
             pandora_exec: None,
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: Some("sample2".to_string()),
-            discover: false,
+            no_unknown: false,
             require_genotype: false,
             is_illumina: false,
             ..Default::default()
@@ -859,7 +856,7 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             sample: None,
-            discover: false,
+            no_unknown: false,
             require_genotype: false,
             is_illumina: false,
             ..Default::default()
@@ -877,7 +874,7 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             sample: None,
-            discover: false,
+            no_unknown: false,
             require_genotype: false,
             is_illumina: false,
             ..Default::default()
@@ -891,7 +888,7 @@ mod tests {
     fn index_prg_update_path() {
         let predictor = Predict {
             index: PathBuf::from("foo"),
-            discover: false,
+            no_unknown: false,
             require_genotype: false,
             is_illumina: false,
             ..Default::default()
@@ -1171,6 +1168,7 @@ mod tests {
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
             filterer: filt,
+            no_unknown: true,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
@@ -1237,7 +1235,7 @@ mod tests {
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
             filterer: filt,
-            discover: true,
+            no_unknown: false,
             require_genotype: true,
             ..Default::default()
         };
@@ -1396,7 +1394,7 @@ mod tests {
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
             filterer: filt,
-            discover: true,
+            no_unknown: true,
             require_genotype: true,
             ..Default::default()
         };
@@ -1501,7 +1499,7 @@ mod tests {
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
             filterer: filt,
-            discover: true,
+            no_unknown: false,
             require_genotype: true,
             ..Default::default()
         };
