@@ -24,7 +24,7 @@ GB = 1_024
 PADDING: int = config["padding"]
 KS: list[int] = config["pandora"]["ks"]
 WS: list[int] = config["pandora"]["ws"]
-WKS = [(w, k) for w, k in product(WS, KS) if w <= k]
+WKS = [(w, k) for w, k in product(WS, KS) if w < k]
 QC_DIR = Path(config["QC_dir"])
 MIN_ILLUMINA_COV = config["min_cov"]
 MIN_NANOPORE_COV = config["min_cov"]
