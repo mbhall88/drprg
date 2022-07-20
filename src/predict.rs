@@ -30,8 +30,11 @@ use bstr::ByteSlice;
 
 use std::collections::{HashMap, HashSet};
 
+use crate::consequence::consequence_of_variant;
+use noodles::fasta;
+use regex::Regex;
 use std::fs::File;
-use std::io::Write;
+use std::io::{BufReader, Write};
 use std::iter::FromIterator;
 
 static NONE_DRUG: &str = "NONE";
@@ -45,6 +48,9 @@ pub enum PredictError {
     /// Could not retrieve the kmer and window size of the index
     #[error("Could not retrieve the kmer and window size of the index PRG")]
     MissingKmerAndWindowSize,
+    /// Issue with trying to generate consequence
+    #[error("Could not determine consequence of variant because: {0:?}")]
+    ConsequenceError(String),
 }
 
 /// All possible predictions
@@ -160,6 +166,9 @@ pub struct Predict {
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
+    /// Ignore unknown (off-catalogue) mutations that cause a synonymous substitution
+    #[clap(short = 'S', long)]
+    ignore_synonymous: bool,
     #[clap(flatten)]
     filterer: Filterer,
 }
@@ -582,22 +591,18 @@ impl Predict {
                 && record.called_allele() > 0
             {
                 // for novel variants, add 'U' for all drugs this gene is associated with
+                let ev = self.consequence(&record).context(format!(
+                    "Failed to find consequence of novel variant {}",
+                    record.id().to_str_lossy()
+                ))?;
+
+                if self.ignore_synonymous && ev.is_synonymous() {
+                    continue;
+                }
+
                 let chrom = record.contig();
                 match gene2drugs.get(&chrom) {
                     Some(d) => {
-                        let var = format!(
-                            "{}{}{}",
-                            record.alleles()[0].to_str_lossy(),
-                            record.pos() + 1,
-                            record.alleles()[record.called_allele() as usize]
-                                .to_str_lossy()
-                        );
-                        let ev = Evidence {
-                            variant: Variant::from_str(&var)?,
-                            gene: chrom.to_owned(),
-                            residue: Residue::Nucleic,
-                            vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
-                        };
                         for drug in d {
                             let entry = json
                                 .entry(drug.to_string())
@@ -676,6 +681,62 @@ impl Predict {
             file.flush()?;
         }
         Ok(json_path)
+    }
+
+    fn consequence(&self, record: &bcf::Record) -> Result<Evidence, PredictError> {
+        let gene_name = record.contig();
+
+        let mut rdr = File::open(self.index_vcf_ref_path())
+            .map(BufReader::new)
+            .map(fasta::Reader::new)
+            .map_err(|_| {
+                PredictError::ConsequenceError(
+                    "Could not open VCF reference in index".to_string(),
+                )
+            })?;
+
+        for result in rdr.records() {
+            let gene = result.map_err(|_| {
+                PredictError::ConsequenceError(
+                    "Could not parse record in gene FASTA".to_string(),
+                )
+            })?;
+            if gene.name() != gene_name {
+                continue;
+            }
+            let description = gene.description().ok_or_else(|| {
+                PredictError::ConsequenceError(format!(
+                    "Expected gene ({}) record to have padding in description",
+                    gene_name
+                ))
+            })?;
+            let re = Regex::new(r"padding=(?P<padding>\d+)").unwrap();
+            let caps = re.captures(description).ok_or_else(|| {
+                PredictError::ConsequenceError(format!(
+                    "Could not get padding from header - {}",
+                    gene_name
+                ))
+            })?;
+            let padding_as_str = caps
+                .name("padding")
+                .ok_or_else(|| {
+                    PredictError::ConsequenceError(format!(
+                        "Could not get padding from header - {}",
+                        gene_name
+                    ))
+                })?
+                .as_str();
+            // unwrap here as it would not have been captured if it wasn't a positive int
+            let padding = i64::from_str(padding_as_str).unwrap();
+
+            return consequence_of_variant(record, padding, &gene)
+                .map_err(PredictError::ConsequenceError);
+        }
+
+        Err(PredictError::ConsequenceError(format!(
+            "Couldn't find gene {} in index FASTA",
+            gene_name
+        )))
     }
 }
 
@@ -1482,8 +1543,8 @@ mod tests {
               "evidence": [
                 {
                   "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "ATC780ACT",
+                  "residue": "PROT",
+                  "variant": "PI227HF",
                   "vcfid": "."
                 }
               ],
@@ -1499,8 +1560,8 @@ mod tests {
                 },
                 {
                   "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "ATC780ACT",
+                  "residue": "PROT",
+                  "variant": "PI227HF",
                   "vcfid": "."
                 }
               ],

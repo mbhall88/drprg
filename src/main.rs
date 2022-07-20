@@ -12,6 +12,7 @@ use crate::cli::Command;
 
 mod builder;
 mod cli;
+mod consequence;
 mod panel;
 pub mod predict;
 pub mod report;

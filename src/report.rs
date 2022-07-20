@@ -15,6 +15,12 @@ pub struct Evidence {
     pub(crate) vcfid: String,
 }
 
+impl Evidence {
+    pub fn is_synonymous(&self) -> bool {
+        self.residue == Residue::Amino && self.variant.reference == self.variant.new
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -22,6 +28,61 @@ mod tests {
 
     fn remove_whitespace(s: &str) -> String {
         s.split_whitespace().collect()
+    }
+
+    #[test]
+    fn evidence_is_synonymous_nucelic_is_not() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4A").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_synonymous())
+    }
+
+    #[test]
+    fn evidence_is_synonymous_amino_is_not() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_synonymous())
+    }
+
+    #[test]
+    fn evidence_is_synonymous_amino_is() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4A").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_synonymous())
+    }
+
+    #[test]
+    fn evidence_is_synonymous_amino_is_multi_base() {
+        let ev = Evidence {
+            variant: Variant::from_str("AT4AT").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_synonymous())
+    }
+
+    #[test]
+    fn evidence_is_synonymous_amino_is_not_multi_base() {
+        let ev = Evidence {
+            variant: Variant::from_str("AT4AC").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_synonymous())
     }
 
     #[test]
