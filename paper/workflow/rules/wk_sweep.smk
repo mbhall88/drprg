@@ -47,7 +47,7 @@ rule drprg_predict_sweep:
     container:
         CONTAINERS["drprg"]
     params:
-        opts=" ".join(["-v", "-s {sample}", "-u", "--failed"]),
+        opts=" ".join(["-v", "-s {sample}", "--failed"]),
         filters=lambda wildcards: drprg_filter_args(wildcards),
         tech_flag=lambda wildcards: "-I" if wildcards.tech == "illumina" else "",
     shell:
