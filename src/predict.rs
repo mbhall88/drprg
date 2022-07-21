@@ -600,7 +600,7 @@ impl Predict {
                 let chrom = record.contig();
                 match gene2drugs.get(&chrom) {
                     Some(d) => {
-                        for drug in d {
+                        for drug in d.iter().filter(|el| *el != NONE_DRUG) {
                             let entry = json
                                 .entry(drug.to_string())
                                 .or_insert_with(Susceptibility::default);
