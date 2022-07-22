@@ -55,21 +55,21 @@ pub enum PredictError {
 
 /// All possible predictions
 #[derive(
-    Debug, Eq, PartialEq, EnumString, strum_macros::Display, Serialize, Copy, Clone,
+    Debug, Eq, PartialEq, EnumString, strum_macros::Display, Serialize, Copy, Clone, PartialOrd, Ord
 )]
 pub enum Prediction {
     #[strum(to_string = "S")]
     #[serde(alias = "S", rename(serialize = "S"))]
     Susceptible,
-    #[strum(to_string = "R")]
-    #[serde(alias = "R", rename(serialize = "R"))]
-    Resistant,
     #[strum(to_string = "F")]
     #[serde(alias = "F", rename(serialize = "F"))]
     Failed,
     #[strum(to_string = "U")]
     #[serde(alias = "U", rename(serialize = "U"))]
     Unknown,
+    #[strum(to_string = "R")]
+    #[serde(alias = "R", rename(serialize = "R"))]
+    Resistant,
 }
 
 impl<'de> Deserialize<'de> for Prediction {
@@ -582,6 +582,7 @@ impl Predict {
                     .collect::<Vec<String>>(),
                 None => vec![],
             };
+            // todo: if the "highest" prediction is unknown, i.e., the variant overlaps stuff in the panel, but doesn't match any, then we clear this list and turn the variant into evidence in the same way we would if the variant didn't overlap the catalogue at all
             if preds.is_empty()
                 && varids.is_empty()
                 && !self.no_unknown
@@ -813,6 +814,20 @@ mod tests {
 
     use super::*;
     use std::io::BufReader;
+
+    #[test]
+    fn test_prediction_ordering() {
+        assert!(Prediction::Susceptible < Prediction::Failed);
+        assert!(Prediction::Susceptible < Prediction::Unknown);
+        assert!(Prediction::Susceptible < Prediction::Resistant);
+        assert!(Prediction::Failed < Prediction::Unknown);
+        assert!(Prediction::Failed < Prediction::Resistant);
+        assert!(Prediction::Unknown < Prediction::Resistant);
+
+        let v = vec![Prediction::Susceptible, Prediction::Unknown, Prediction::Failed];
+        let m = v.iter().max().unwrap();
+        assert_eq!(*m, Prediction::Unknown)
+    }
 
     #[test]
     fn sample_name_no_sample() {
