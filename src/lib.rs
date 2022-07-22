@@ -749,6 +749,11 @@ impl VcfExt for bcf::Record {
         let other_ref = other.slice(&(self.pos()..i64::MAX), Some(0));
         let other_alleles = other.alleles();
         for (i, al) in other_alleles.iter().enumerate() {
+            let is_indel = al.len() != other.alleles()[0].len();
+            // we only want to compare snps with snp and indels with indels
+            if self.is_indel() != is_indel {
+                continue
+            }
             let iv = other.pos()..(other.pos() + al.len() as i64);
             let seq = self.slice(&iv, None);
             if seq.is_empty() {
@@ -2280,6 +2285,39 @@ mod tests {
             .push_genotypes(&[GenotypeAllele::Unphased(0)])
             .unwrap();
         other.set_pos(161);
+
+        let actual = record.argmatch(&other);
+        let expected = None;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    /// https://github.com/mbhall88/drprg/issues/11#issue-1312343270
+    fn test_record_argmatch_overlap_base_matches_but_not_same() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"ACGACG", b"ACGACA", b"GCGACG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(2)])
+            .unwrap();
+        record.set_pos(714);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"GCA", b"GAA", b"GAG"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(712);
 
         let actual = record.argmatch(&other);
         let expected = None;
