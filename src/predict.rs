@@ -534,7 +534,7 @@ impl Predict {
         let json_path = self.outdir.join(self.json_filename());
 
         debug!("Loading the panel...");
-        let var2drugs = self.load_var_to_drugs()?;
+        let mut var2drugs = self.load_var_to_drugs()?;
         let mut gene2drugs: HashMap<String, HashSet<String>> = HashMap::new();
         for (var, (drugs, _)) in &var2drugs {
             let (chrom, _) = var
@@ -558,7 +558,7 @@ impl Predict {
             if !record.is_pass() {
                 continue;
             }
-            let preds = match record
+            let mut preds = match record
                 .info(InfoField::Prediction.id().as_bytes())
                 .string()
                 .context(format!(
@@ -571,7 +571,7 @@ impl Predict {
                     .collect::<Vec<Prediction>>(),
                 None => vec![],
             };
-            let varids = match record
+            let mut varids = match record
                 .info(InfoField::VarId.id().as_bytes())
                 .string()
                 .context(format!("Failed to get variant ID for record number {}", i))?
@@ -583,8 +583,10 @@ impl Predict {
                 None => vec![],
             };
             // todo: if the "highest" prediction is unknown, i.e., the variant overlaps stuff in the panel, but doesn't match any, then we clear this list and turn the variant into evidence in the same way we would if the variant didn't overlap the catalogue at all
-            if preds.is_empty()
-                && varids.is_empty()
+            let max_pred = preds.iter().max();
+            let has_unknown = preds.is_empty() || max_pred == Some(&Prediction::Unknown);
+
+            if has_unknown
                 && !self.no_unknown
                 && record.called_allele() > 0
             {
@@ -594,6 +596,13 @@ impl Predict {
                     record.id().to_str_lossy()
                 ))?;
 
+                if !preds.is_empty() {
+                    preds.iter_mut().for_each(|p| if *p == Prediction::Unknown { *p = Prediction::Susceptible } else {});
+                }
+                preds.push(Prediction::Unknown);
+                let var = format!("{}_{}", ev.gene, ev.variant);
+                varids.push(var.to_owned());
+
                 if self.ignore_synonymous && ev.is_synonymous() {
                     continue;
                 }
@@ -601,6 +610,9 @@ impl Predict {
                 let chrom = record.contig();
                 match gene2drugs.get(&chrom) {
                     Some(d) => {
+                        if !var2drugs.contains_key(&var) {
+                            var2drugs.insert(var, (d.clone(), ev.residue.clone()));
+                        }
                         for drug in d.iter().filter(|el| *el != NONE_DRUG) {
                             let entry = json
                                 .entry(drug.to_string())
@@ -619,6 +631,7 @@ impl Predict {
                     }
                     None => continue,
                 }
+                continue;
             }
             for (prediction, v) in preds.iter().zip(varids.iter()) {
                 if *prediction != Prediction::Susceptible {
