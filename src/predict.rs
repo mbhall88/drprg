@@ -55,7 +55,16 @@ pub enum PredictError {
 
 /// All possible predictions
 #[derive(
-    Debug, Eq, PartialEq, EnumString, strum_macros::Display, Serialize, Copy, Clone, PartialOrd, Ord
+    Debug,
+    Eq,
+    PartialEq,
+    EnumString,
+    strum_macros::Display,
+    Serialize,
+    Copy,
+    Clone,
+    PartialOrd,
+    Ord,
 )]
 pub enum Prediction {
     #[strum(to_string = "S")]
@@ -584,20 +593,22 @@ impl Predict {
             };
             // todo: if the "highest" prediction is unknown, i.e., the variant overlaps stuff in the panel, but doesn't match any, then we clear this list and turn the variant into evidence in the same way we would if the variant didn't overlap the catalogue at all
             let max_pred = preds.iter().max();
-            let has_unknown = preds.is_empty() || max_pred == Some(&Prediction::Unknown);
+            let has_unknown =
+                preds.is_empty() || max_pred == Some(&Prediction::Unknown);
 
-            if has_unknown
-                && !self.no_unknown
-                && record.called_allele() > 0
-            {
-                // for novel variants, add 'U' for all drugs this gene is associated with
+            if has_unknown && !self.no_unknown && record.called_allele() > 0 {
                 let ev = self.consequence(&record).context(format!(
                     "Failed to find consequence of novel variant {}",
                     record.id().to_str_lossy()
                 ))?;
 
                 if !preds.is_empty() {
-                    preds.iter_mut().for_each(|p| if *p == Prediction::Unknown { *p = Prediction::Susceptible } else {});
+                    preds.iter_mut().for_each(|p| {
+                        if *p == Prediction::Unknown {
+                            *p = Prediction::Susceptible
+                        } else {
+                        }
+                    });
                 }
                 preds.push(Prediction::Unknown);
                 let var = format!("{}_{}", ev.gene, ev.variant);
@@ -607,6 +618,7 @@ impl Predict {
                     continue;
                 }
 
+                // for novel variants, add 'U' for all drugs this gene is associated with
                 let chrom = record.contig();
                 match gene2drugs.get(&chrom) {
                     Some(d) => {
@@ -837,7 +849,11 @@ mod tests {
         assert!(Prediction::Failed < Prediction::Resistant);
         assert!(Prediction::Unknown < Prediction::Resistant);
 
-        let v = vec![Prediction::Susceptible, Prediction::Unknown, Prediction::Failed];
+        let v = vec![
+            Prediction::Susceptible,
+            Prediction::Unknown,
+            Prediction::Failed,
+        ];
         let m = v.iter().max().unwrap();
         assert_eq!(*m, Prediction::Unknown)
     }

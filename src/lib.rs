@@ -752,7 +752,7 @@ impl VcfExt for bcf::Record {
             let is_indel = al.len() != other.alleles()[0].len();
             // we only want to compare snps with snp and indels with indels
             if self.is_indel() != is_indel {
-                continue
+                continue;
             }
             let iv = other.pos()..(other.pos() + al.len() as i64);
             let seq = self.slice(&iv, None);

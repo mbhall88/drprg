@@ -49,7 +49,7 @@ impl PanelExt for Panel {
 
 lazy_static! {
     static ref VARIANT_REGEX: Regex =
-        Regex::new(r"^([a-zA-Z]+)(-?\d+)([a-zA-Z\*]+)$").unwrap();
+        Regex::new(r"^([a-zA-Z\*]+)(-?\d+)([a-zA-Z\*]+)$").unwrap();
     static ref NUCLEOTIDES: Vec<&'static [u8]> = vec![b"A", b"C", b"G", b"T"];
 }
 static AMINO_ACIDS: &[u8] = b"ACDEFGHIKLMNPQRSTVWY";
@@ -149,6 +149,38 @@ pub struct Variant {
     pub reference: String,
     pub pos: i64,
     pub new: String,
+}
+
+impl Variant {
+    pub fn simplify(&self) -> Self {
+        if self.reference != self.new {
+            let mut reference = self.reference.to_owned();
+            let mut new = self.new.to_owned();
+
+            let mut pos = self.pos.to_owned();
+
+            while reference.chars().next() == new.chars().next()
+                && reference.len() != 1 && new.len() != 1
+            {
+                reference.remove(0);
+                new.remove(0);
+                pos += 1;
+            }
+            while reference.chars().last() == new.chars().last()
+                && reference.len() != 1 && new.len() != 1
+            {
+                reference.pop();
+                new.pop();
+            }
+            Variant {
+                reference,
+                pos,
+                new,
+            }
+        } else {
+            self.clone()
+        }
+    }
 }
 
 impl fmt::Display for Variant {
@@ -1128,6 +1160,160 @@ mod tests {
 
         let actual = record.all_alt_alleles().unwrap_err();
         let expected = PanelError::MultiAminoAlleleNotSupported(record.name());
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_nothing_to_do() {
+        let s = "K2*";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = v.clone();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_second_base() {
+        let s = "K*2L*";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("K2L").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_first_base() {
+        let s = "AR3AK";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("R4K").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_first_two_bases() {
+        let s = "CAR3CAK";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("R5K").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_last_two_bases() {
+        let s = "CAR3TAR";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("C3T").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_last_two_bases_and_first_two_bases() {
+        let s = "QWCAR3QWTAR";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("C5T").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_all_same_does_nothing() {
+        let s = "QWCAR3QWCAR";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = v.clone();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_long_tail() {
+        let s = "GAGCAG2123CAGCAG";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("G2123C").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_insertion_one_base_ref_does_nothing() {
+        let s = "A2AT";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = v.clone();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_insertion_matches_at_start() {
+        let s = "AA2AAT";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("A3AT").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_insertion_matches_at_end_and_start() {
+        let s = "AA2AATA";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("A3ATA").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_deletion_single_base_alt_does_nothing() {
+        let s = "AA2A";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = v.clone();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_deletion_matches_at_end_and_start() {
+        let s = "AAT2AT";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("AT3T").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_simplify_deletion_matches_at_end() {
+        let s = "AAT2AT";
+        let v = Variant::from_str(s).unwrap();
+
+        let actual = v.simplify();
+        let expected = Variant::from_str("AT3T").unwrap();
+
         assert_eq!(actual, expected)
     }
 }

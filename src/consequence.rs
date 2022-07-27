@@ -127,7 +127,7 @@ pub fn consequence_of_variant(
             new: alt_allele.to_str_lossy().to_string(),
         };
         return Ok(Evidence {
-            variant,
+            variant: variant.simplify(),
             gene: gene.name().to_string(),
             residue: Residue::Nucleic,
             vcfid,
@@ -170,20 +170,6 @@ pub fn consequence_of_variant(
 
     let mut codon_num = (norm_pos - 1) / 3 + 1;
 
-    if ref_prot != alt_prot {
-        // trim synonymous amino acids from multi-amino acid protein
-        // e.g. ref=AGT and alt=ACT becomes G->C
-        while ref_prot.chars().next() == alt_prot.chars().next() {
-            ref_prot.remove(0);
-            alt_prot.remove(0);
-            codon_num += 1;
-        }
-        while ref_prot.chars().last() == alt_prot.chars().last() {
-            ref_prot.pop();
-            alt_prot.pop();
-        }
-    }
-
     let variant = Variant {
         reference: ref_prot,
         pos: codon_num,
@@ -191,7 +177,7 @@ pub fn consequence_of_variant(
     };
 
     Ok(Evidence {
-        variant,
+        variant: variant.simplify(),
         gene: gene.name().to_string(),
         residue: Residue::Amino,
         vcfid,
