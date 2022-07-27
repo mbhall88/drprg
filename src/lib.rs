@@ -768,26 +768,26 @@ impl VcfExt for bcf::Record {
                 continue;
             }
 
+            if self.called_allele() == 0 && i == 0 {
+                // the called allele is ref and we have a match with other's ref
+                // short circuit and return a match with the ref - i.e. not resistant
+                return Some(0);
+            }
             if !self.is_indel() && !is_indel {
                 // i.e. both S/MNPs
                 let called_seq = self.alleles()[self.called_allele() as usize];
                 let (olap_self, olap_other) = if self.pos() < other.pos() {
                     ([called_seq, other.alleles()[0][other_seq.len()..].as_bytes()].concat(),
-                    [self.alleles()[0][..(other.pos()-self.pos()) as usize].as_bytes(), *al].concat())
+                     [self.alleles()[0][..(other.pos()-self.pos()) as usize].as_bytes(), *al].concat())
                 } else {
                     ([other.alleles()[0][..(self.pos()-other.pos()) as usize].as_bytes(), called_seq].concat(),
-                    [*al, self.alleles()[0][seq.len()..].as_bytes()].concat())
+                     [*al, self.alleles()[0][seq.len()..].as_bytes()].concat())
                 };
                 if olap_self != olap_other {
                     continue;
                 }
             }
 
-            if self.called_allele() == 0 && i == 0 {
-                // the called allele is ref and we have a match with other's ref
-                // short circuit and return a match with the ref - i.e. not resistant
-                return Some(0);
-            }
             let diff_diff = (called_diff - diff).abs();
             match match_diff {
                 Some(i) if i <= diff_diff => {}
