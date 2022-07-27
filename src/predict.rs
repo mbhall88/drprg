@@ -1585,6 +1585,12 @@ mod tests {
               "evidence": [
                 {
                   "gene": "inhA",
+                  "residue": "DNA",
+                  "variant": "TC62G",
+                  "vcfid": "."
+                },
+                {
+                  "gene": "inhA",
                   "residue": "PROT",
                   "variant": "PI227HF",
                   "vcfid": "."
@@ -1596,8 +1602,8 @@ mod tests {
               "evidence": [
                 {
                   "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "I21T",
+                  "residue": "DNA",
+                  "variant": "TC62G",
                   "vcfid": "."
                 },
                 {

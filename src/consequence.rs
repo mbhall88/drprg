@@ -168,7 +168,7 @@ pub fn consequence_of_variant(
         alt_prot.push_str(a_aa);
     }
 
-    let mut codon_num = (norm_pos - 1) / 3 + 1;
+    let codon_num = (norm_pos - 1) / 3 + 1;
 
     let variant = Variant {
         reference: ref_prot,
@@ -237,9 +237,9 @@ mod tests {
         let actual = consequence_of_variant(&record, padding, &gene).unwrap();
 
         let expected_variant = Variant {
-            reference: ref_allele.to_string(),
-            pos: -99,
-            new: alt_allele.to_string(),
+            reference: "CA".to_string(),
+            pos: -98,
+            new: "C".to_string(),
         };
         let expected = Evidence {
             variant: expected_variant,
@@ -341,9 +341,9 @@ mod tests {
         let actual = consequence_of_variant(&record, padding, &gene).unwrap();
 
         let expected_variant = Variant {
-            reference: ref_allele.to_string(),
-            pos: 565,
-            new: alt_allele.to_string(),
+            reference: "AC".to_string(),
+            pos: 566,
+            new: "A".to_string(),
         };
         let expected = Evidence {
             variant: expected_variant,
@@ -393,9 +393,9 @@ mod tests {
         let actual = consequence_of_variant(&record, padding, &gene).unwrap();
 
         let expected_variant = Variant {
-            reference: ref_allele.to_string(),
-            pos: 562,
-            new: alt_allele.to_string(),
+            reference: "GG".to_string(),
+            pos: 563,
+            new: "G".to_string(),
         };
         let expected = Evidence {
             variant: expected_variant,
@@ -487,9 +487,9 @@ mod tests {
 
         let actual = consequence_of_variant(&record, padding, &gene).unwrap();
         let expected_variant = Variant {
-            reference: ref_allele.to_string(),
-            pos: 4,
-            new: alt_allele.to_string(),
+            reference: "GG".to_string(),
+            pos: 5,
+            new: "G".to_string(),
         };
         let expected = Evidence {
             variant: expected_variant,

@@ -754,6 +754,7 @@ impl VcfExt for bcf::Record {
             if self.is_indel() != is_indel {
                 continue;
             }
+
             let iv = other.pos()..(other.pos() + al.len() as i64);
             let seq = self.slice(&iv, None);
             if seq.is_empty() {
@@ -766,6 +767,22 @@ impl VcfExt for bcf::Record {
             if seq != other_seq {
                 continue;
             }
+
+            if !self.is_indel() && !is_indel {
+                // i.e. both S/MNPs
+                let called_seq = self.alleles()[self.called_allele() as usize];
+                let (olap_self, olap_other) = if self.pos() < other.pos() {
+                    ([called_seq, other.alleles()[0][other_seq.len()..].as_bytes()].concat(),
+                    [self.alleles()[0][..(other.pos()-self.pos()) as usize].as_bytes(), *al].concat())
+                } else {
+                    ([other.alleles()[0][..(self.pos()-other.pos()) as usize].as_bytes(), called_seq].concat(),
+                    [*al, self.alleles()[0][seq.len()..].as_bytes()].concat())
+                };
+                if olap_self != olap_other {
+                    continue;
+                }
+            }
+
             if self.called_allele() == 0 && i == 0 {
                 // the called allele is ref and we have a match with other's ref
                 // short circuit and return a match with the ref - i.e. not resistant
@@ -2321,6 +2338,38 @@ mod tests {
 
         let actual = record.argmatch(&other);
         let expected = None;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_overlap_base_matches_and_so_do_backfilled_seqs() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"ACGACG", b"ACGACA", b"GCGACG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(2)])
+            .unwrap();
+        record.set_pos(714);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"GCA", b"GAA", b"GCG"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(712);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(2);
 
         assert_eq!(actual, expected)
     }
