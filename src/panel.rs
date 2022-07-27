@@ -160,14 +160,16 @@ impl Variant {
             let mut pos = self.pos.to_owned();
 
             while reference.chars().next() == new.chars().next()
-                && reference.len() != 1 && new.len() != 1
+                && reference.len() != 1
+                && new.len() != 1
             {
                 reference.remove(0);
                 new.remove(0);
                 pos += 1;
             }
             while reference.chars().last() == new.chars().last()
-                && reference.len() != 1 && new.len() != 1
+                && reference.len() != 1
+                && new.len() != 1
             {
                 reference.pop();
                 new.pop();
@@ -1169,7 +1171,7 @@ mod tests {
         let v = Variant::from_str(s).unwrap();
 
         let actual = v.simplify();
-        let expected = v.clone();
+        let expected = v;
 
         assert_eq!(actual, expected)
     }
@@ -1235,7 +1237,7 @@ mod tests {
         let v = Variant::from_str(s).unwrap();
 
         let actual = v.simplify();
-        let expected = v.clone();
+        let expected = v;
 
         assert_eq!(actual, expected)
     }
@@ -1257,7 +1259,7 @@ mod tests {
         let v = Variant::from_str(s).unwrap();
 
         let actual = v.simplify();
-        let expected = v.clone();
+        let expected = v;
 
         assert_eq!(actual, expected)
     }
@@ -1290,7 +1292,7 @@ mod tests {
         let v = Variant::from_str(s).unwrap();
 
         let actual = v.simplify();
-        let expected = v.clone();
+        let expected = v;
 
         assert_eq!(actual, expected)
     }

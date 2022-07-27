@@ -86,8 +86,8 @@ pub fn consequence_of_variant(
     }
 
     let vcfid = vcf_record.id().to_str_lossy().to_string();
-    let ref_allele = vcf_record.alleles()[0];
-    let alt_allele = vcf_record.alleles()[vcf_record.called_allele() as usize];
+    let mut ref_allele = vcf_record.alleles()[0];
+    let mut alt_allele = vcf_record.alleles()[vcf_record.called_allele() as usize];
     let is_indel = ref_allele.len() != alt_allele.len();
 
     // we can unwrap here as VCF doesn't do negative values for POS
@@ -111,7 +111,7 @@ pub fn consequence_of_variant(
     }
 
     // reminder: vcf pos is 0-based. norm_pos is 1-based
-    let norm_pos = match vcf_record.pos() {
+    let mut norm_pos = match vcf_record.pos() {
         p if p < padding => p - padding,
         p => p - (padding - 1),
     };
@@ -120,18 +120,23 @@ pub fn consequence_of_variant(
     let var_crosses_gene_end_boundary =
         (norm_pos - 1) + ref_allele.len() as i64 > gene_len;
 
+    let variant = Variant {
+        reference: ref_allele.to_str_lossy().to_string(),
+        pos: norm_pos,
+        new: alt_allele.to_str_lossy().to_string(),
+    }
+    .simplify();
     if norm_pos.is_negative() || var_crosses_gene_end_boundary || is_indel {
-        let variant = Variant {
-            reference: ref_allele.to_str_lossy().to_string(),
-            pos: norm_pos,
-            new: alt_allele.to_str_lossy().to_string(),
-        };
         return Ok(Evidence {
-            variant: variant.simplify(),
+            variant,
             gene: gene.name().to_string(),
             residue: Residue::Nucleic,
             vcfid,
         });
+    } else {
+        ref_allele = variant.reference.as_bytes();
+        alt_allele = variant.new.as_bytes();
+        norm_pos = variant.pos;
     }
 
     // we now know we have a vcf record where the ref and alt are the same length and the variant
@@ -1139,7 +1144,7 @@ mod tests {
     }
 
     #[test]
-    fn test_consequence_of_variant_multi_codon_synonymous_all_same_no_simplify() {
+    fn test_consequence_of_variant_multi_codon_synonymous_all_same_simplify_nucleic() {
         let gene = generate_pnca();
         let vcfid = "id".to_string();
         let tmp = NamedTempFile::new().unwrap();
@@ -1173,9 +1178,9 @@ mod tests {
 
         let actual = consequence_of_variant(&record, padding, &gene).unwrap();
         let expected_variant = Variant {
-            reference: "MRA".to_string(),
-            pos: 1,
-            new: "MRA".to_string(),
+            reference: "R".to_string(),
+            pos: 2,
+            new: "R".to_string(),
         };
         let expected = Evidence {
             variant: expected_variant,

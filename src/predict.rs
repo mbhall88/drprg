@@ -622,8 +622,10 @@ impl Predict {
                 let chrom = record.contig();
                 match gene2drugs.get(&chrom) {
                     Some(d) => {
-                        if !var2drugs.contains_key(&var) {
-                            var2drugs.insert(var, (d.clone(), ev.residue.clone()));
+                        if let std::collections::hash_map::Entry::Vacant(e) =
+                            var2drugs.entry(var)
+                        {
+                            e.insert((d.clone(), ev.residue.clone()));
                         }
                         for drug in d.iter().filter(|el| *el != NONE_DRUG) {
                             let entry = json

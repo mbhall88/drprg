@@ -777,11 +777,26 @@ impl VcfExt for bcf::Record {
                 // i.e. both S/MNPs
                 let called_seq = self.alleles()[self.called_allele() as usize];
                 let (olap_self, olap_other) = if self.pos() < other.pos() {
-                    ([called_seq, other.alleles()[0][other_seq.len()..].as_bytes()].concat(),
-                     [self.alleles()[0][..(other.pos()-self.pos()) as usize].as_bytes(), *al].concat())
+                    (
+                        [called_seq, other.alleles()[0][other_seq.len()..].as_bytes()]
+                            .concat(),
+                        [
+                            self.alleles()[0][..(other.pos() - self.pos()) as usize]
+                                .as_bytes(),
+                            *al,
+                        ]
+                        .concat(),
+                    )
                 } else {
-                    ([other.alleles()[0][..(self.pos()-other.pos()) as usize].as_bytes(), called_seq].concat(),
-                     [*al, self.alleles()[0][seq.len()..].as_bytes()].concat())
+                    (
+                        [
+                            other.alleles()[0][..(self.pos() - other.pos()) as usize]
+                                .as_bytes(),
+                            called_seq,
+                        ]
+                        .concat(),
+                        [*al, self.alleles()[0][seq.len()..].as_bytes()].concat(),
+                    )
                 };
                 if olap_self != olap_other {
                     continue;
