@@ -16,7 +16,7 @@ use crate::filter::Tags;
 use crate::interval::IntervalOp;
 use noodles::gff;
 use regex::Regex;
-use std::cmp::min;
+use std::cmp::{max, min};
 use std::fs;
 use std::io::ErrorKind;
 
@@ -775,30 +775,40 @@ impl VcfExt for bcf::Record {
             }
             if !self.is_indel() && !is_indel {
                 // i.e. both S/MNPs
-                let called_seq = self.alleles()[self.called_allele() as usize];
-                let (olap_self, olap_other) = if self.pos() < other.pos() {
-                    (
-                        [called_seq, other.alleles()[0][other_seq.len()..].as_bytes()]
-                            .concat(),
-                        [
-                            self.alleles()[0][..(other.pos() - self.pos()) as usize]
-                                .as_bytes(),
-                            *al,
-                        ]
-                        .concat(),
-                    )
+                let overlap_iv =
+                    max(self.pos(), other.pos())..min(self.end(), other.end());
+                let right_overhang_iv = overlap_iv.end..max(self.end(), other.end());
+                let left_overhang_iv = min(self.pos(), other.pos())..overlap_iv.start;
+
+                let self_overlap = self.slice(&overlap_iv, None);
+                let self_left_overhang = if self.pos() == left_overhang_iv.start {
+                    self.slice(&left_overhang_iv, None)
                 } else {
-                    (
-                        [
-                            other.alleles()[0][..(self.pos() - other.pos()) as usize]
-                                .as_bytes(),
-                            called_seq,
-                        ]
-                        .concat(),
-                        [*al, self.alleles()[0][seq.len()..].as_bytes()].concat(),
-                    )
+                    other.slice(&left_overhang_iv, Some(0))
                 };
-                if olap_self != olap_other {
+                let self_right_overhang = if self.end() == right_overhang_iv.end {
+                    self.slice(&right_overhang_iv, None)
+                } else {
+                    other.slice(&right_overhang_iv, Some(0))
+                };
+                let other_overlap = other.slice(&overlap_iv, Some(i));
+                let other_left_overhang = if other.pos() == left_overhang_iv.start {
+                    other.slice(&left_overhang_iv, Some(i))
+                } else {
+                    self.slice(&left_overhang_iv, Some(0))
+                };
+                let other_right_overhang = if other.end() == right_overhang_iv.end {
+                    other.slice(&right_overhang_iv, Some(i))
+                } else {
+                    self.slice(&right_overhang_iv, Some(0))
+                };
+
+                let combined_self =
+                    [self_left_overhang, self_overlap, self_right_overhang].concat();
+                let combined_other =
+                    [other_left_overhang, other_overlap, other_right_overhang].concat();
+
+                if combined_other != combined_self {
                     continue;
                 }
             }
@@ -1966,7 +1976,39 @@ mod tests {
         other.set_pos(7);
 
         let actual = record.argmatch(&other);
-        let expected = Some(2);
+        let expected = None;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_self_spans_other() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CCGGCATAT", b"CTGGCATAT", b"CCGGCAAAT"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(237);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"CGG", b"TGG"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(238);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(1);
 
         assert_eq!(actual, expected)
     }
@@ -1998,13 +2040,13 @@ mod tests {
         other.set_pos(7);
 
         let actual = record.argmatch(&other);
-        let expected = Some(2);
+        let expected = None;
 
         assert_eq!(actual, expected)
     }
 
     #[test]
-    fn test_record_argmatch_multiple_matches_returns_shortest_indel() {
+    fn test_record_argmatch_multiple_matches_at_overlap_returns_ref() {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = Header::new();
@@ -2022,7 +2064,39 @@ mod tests {
             .unwrap();
         record.set_pos(5);
         let mut other = vcf.empty_record();
-        let alleles: &[&[u8]] = &[b"ACG", b"GGAAA", b"GAAA"];
+        let alleles: &[&[u8]] = &[b"GAA", b"GGAAA", b"GAAA"];
+        other.set_alleles(alleles).expect("Failed to set alleles");
+        other
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        other.set_pos(7);
+
+        let actual = record.argmatch(&other);
+        let expected = Some(0);
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_argmatch_multiple_matches_at_overlap_returns_shortest() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(
+            br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#,
+        );
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TTGAAA"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record.set_pos(5);
+        let mut other = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"GAAA", b"GGAAA", b"GA"];
         other.set_alleles(alleles).expect("Failed to set alleles");
         other
             .push_genotypes(&[GenotypeAllele::Unphased(0)])
@@ -2086,7 +2160,7 @@ mod tests {
             .unwrap();
         record.set_pos(161);
         let mut other = vcf.empty_record();
-        let alleles: &[&[u8]] = &[b"ATC", b"ACT", b"ACC", b"ACA", b"ACG"];
+        let alleles: &[&[u8]] = &[b"ATC", b"AC", b"ACC", b"ACA", b"ACG"];
         other.set_alleles(alleles).expect("Failed to set alleles");
         other
             .push_genotypes(&[GenotypeAllele::Unphased(0)])

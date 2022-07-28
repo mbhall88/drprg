@@ -1217,13 +1217,13 @@ mod tests {
             no_unknown: true,
             ..Default::default()
         };
-        let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
+        let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
 
         let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
         assert!(result.is_ok());
 
         let mut expected_rdr =
-            bcf::Reader::from_path(Path::new("tests/cases/predict/out.bcf")).unwrap();
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out.vcf")).unwrap();
         let mut actual_rdr =
             bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
         let mut actual_records = actual_rdr.records();
@@ -1285,13 +1285,13 @@ mod tests {
             require_genotype: true,
             ..Default::default()
         };
-        let pandora_vcf_path = Path::new("tests/cases/predict/in.bcf");
+        let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
 
         let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
         assert!(result.is_ok());
 
         let mut expected_rdr =
-            bcf::Reader::from_path(Path::new("tests/cases/predict/out2.bcf")).unwrap();
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out2.vcf")).unwrap();
         let mut actual_rdr =
             bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
         let mut actual_records = actual_rdr.records();
@@ -1354,7 +1354,7 @@ mod tests {
             filterer: filt,
             ..Default::default()
         };
-        let vcf_path = Path::new("tests/cases/predict/out.bcf");
+        let vcf_path = Path::new("tests/cases/predict/out.vcf");
         let result = pred.vcf_to_json(vcf_path);
         assert!(result.is_ok());
 
@@ -1402,12 +1402,6 @@ mod tests {
                   "gene": "gid",
                   "residue": "PROT",
                   "variant": "R47W",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "rpsL",
-                  "residue": "PROT",
-                  "variant": "K43R",
                   "vcfid": "."
                 }
                ],
@@ -1440,11 +1434,11 @@ mod tests {
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
             filterer: filt,
-            no_unknown: true,
+            no_unknown: false,
             require_genotype: true,
             ..Default::default()
         };
-        let vcf_path = Path::new("tests/cases/predict/out2.bcf");
+        let vcf_path = Path::new("tests/cases/predict/out2.vcf");
         let result = pred.vcf_to_json(vcf_path);
         assert!(result.is_ok());
 
@@ -1482,19 +1476,19 @@ mod tests {
               "evidence": [
                 {
                   "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "I194T",
+                  "residue": "DNA",
+                  "variant": "TC62G",
                   "vcfid": "."
                 }
               ],
-              "predict": "F"
+              "predict": "U"
             },
             "Rifampicin": {
               "evidence": [
                 {
                   "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "I21T",
+                  "residue": "DNA",
+                  "variant": "TC62G",
                   "vcfid": "."
                 }
               ],
@@ -1506,12 +1500,6 @@ mod tests {
                   "gene": "gid",
                   "residue": "PROT",
                   "variant": "R47W",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "rpsL",
-                  "residue": "PROT",
-                  "variant": "K43R",
                   "vcfid": "."
                 }
                ],
@@ -1549,7 +1537,7 @@ mod tests {
             require_genotype: true,
             ..Default::default()
         };
-        let vcf_path = Path::new("tests/cases/predict/out3.bcf");
+        let vcf_path = Path::new("tests/cases/predict/out3.vcf");
         let result = pred.vcf_to_json(vcf_path);
         assert!(result.is_ok());
 
