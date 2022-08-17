@@ -35,8 +35,15 @@ K = config["K"]
 
 inclusion_expr = f"illumina_covg >= {MIN_ILLUMINA_COV} and nanopore_covg >= {MIN_NANOPORE_COV} and lineage != 'mixed'"
 h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
-illumina_df = pd.read_csv(config["illumina_samplesheet"], index_col="run", low_memory=False)
-ont_df = pd.read_csv(config["nanopore_samplesheet"], index_col="run", low_memory=False)
+
+n = 200
+seed = 88
+illumina_df = pd.read_csv(
+    config["illumina_samplesheet"], index_col="run", low_memory=False
+).sample(n=n, random_state=seed)
+ont_df = pd.read_csv(
+    config["nanopore_samplesheet"], index_col="run", low_memory=False
+).sample(n=n, random_state=seed)
 
 # =====================================
 target_files = set()
@@ -50,6 +57,8 @@ for w, k in WKS:
             WK_WILDCARDS["k"].append(k)
 
 target_files.add(PLOTS / "wk_sweep.png")
+for tech in TECHS:
+    target_files.add(RESULTS / f"download/{tech}/run_info.tsv")
 
 
 # =====================================
@@ -75,3 +84,4 @@ rule index_reference:
 include: RULES / "common.smk"
 include: RULES / "panel.smk"
 include: RULES / "wk_sweep.smk"
+include: RULES / "download.smk"

@@ -28,8 +28,8 @@ pandora:
     - 19  # best illumina found in Rachel's thesis
 
 # selected from https://github.com/mbhall88/drprg/issues/6
-W:                    11
-K:                    17
+W:                    14
+K:                    15
 
 # filtering used on the pandora VCF in drprg
 filters:
@@ -48,3 +48,4 @@ containers:
   drprg:    "docker://quay.io/mbhall88/drprg:3dbb8ab"
   samtools: "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
   bcftools: "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
+  fastq_dl: "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
