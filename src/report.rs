@@ -2,12 +2,12 @@ use crate::panel::{Residue, Variant};
 use crate::predict::Prediction;
 use serde_derive::{Deserialize, Serialize};
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Susceptibility {
     pub(crate) predict: Prediction,
     pub(crate) evidence: Vec<Evidence>,
 }
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Evidence {
     pub(crate) variant: Variant,
     pub(crate) gene: String,

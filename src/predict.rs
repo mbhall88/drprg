@@ -40,7 +40,7 @@ use std::iter::FromIterator;
 static NONE_DRUG: &str = "NONE";
 
 /// A collection of custom errors relating to the predict component of this package
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum PredictError {
     /// The index is not valid
     #[error("Index is not valid due to missing file {0:?}")]

@@ -25,7 +25,7 @@ lazy_static! {
 }
 
 /// A collection of custom errors relating to the Tags enum
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum FilterError {
     /// The string is not known
     #[error("Unknown tag given {0}")]

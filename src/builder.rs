@@ -477,7 +477,7 @@ impl Runner for Build {
 }
 
 /// A collection of custom errors relating to the build component of this package
-#[derive(Error, Debug, PartialEq)]
+#[derive(Error, Debug, PartialEq, Eq)]
 pub enum BuildError {
     /// Contig is missing from the FASTA index
     #[error("Contig {0} is missing from the reference genome index")]
