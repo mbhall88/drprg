@@ -35,7 +35,7 @@ def main():
                 continue
 
             layout = data["library_layout"]
-            fastqs = [d / Path(p).name for p in data["fastq_ftp"].split(";")]
+            fastqs = list(d.glob("*.fastq.gz"))
 
             if not all(p.exists() for p in fastqs):
                 raise FileNotFoundError(f"One or more fastqs don't exist {fastqs}")
