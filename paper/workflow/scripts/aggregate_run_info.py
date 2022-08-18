@@ -20,6 +20,7 @@ def main():
     out_data = []
 
     wrong_platform = []
+    missing_paired = []
 
     for d in map(Path, snakemake.input.dirs):
         run = d.parts[-1]
@@ -41,9 +42,11 @@ def main():
                 raise FileNotFoundError(f"One or more fastqs don't exist {fastqs}")
 
             if layout == PAIRED and len(fastqs) < 2:
-                raise FileNotFoundError(
-                    f"Expected paired fastqs, but only got {fastqs}"
+                eprint(
+                    f"[WARN] Expected paired fastqs, but only got {fastqs}"
                 )
+                missing_paired.append(run)
+                continue
 
             if tech == "nanopore":
                 assert layout == SINGLE
@@ -84,9 +87,14 @@ def main():
         out_data.append((run, files))
 
     if wrong_platform:
-        raise ValueError(
-            f"Got an unexpected platform for the following run accessions:\n{NL.join(wrong_platform)}"
+        eprint(
+            f"[ERROR] Got an unexpected platform for the following run accessions:\n{NL.join(wrong_platform)}"
         )
+    if missing_paired:
+        eprint(f"[ERROR] Missing paired data for run accessions:\n{NL.join(missing_paired)}")
+
+    if missing_paired or wrong_platform:
+        sys.exit(1)
 
     with open(snakemake.output.run_info, "w") as fp:
         print(f"run{DELIM}layout", file=fp)
