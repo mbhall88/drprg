@@ -6,54 +6,59 @@ import json
 from pathlib import Path
 
 DELIM = snakemake.params.delim
+NL = "\n"
+LAYOUT = {"SINGLE": 1, "PAIRED": 2}
 
 
 def eprint(msg):
     print(msg, file=sys.stderr)
 
 
-out_data = []
+def main():
+    out_data = []
 
-for d in map(Path, snakemake.input.dirs):
-    run = d.parts[-1]
-    p = d / "fastq-run-info.json"
-    with open(p) as fp:
-        data = json.load(fp)[0]
+    wrong_platform = []
 
-        platform = data["instrument_platform"]
-        tech = snakemake.wildcards.tech.upper()
-        if tech not in platform:
-            raise ValueError(f"Expected {tech}, but got platform {platform}")
+    for d in map(Path, snakemake.input.dirs):
+        run = d.parts[-1]
+        p = d / "fastq-run-info.json"
+        with open(p) as fp:
+            data = json.load(fp)[0]
 
-        layout = data["library_layout"]
-        r1 = d / f"{run}_1.fastq.gz"
-        fq = d / f"{run}.fastq.gz"
-        if r1.exists():
-            r2 = d / f"{run}_2.fastq.gz"
-            if not r2.exists():
-                raise FileNotFoundError(f"Found R1 but not R2 file {r2}")
-            if layout == "SINGLE":
-                eprint(
-                    f"[WARNING]: Found PE reads for {run} but run info says SE library...using PE..."
+            platform = data["instrument_platform"]
+            tech = snakemake.wildcards.tech.upper()
+            if tech not in platform:
+                wrong_platform.append(run)
+                eprint(f"Expected {tech}, but got platform {platform} for run {run}")
+                continue
+
+            layout = LAYOUT.get(data["library_layout"])
+            fastqs = [d / Path(p).name for p in data["fastq_ftp"].split(";")]
+            if layout is None or layout != len(fastqs):
+                raise ValueError(
+                    f"Library layout ({data['library_layout']}) does not match the number of fastq files ({len(fastqs)}) for accession {d}"
                 )
-            if fq.exists():
-                eprint(f"[INFO]: Removing orphan SE file for {run} PE accession {fq}")
-            files = f"{r1};{r2}"
-        elif not fq.exists():
-            raise FileNotFoundError(f"Expected single-end library {fq}")
-        else:  # no PE reads, but SE reads found
-            if layout == "PAIRED":
-                eprint(
-                    f"[WARNING]: Found SE reads for {run} but run info says PE library...using SE..."
-                )
-            files = str(fq)
 
-        if data["tax_id"] != "1773":
-            eprint(f"[WARNING]: Got non-MTB tax ID for {run} - {data['tax_id']}")
+            if not all(p.exists() for p in fastqs):
+                raise FileNotFoundError(f"One or more fastqs don't exist {fastqs}")
 
-    out_data.append((run, files))
+            files = ";".join(map(str, fastqs))
 
-with open(snakemake.output.run_info, "w") as fp:
-    print(f"run{DELIM}layout", file=fp)
-    for t in out_data:
-        print(DELIM.join(t), file=fp)
+            if data["tax_id"] != "1773":
+                eprint(f"[WARNING]: Got non-MTB tax ID for {run} - {data['tax_id']}")
+
+        out_data.append((run, files))
+
+    if wrong_platform:
+        raise ValueError(
+            f"Got an unexpected platform for the following run accessions:\n{NL.join(wrong_platform)}"
+        )
+
+    with open(snakemake.output.run_info, "w") as fp:
+        print(f"run{DELIM}layout", file=fp)
+        for t in out_data:
+            print(DELIM.join(t), file=fp)
+
+
+if __name__ == "__main__":
+    main()
