@@ -56,7 +56,7 @@ for w, k in WKS:
             WK_WILDCARDS["w"].append(w)
             WK_WILDCARDS["k"].append(k)
 
-target_files.add(PLOTS / "wk_sweep.png")
+# target_files.add(PLOTS / "wk_sweep.png")
 for tech in TECHS:
     target_files.add(RESULTS / f"download/{tech}/run_info.tsv")
 
