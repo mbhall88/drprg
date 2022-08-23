@@ -58,7 +58,15 @@ for w, k in WKS:
 
 # target_files.add(PLOTS / "wk_sweep.png")
 for tech in TECHS:
-    target_files.add(RESULTS / f"download/{tech}/run_info.tsv")
+    if tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        target_files.add(RESULTS / f"preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz")
 
 
 # =====================================
