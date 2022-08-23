@@ -85,10 +85,10 @@ function run {
             args+=("--detect_adapter_for_pe")
         fi
 
-        fastp -w $threads "${input_arg[*]}" "${args[*]}" | gzip -c > "$output"
+        fastp -w $threads ${input_arg[*]} ${args[*]} | gzip -c > "$output"
     else
-        porechop -t $threads "${input_arg[*]}" --discard_middle |
-            nanoq "${args[*]}" -o "$output"
+        porechop -t $threads ${input_arg[*]} --discard_middle |
+            nanoq ${args[*]} -o "$output"
     fi
 }
 
