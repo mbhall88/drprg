@@ -110,35 +110,33 @@ rule map_to_decontam_db:
         """
 
 
-#
-#
-# rule filter_contamination:
-#     input:
-#         bam=rules.map_to_decontam_db.output.bam,
-#         metadata=rules.build_decontamination_db.output.metadata,
-#     output:
-#         keep_ids=results / "filtered/{proj}/{sample}/{run}/keep.reads",
-#         contam_ids=results / "filtered/{proj}/{sample}/{run}/contaminant.reads",
-#         unmapped_ids=results / "filtered/{proj}/{sample}/{run}/unmapped.reads",
-#     threads: 1
-#     resources:
-#         mem_mb=lambda wildcards, attempt: attempt * 4 * GB,
-#     conda:
-#         str(env_dir / "filter.yaml")
-#     params:
-#         script=scripts_dir / "filter_contamination.py",
-#         extra="--ignore-secondary",
-#         outdir=lambda wildcards, output: Path(output.keep_ids).parent,
-#     log:
-#         log_dir / "filter_contamination/{proj}/{sample}/{run}.log",
-#     shell:
-#         """
-#         python {params.script} {params.extra} \
-#             -i {input.bam} \
-#             -m {input.metadata} \
-#             -o {params.outdir} 2> {log}
-#         """
-#
+rule filter_contamination:
+    input:
+        bam=rules.map_to_decontam_db.output.bam,
+        metadata=rules.build_decontamination_db.output.metadata,
+    output:
+        keep_ids=RESULTS / "filtered/{tech}/{proj}/{sample}/{run}/keep.reads",
+        contam_ids=RESULTS / "filtered/{tech}/{proj}/{sample}/{run}/contaminant.reads",
+        unmapped_ids=RESULTS / "filtered/{tech}/{proj}/{sample}/{run}/unmapped.reads",
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 4 * GB,
+    conda:
+        str(ENVS / "filter.yaml")
+    params:
+        script=SCRIPTS / "filter_contamination.py",
+        extra="--ignore-secondary",
+        outdir=lambda wildcards, output: Path(output.keep_ids).parent,
+    log:
+        LOGS / "filter_contamination/{tech}/{proj}/{sample}/{run}.log",
+    shell:
+        """
+        python {params.script} {params.extra} \
+            -i {input.bam} \
+            -m {input.metadata} \
+            -o {params.outdir} 2> {log}
+        """
+
 #
 # rule extract_decontaminated_reads:
 #     input:
