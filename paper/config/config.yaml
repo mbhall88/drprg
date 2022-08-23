@@ -42,10 +42,13 @@ filters:
     illumina: 5
 
 containers:
-  base:     "docker://bash:5.1"
-  python:   "docker://python:3.10.4-slim-bullseye"
-  mafft:    "docker://quay.io/biocontainers/mafft:7.475--h516909a_0"
-  drprg:    "docker://quay.io/mbhall88/drprg:3dbb8ab"
-  samtools: "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
-  bcftools: "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
-  fastq_dl: "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
+  base:      "docker://bash:5.1"
+  python:    "docker://python:3.10.4-slim-bullseye"
+  mafft:     "docker://quay.io/biocontainers/mafft:7.475--h516909a_0"
+  drprg:     "docker://quay.io/mbhall88/drprg:3dbb8ab"
+  samtools:  "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
+  bcftools:  "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
+  fastq_dl:  "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
+  clockwork: "docker://quay.io/mbhall88/clockwork:fe62f00"
+  bwa:       "docker://quay.io/biocontainers/bwa:0.7.17--h7132678_9"
+  minimap2:  "docker://quay.io/biocontainers/minimap2:2.24--h7132678_1"
