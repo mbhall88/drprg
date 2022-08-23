@@ -94,8 +94,11 @@ rule map_to_decontam_db:
     resources:
         mem_mb=lambda wildcards, attempt: attempt * int(12 * GB),
     params:
-        opts=lambda wildcards: "-a -x map-ont" if wildcards.tech == "nanopore" else "-I -M",
+        opts=lambda wildcards: "-a -x map-ont"
+        if wildcards.tech == "nanopore"
+        else "-I -M",
         script=SCRIPTS / "map_to_decontam_db.sh",
+        ref=lambda wildcards, input: input.ref if wildcards.tech == "illumina" else input.mm2_index,
     conda:
         str(ENVS / "aln_tools.yaml")
     log:
@@ -103,8 +106,10 @@ rule map_to_decontam_db:
     shell:
         """
         bash {params.script} -r {wildcards.run} -i {input.run_info} -R {input.reads} \
-            -o {output.bam} -d {input.ref} -t {threads} {params.opts} 2> {log}
+            -o {output.bam} -d {params.ref} -t {threads} {params.opts} 2> {log}
         """
+
+
 #
 #
 # rule filter_contamination:

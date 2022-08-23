@@ -92,14 +92,15 @@ function run {
             args+=("-p")
         fi
 
-        bwa mem ${args[*]} -t "$threads" "$db" "$reads" | \
-            samtools sort -n -@ "$threads" | \
-            samtools fixmate -m -@ "$threads" - - | \
-            samtools sort -@ "$threads" | \
+        bwa mem ${args[*]} -t "$threads" "$db" "$reads" |
+            samtools sort -n -@ "$threads" |
+            samtools fixmate -m -@ "$threads" - - |
+            samtools sort -@ "$threads" |
             samtools markdup -r -S -O bam - "$output"
 
     else
-        minimap2 ${args[*]} -t "$threads"
+        minimap2 ${args[*]} -t "$threads" "$db" "$reads" |
+            samtools sort -@ "$threads" -o "$output"
     fi
 
     samtools index -b -@ "$threads" "$output"
