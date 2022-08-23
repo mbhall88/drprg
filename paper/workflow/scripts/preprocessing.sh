@@ -87,7 +87,7 @@ function run {
 
         fastp -w $threads ${input_arg[*]} ${args[*]} | gzip -c > "$output"
     else
-        porechop -t $threads ${input_arg[*]} --discard_middle |
+        porechop -t $threads ${input_arg[*]} --discard_middle | \
             nanoq ${args[*]} -o "$output"
     fi
 }
