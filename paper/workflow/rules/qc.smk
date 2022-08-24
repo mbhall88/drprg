@@ -12,9 +12,7 @@ rule preprocessing:
     conda:
         str(ENVS / "preprocessing.yaml")
     params:
-        opts=lambda wildcards: "-I -l 30 --cut_tail --dedup --stdout"
-        if wildcards.tech == "illumina"
-        else "-q 7",
+        opts=lambda wildcards: "-I -l 30 --cut_tail --dedup --stdout" if wildcards.tech == "illumina" else "-q 7",
         script=SCRIPTS / "preprocessing.sh",
     shadow:
         "shallow"
