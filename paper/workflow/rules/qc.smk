@@ -92,9 +92,7 @@ rule map_to_decontam_db:
     resources:
         mem_mb=lambda wildcards, attempt: attempt * int(16 * GB),
     params:
-        opts=lambda wildcards: "-a -x map-ont"
-        if wildcards.tech == "nanopore"
-        else "-I -M",
+        opts=lambda wildcards: "-a -x map-ont" if wildcards.tech == "nanopore" else "-I -M",
         script=SCRIPTS / "map_to_decontam_db.sh",
         ref=lambda wildcards, input: input.ref if wildcards.tech == "illumina" else input.mm2_index,
     conda:
