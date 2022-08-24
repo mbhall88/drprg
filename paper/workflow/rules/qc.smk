@@ -172,7 +172,7 @@ def infer_stats_files(wildcards):
             RESULTS
             /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv",
         )
-        files.append(p)
+        files.append(str(p))
 
     return files
 
@@ -190,7 +190,7 @@ def infer_keep_files(wildcards):
             RESULTS
             /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/keep.reads",
         )
-        files.append(p)
+        files.append(str(p))
 
     return files
 
@@ -208,7 +208,7 @@ def infer_contam_files(wildcards):
             RESULTS
             /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/contaminant.reads",
         )
-        files.append(p)
+        files.append(str(p))
 
     return files
 
@@ -226,7 +226,7 @@ def infer_unmapped_files(wildcards):
             RESULTS
             /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/unmapped.reads",
         )
-        files.append(p)
+        files.append(str(p))
 
     return files
 
