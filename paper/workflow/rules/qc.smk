@@ -168,10 +168,7 @@ def infer_stats_files(wildcards):
     for run, row in df.iterrows():
         proj = row["bioproject"]
         sample = row["biosample"]
-        p = (
-            RESULTS
-            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv",
-        )
+        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv"
         files.append(str(p))
 
     return files
@@ -186,10 +183,7 @@ def infer_keep_files(wildcards):
     for run, row in df.iterrows():
         proj = row["bioproject"]
         sample = row["biosample"]
-        p = (
-            RESULTS
-            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/keep.reads",
-        )
+        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/keep.reads"
         files.append(str(p))
 
     return files
@@ -204,10 +198,7 @@ def infer_contam_files(wildcards):
     for run, row in df.iterrows():
         proj = row["bioproject"]
         sample = row["biosample"]
-        p = (
-            RESULTS
-            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/contaminant.reads",
-        )
+        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/contaminant.reads"
         files.append(str(p))
 
     return files
@@ -222,10 +213,7 @@ def infer_unmapped_files(wildcards):
     for run, row in df.iterrows():
         proj = row["bioproject"]
         sample = row["biosample"]
-        p = (
-            RESULTS
-            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/unmapped.reads",
-        )
+        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/unmapped.reads"
         files.append(str(p))
 
     return files
