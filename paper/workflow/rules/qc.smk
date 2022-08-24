@@ -92,7 +92,7 @@ rule map_to_decontam_db:
         index=RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam.bai",
     threads: 4
     resources:
-        mem_mb=lambda wildcards, attempt: attempt * int(12 * GB),
+        mem_mb=lambda wildcards, attempt: attempt * int(16 * GB),
     params:
         opts=lambda wildcards: "-a -x map-ont"
         if wildcards.tech == "nanopore"
@@ -137,63 +137,110 @@ rule filter_contamination:
             -o {params.outdir} 2> {log}
         """
 
-#
-# rule extract_decontaminated_reads:
-#     input:
-#         reads=rules.map_to_decontam_db.input.reads,
-#         read_ids=rules.filter_contamination.output.keep_ids,
-#     output:
-#         reads=results / "filtered/{proj}/{sample}/{run}/{run}.filtered.fq.gz",
-#         stats=results / "filtered/{proj}/{sample}/{run}/{run}.filtered.stats.tsv",
-#     threads: 1
-#     resources:
-#         mem_mb=lambda wildcards, attempt: int(8 * GB) * attempt,
-#     log:
-#         log_dir / "extract_decontaminated_reads/{proj}/{sample}/{run}.log",
-#     container:
-#         containers["seqkit"]
-#     shell:
-#         """
-#         seqkit grep -o {output.reads} -f {input.read_ids} {input.reads} 2> {log}
-#         seqkit stats -a -T {output.reads} > {output.stats} 2>> {log}
-#         """
-#
-#
-# rule qc_summary:
-#     input:
-#         stats=expand(
-#             results / "filtered/{proj}/{sample}/{run}/{run}.filtered.stats.tsv",
-#             zip,
-#             run=RUNS,
-#             sample=SAMPLES,
-#             proj=PROJECTS,
-#         ),
-#         keep_ids=expand(
-#             results / "filtered/{proj}/{sample}/{run}/keep.reads",
-#             zip,
-#             run=RUNS,
-#             sample=SAMPLES,
-#             proj=PROJECTS,
-#         ),
-#         contam_ids=expand(
-#             results / "filtered/{proj}/{sample}/{run}/contaminant.reads",
-#             zip,
-#             run=RUNS,
-#             sample=SAMPLES,
-#             proj=PROJECTS,
-#         ),
-#         unmapped_ids=expand(
-#             results / "filtered/{proj}/{sample}/{run}/unmapped.reads",
-#             zip,
-#             run=RUNS,
-#             sample=SAMPLES,
-#             proj=PROJECTS,
-#         ),
-#     output:
-#         summary=results / "qc.csv",
-#     log:
-#         log_dir / "qc_summary.log",
-#     params:
-#         genome_size=4411532,
-#     script:
-#         str(scripts_dir / "qc_summary.py")
+
+rule extract_decontaminated_reads:
+    input:
+        reads=rules.map_to_decontam_db.input.reads,
+        read_ids=rules.filter_contamination.output.keep_ids,
+    output:
+        reads=RESULTS / "filtered/{tech}/{proj}/{sample}/{run}/{run}.filtered.fq.gz",
+        stats=RESULTS / "filtered/{tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv",
+    threads: 1
+    resources:
+        mem_mb=lambda wildcards, attempt: int(8 * GB) * attempt,
+    log:
+        LOGS / "extract_decontaminated_reads/{tech}/{proj}/{sample}/{run}.log",
+    container:
+        CONTAINERS["seqkit"]
+    shell:
+        """
+        seqkit grep -o {output.reads} -f {input.read_ids} {input.reads} 2> {log}
+        seqkit stats -a -T {output.reads} > {output.stats} 2>> {log}
+        """
+
+def infer_stats_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv",
+        )
+        files.append(p)
+
+    return files
+
+def infer_keep_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/keep.reads",
+        )
+        files.append(p)
+
+    return files
+
+def infer_contam_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/contaminant.reads",
+        )
+        files.append(p)
+
+    return files
+
+def infer_unmapped_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/unmapped.reads",
+        )
+        files.append(p)
+
+    return files
+
+rule qc_summary:
+    input:
+        stats=infer_stats_files,
+        keep_ids=infer_keep_files,
+        contam_ids=infer_contam_files,
+        unmapped_ids=infer_unmapped_files,
+    output:
+        summary=RESULTS / "QC/{tech}.qc.csv",
+    log:
+        LOGS / "qc_summary/{tech}.log",
+    params:
+        genome_size=4411532,
+    script:
+        str(SCRIPTS / "qc_summary.py")
