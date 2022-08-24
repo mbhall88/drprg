@@ -58,15 +58,7 @@ for w, k in WKS:
 
 # target_files.add(PLOTS / "wk_sweep.png")
 for tech in TECHS:
-    if tech == "illumina":
-        df = illumina_df
-    else:
-        df = ont_df
-
-    for run, row in df.iterrows():
-        proj = row["bioproject"]
-        sample = row["biosample"]
-        target_files.add(RESULTS / f"mapped/{tech}/{proj}/{sample}/{run}.sorted.bam")
+    target_files.add(RESULTS / f"QC/{tech}.qc.csv")
 
 
 # =====================================
