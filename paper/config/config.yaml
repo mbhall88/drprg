@@ -53,3 +53,4 @@ containers:
   bwa:       "docker://quay.io/biocontainers/bwa:0.7.17--h7132678_9"
   minimap2:  "docker://quay.io/biocontainers/minimap2:2.24--h7132678_1"
   seqkit:    "docker://quay.io/biocontainers/seqkit:2.2.0--h9ee0642_0"
+  mykrobe:   "docker://quay.io/biocontainers/mykrobe:0.12.1--py38hf97919f_1"
