@@ -31,7 +31,7 @@ rule mykrobe_predict:
             ]
         ),
         tech_opts=infer_mykrobe_tech_opts,
-        base_json=lambda wildcards, output: Path(output.report).with_suffix()
+        base_json=lambda wildcards, output: Path(output.report).with_suffix("")
     threads: 2
     shell:
         """
