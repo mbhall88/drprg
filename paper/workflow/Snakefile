@@ -86,4 +86,5 @@ include: RULES / "panel.smk"
 include: RULES / "wk_sweep.smk"
 include: RULES / "download.smk"
 include: RULES / "qc.smk"
+include: RULES / "mykrobe.smk"
 
