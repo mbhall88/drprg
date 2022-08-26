@@ -12,7 +12,7 @@ rule preprocessing:
     conda:
         str(ENVS / "preprocessing.yaml")
     params:
-        opts=lambda wildcards: "-I -l 30 --cut_tail --dedup --stdout" if wildcards.tech == "illumina" else "-q 7",
+        opts=lambda wildcards: infer_preprocessing_tech_opts(wildcards),
         script=SCRIPTS / "preprocessing.sh",
     shadow:
         "shallow"
@@ -38,9 +38,6 @@ rule build_decontamination_db:
         "shallow"
     shell:
         "perl {params.script} {params.outdir} &> {log}"
-
-
-BWA_EXTNS = [".amb", ".ann", ".bwt", ".pac", ".sa"]
 
 
 rule index_decontam_db_with_bwa:
@@ -86,15 +83,15 @@ rule map_to_decontam_db:
         reads=rules.preprocessing.output.fastq,
         run_info=rules.aggregate_run_info.output.run_info,
     output:
-        bam=RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam",
-        index=RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam.bai",
+        bam=temp(RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam"),
+        index=temp(RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam.bai"),
     threads: 4
     resources:
         mem_mb=lambda wildcards, attempt: attempt * int(16 * GB),
     params:
-        opts=lambda wildcards: "-a -x map-ont" if wildcards.tech == "nanopore" else "-I -M",
+        opts=lambda wildcards, input: infer_map_opts(wildcards),
         script=SCRIPTS / "map_to_decontam_db.sh",
-        ref=lambda wildcards, input: input.ref if wildcards.tech == "illumina" else input.mm2_index,
+        ref=lambda wildcards, input: infer_map_ref_index(wildcards, input),
     conda:
         str(ENVS / "aln_tools.yaml")
     log:
@@ -154,65 +151,6 @@ rule extract_decontaminated_reads:
         seqkit stats -a -T {output.reads} > {output.stats} 2>> {log}
         """
 
-def infer_stats_files(wildcards):
-    if wildcards.tech == "illumina":
-        df = illumina_df
-    else:
-        df = ont_df
-
-    files = []
-    for run, row in df.iterrows():
-        proj = row["bioproject"]
-        sample = row["biosample"]
-        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv"
-        files.append(str(p))
-
-    return files
-
-def infer_keep_files(wildcards):
-    if wildcards.tech == "illumina":
-        df = illumina_df
-    else:
-        df = ont_df
-
-    files = []
-    for run, row in df.iterrows():
-        proj = row["bioproject"]
-        sample = row["biosample"]
-        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/keep.reads"
-        files.append(str(p))
-
-    return files
-
-def infer_contam_files(wildcards):
-    if wildcards.tech == "illumina":
-        df = illumina_df
-    else:
-        df = ont_df
-
-    files = []
-    for run, row in df.iterrows():
-        proj = row["bioproject"]
-        sample = row["biosample"]
-        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/contaminant.reads"
-        files.append(str(p))
-
-    return files
-
-def infer_unmapped_files(wildcards):
-    if wildcards.tech == "illumina":
-        df = illumina_df
-    else:
-        df = ont_df
-
-    files = []
-    for run, row in df.iterrows():
-        proj = row["bioproject"]
-        sample = row["biosample"]
-        p = RESULTS /  f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/unmapped.reads"
-        files.append(str(p))
-
-    return files
 
 rule qc_summary:
     input:

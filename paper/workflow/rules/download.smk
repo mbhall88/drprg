@@ -14,21 +14,6 @@ rule download_data:
         "fastq-dl --outdir {output.outdir} {wildcards.run} {params.db} > {log} 2>&1"
 
 
-def infer_download_dirs(wildcards):
-    if wildcards.tech == "illumina":
-        df = illumina_df
-    else:
-        df = ont_df
-
-    dirs = []
-    for run, row in df.iterrows():
-        p = (
-            RESULTS
-            / f"download/{wildcards.tech}/{row.bioproject}/{row.biosample}/{run}"
-        )
-        dirs.append(p)
-
-    return dirs
 
 
 rule aggregate_run_info:

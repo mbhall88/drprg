@@ -1,3 +1,6 @@
+BWA_EXTNS = [".amb", ".ann", ".bwt", ".pac", ".sa"]
+
+
 def infer_h2h_reads(wildcards, tech=None):
     sample = wildcards.sample
     tech = wildcards.tech if tech is None else tech
@@ -15,6 +18,136 @@ def infer_h2h_reads(wildcards, tech=None):
         return [site_dir / f"{sample}.subsampled.R{i}.fastq.gz" for i in [1, 2]]
     else:
         raise ValueError(f"Got unknown tech {tech}")
+
+
+def infer_mykrobe_tech_opts(wildcards):
+    return {"illumina": "-e 0.001 --ploidy haploid", "nanopore": "--ont"}[
+        wildcards.tech
+    ]
+
+
+def infer_mykrobe_reports(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            / f"amr_predictions/mykrobe/{wildcards.tech}/{proj}/{sample}/{run}.mykrobe.json.gz"
+        )
+        files.append(p)
+
+    return files
+
+
+def infer_drprg_tech_opts(wildcards) -> str:
+    return {"illumina": "-I"}.get(wildcards.tech, "")
+
+
+def infer_preprocessing_tech_opts(wildcards) -> str:
+    return {"illumina": "-I -l 30 --cut_tail --dedup --stdout", "nanopore": "-q 7"}[
+        wildcards.tech
+    ]
+
+
+def infer_map_opts(wildcards):
+    return {"illumina": "-I -M", "nanopore": "-a -x map-ont"}[wildcards.tech]
+
+
+def infer_map_ref_index(wildcards, input) -> str:
+    return {"illumina": input.ref, "nanopore": input.mm2_index}[wildcards.tech]
+
+
+def infer_download_dirs(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    dirs = []
+    for run, row in df.iterrows():
+        p = (
+            RESULTS
+            / f"download/{wildcards.tech}/{row.bioproject}/{row.biosample}/{run}"
+        )
+        dirs.append(p)
+
+    return dirs
+
+
+def infer_stats_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            / f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/{run}.filtered.stats.tsv"
+        )
+        files.append(str(p))
+
+    return files
+
+
+def infer_keep_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = RESULTS / f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/keep.reads"
+        files.append(str(p))
+
+    return files
+
+
+def infer_contam_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            / f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/contaminant.reads"
+        )
+        files.append(str(p))
+
+    return files
+
+
+def infer_unmapped_files(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = RESULTS / f"filtered/{wildcards.tech}/{proj}/{sample}/{run}/unmapped.reads"
+        files.append(str(p))
+
+    return files
 
 
 def drprg_filter_args(wildcards) -> str:

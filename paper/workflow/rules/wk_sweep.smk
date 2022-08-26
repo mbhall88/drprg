@@ -49,7 +49,7 @@ rule drprg_predict_sweep:
     params:
         opts=" ".join(["-v", "-s {sample}", "--failed"]),
         filters=lambda wildcards: drprg_filter_args(wildcards),
-        tech_flag=lambda wildcards: "-I" if wildcards.tech == "illumina" else "",
+        tech_flag=lambda wildcards: infer_drprg_tech_opts(wildcards),
     shell:
         """
         drprg predict {params.opts} {params.filters} {params.tech_flag} \
@@ -82,12 +82,16 @@ rule aggregate_wk_results:
 rule plot_wk_results:
     input:
         sheet=rules.aggregate_wk_results.output.sheet,
-        phenotypes=config["h2h_phenotypes"]
+        phenotypes=config["h2h_phenotypes"],
     output:
-        plot=report(PLOTS / "wk_sweep.png", caption=CAPTIONS / "wk_sweep.rst", category="W & K sweep"),
-        table=report(TABLES / "wk_sweep.csv", category="W & K sweep")
+        plot=report(
+            PLOTS / "wk_sweep.png",
+            caption=CAPTIONS / "wk_sweep.rst",
+            category="W & K sweep",
+        ),
+        table=report(TABLES / "wk_sweep.csv", category="W & K sweep"),
     log:
-        LOGS / "plot_wk_results.log"
+        LOGS / "plot_wk_results.log",
     conda:
         str(ENVS / "plot_wk_sweep.yaml")
     params:
