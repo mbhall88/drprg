@@ -169,3 +169,22 @@ def drprg_filter_args(wildcards) -> str:
             args += f"{flag} {val} "
 
     return args
+
+
+def infer_drprg_reports(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            / f"amr_predictions/drprg/{wildcards.tech}/{proj}/{sample}/{run}.drprg.json"
+        )
+        files.append(p)
+
+    return files

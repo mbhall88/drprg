@@ -29,6 +29,7 @@ QC_DIR = Path(config["QC_dir"])
 MIN_ILLUMINA_COV = config["min_cov"]
 MIN_NANOPORE_COV = config["min_cov"]
 TECHS = ["nanopore", "illumina"]
+TOOLS = ["mykrobe", "drprg"]
 W = config["W"]
 K = config["K"]
 # =====================================
@@ -57,8 +58,8 @@ for w, k in WKS:
             WK_WILDCARDS["k"].append(k)
 
 # target_files.add(PLOTS / "wk_sweep.png")
-for tech in TECHS:
-    target_files.add(RESULTS / f"amr_predictions/mykrobe/{tech}/summary.csv")
+for (tech, tool) in product(TECHS, TOOLS):
+    target_files.add(RESULTS / f"amr_predictions/{tool}/{tech}/summary.csv")
 
 
 # =====================================
@@ -87,4 +88,3 @@ include: RULES / "wk_sweep.smk"
 include: RULES / "download.smk"
 include: RULES / "qc.smk"
 include: RULES / "predict.smk"
-

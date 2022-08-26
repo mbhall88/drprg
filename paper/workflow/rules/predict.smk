@@ -84,3 +84,15 @@ rule drprg_predict:
         drprg predict {params.opts} {params.tech_opts} {params.filters} \
             -i {input.reads} -o {params.outdir} -x {input.index} -t {threads} 2> {log}
         """
+
+rule combine_drprg_reports:
+    input:
+        reports=infer_drprg_reports,
+    output:
+        report=RESULTS / "amr_predictions/drprg/{tech}/summary.csv",
+    log:
+        LOGS / "combine_drprg_reports/{tech}.log",
+    container:
+        CONTAINERS["python"]
+    script:
+        str(SCRIPTS / "combine_drprg_reports.py")
