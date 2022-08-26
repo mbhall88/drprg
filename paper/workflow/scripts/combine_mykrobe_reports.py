@@ -3,6 +3,7 @@ import sys
 sys.stderr = open(snakemake.log[0], "w")
 
 import json
+import gzip
 from pathlib import Path
 
 
@@ -50,7 +51,9 @@ with open(snakemake.output.report, "w") as fout:
         run = p.name.split(".")[0]
         tech = snakemake.wildcards.tech
 
-        with open(p) as fp:
+        fopen = gzip.open if p.suffix == ".gz" else open
+
+        with fopen(p) as fp:
             report = load_susceptibility(fp)
 
         if not report:
