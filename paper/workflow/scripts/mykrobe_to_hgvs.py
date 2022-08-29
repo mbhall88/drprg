@@ -10,6 +10,75 @@ from itertools import repeat
 from pathlib import Path
 import logging
 
+
+STOP = "*"
+CODON2AMINO = {
+    "TCA": "S",
+    "TCC": "S",
+    "TCG": "S",
+    "TCT": "S",
+    "TTC": "F",
+    "TTT": "F",
+    "TTA": "L",
+    "TTG": "L",
+    "TAC": "Y",
+    "TAT": "Y",
+    "TAA": STOP,
+    "TAG": STOP,
+    "TGC": "C",
+    "TGT": "C",
+    "TGA": STOP,
+    "TGG": "W",
+    "CTA": "L",
+    "CTC": "L",
+    "CTG": "L",
+    "CTT": "L",
+    "CCA": "P",
+    "CCC": "P",
+    "CCG": "P",
+    "CCT": "P",
+    "CAC": "H",
+    "CAT": "H",
+    "CAA": "Q",
+    "CAG": "Q",
+    "CGA": "R",
+    "CGC": "R",
+    "CGG": "R",
+    "CGT": "R",
+    "ATA": "I",
+    "ATC": "I",
+    "ATT": "I",
+    "ATG": "M",
+    "ACA": "T",
+    "ACC": "T",
+    "ACG": "T",
+    "ACT": "T",
+    "AAC": "N",
+    "AAT": "N",
+    "AAA": "K",
+    "AAG": "K",
+    "AGC": "S",
+    "AGT": "S",
+    "AGA": "R",
+    "AGG": "R",
+    "GTA": "V",
+    "GTC": "V",
+    "GTG": "V",
+    "GTT": "V",
+    "GCA": "A",
+    "GCC": "A",
+    "GCG": "A",
+    "GCT": "A",
+    "GAC": "D",
+    "GAT": "D",
+    "GAA": "E",
+    "GAG": "E",
+    "GGA": "G",
+    "GGC": "G",
+    "GGG": "G",
+    "GGT": "G",
+}
+
 PROTEIN_LETTERS_1TO3 = {
     "A": "Ala",
     "C": "Cys",
@@ -31,7 +100,7 @@ PROTEIN_LETTERS_1TO3 = {
     "V": "Val",
     "W": "Trp",
     "Y": "Tyr",
-    "*": "*",
+    STOP: STOP,
 }
 
 
@@ -131,28 +200,75 @@ class MykrobeVariant:
     residue: Residue
 
     def convert(self, biotype: BioType) -> "HgvsVariant":
-        if biotype is not BioType.Coding:
-            raise NotImplementedError(biotype)
-        if self.residue is Residue.Protein:
-            prefix = "p."
-            ref = PROTEIN_LETTERS_1TO3[self.mutation.ref]
-            alt = PROTEIN_LETTERS_1TO3[self.mutation.alt]
-            pos = self.mutation.pos
-            if alt != "*" and len(ref) != len(alt):
-                raise NotImplementedError(
-                    f"Cannot handle non-substitution protein mutations: {self.mutation}"
-                )
-            mut = f"{prefix}{ref}{pos}{alt}"
-        else:
-            raise NotImplementedError(self.residue)
+        return HgvsVariant.from_mykrobe(self, biotype)
 
-        return HgvsVariant(gene=self.gene, mutation=mut)
+    def is_snp(self) -> bool:
+        return (
+            len(self.mutation.ref) == len(self.mutation.alt)
+            and len(self.mutation.ref) == 1
+            and self.residue is Residue.Nucleic
+        )
+
+    def is_mnp(self) -> bool:
+        return (
+            len(self.mutation.ref) == len(self.mutation.alt)
+            and len(self.mutation.ref) > 1
+            and self.residue is Residue.Nucleic
+        )
+
+    def is_indel(self) -> bool:
+        return (
+            len(self.mutation.ref) != len(self.mutation.alt)
+            and self.residue is Residue.Nucleic
+        )
 
 
 @dataclass(frozen=True, eq=True)
 class HgvsVariant:
     gene: str
     mutation: str
+
+    @staticmethod
+    def from_mykrobe(variant: MykrobeVariant, biotype: BioType) -> "HgvsVariant":
+        if variant.residue is Residue.Protein:
+            prefix = "p."
+            ref = PROTEIN_LETTERS_1TO3[variant.mutation.ref]
+            alt = PROTEIN_LETTERS_1TO3[variant.mutation.alt]
+            pos = variant.mutation.pos
+            if alt != "*" and len(ref) != len(alt):
+                raise NotImplementedError(
+                    f"Cannot handle non-substitution protein mutations: {self.mutation}"
+                )
+            mut = f"{ref}{pos}{alt}"
+        else:
+            prefix = "n." if biotype is not BioType.Coding else "c."
+            ref = variant.mutation.ref
+            alt = variant.mutation.alt
+            pos = variant.mutation.pos
+            if variant.is_snp():
+                mut = f"{pos}{ref}>{alt}"
+            elif variant.is_mnp():
+
+                if (pos - 1) % 3 != 0 or len(ref) != 3:
+                    raise NotImplementedError(
+                        f"Don't know how to deal with MNPs that aren't at the start of a codon: {variant}"
+                    )
+                codon = pos2codon(pos)
+                ref_aa = PROTEIN_LETTERS_1TO3[CODON2AMINO[ref]]
+                alt_aa = PROTEIN_LETTERS_1TO3[CODON2AMINO[alt]]
+                mut = f"{ref_aa}{codon}{alt_aa}"
+                prefix = "p."
+            else:
+                raise NotImplementedError(variant)
+
+        return HgvsVariant(gene=variant.gene, mutation=f"{prefix}{mut}")
+
+
+def pos2codon(pos: int) -> int:
+    """Convert a (one-based) genomic position to a (one-based) codon position"""
+    pos -= 1
+    codon = pos // 3
+    return codon + 1
 
 
 def main():
@@ -239,7 +355,7 @@ def test():
     actual = var.convert(biotype)
     expected = HgvsVariant(gene, "p.Ser450Leu")
 
-    assert actual == expected, test_name
+    assert actual == expected, (test_name, actual, expected)
 
     test_name = "Nucelic acid SNP in coding region"
     mut = MykrobeMutation.from_str("T196G")
@@ -251,7 +367,7 @@ def test():
     actual = var.convert(biotype)
     expected = HgvsVariant(gene, "c.196T>G")
 
-    assert actual == expected, test_name
+    assert actual == expected, (test_name, actual, expected)
 
     test_name = "Nucelic acid MNP in coding region"
     mut = MykrobeMutation.from_str("TCG196TAG")
@@ -261,9 +377,28 @@ def test():
     biotype = BioType.Coding
 
     actual = var.convert(biotype)
-    expected = HgvsVariant(gene, "c.196_198delinsTAG")
+    expected = HgvsVariant(gene, "p.Ser66*")
 
-    assert actual == expected, test_name
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "Nucelic acid SNP in non-coding gene"
+    mut = MykrobeMutation.from_str("A1325C")
+    gene = "rrs"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.RibosomalRNA
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "n.1325A>C")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    # todo: test indels
+    # todo: test promoter
+    # todo: test X variants
+
+    print("All tests pass")
+
 
 if __name__ == "__main__":
     main()
