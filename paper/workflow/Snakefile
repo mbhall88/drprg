@@ -61,7 +61,7 @@ for w, k in WKS:
 for (tech, tool) in product(TECHS, TOOLS):
     target_files.add(RESULTS / f"amr_predictions/{tool}/{tech}/summary.csv")
 
-target_files.add(RESULTS / "tbprofiler/tbdb/tbdb.conversion.log")
+target_files.add(RESULTS / "tbprofiler/.db.built")
 # =====================================
 rule all:
     input:
