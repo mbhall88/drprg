@@ -1,0 +1,7 @@
+name: tbprofiler
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+dependencies:
+  - tb-profiler =4.3.0

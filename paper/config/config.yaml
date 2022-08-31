@@ -5,6 +5,7 @@ illumina_samplesheet: "config/illumina.samplesheet.csv"
 nanopore_samplesheet: "config/nanopore.samplesheet.csv"
 h2h_samplesheet:      "config/h2h.samplesheet.csv"
 h2h_phenotypes:       "config/h2h.phenotypes.csv"
+tbdb_url:             "https://github.com/jodyphelan/tbdb/archive/feb5e89141a01ff03bbe0439284cc2490b1fe425.zip"
 min_cov:              3
 QC_dir:               "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
 who_panel_url:        "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"

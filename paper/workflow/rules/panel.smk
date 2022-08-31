@@ -267,3 +267,60 @@ rule drprg_build:
             -a {input.annotation} -o {output.outdir} -i {input.panel} \
             -f {input.ref} -t {threads} -d {params.prebuilt_dir} 2> {log}
         """
+
+
+rule download_tbprofiler_db:
+    output:
+        db=directory(RESULTS / "tbprofiler/tbdb"),
+    container:
+        CONTAINERS["base"]
+    log:
+        LOGS / "download_tbprofiler_db.log",
+    params:
+        url=config["tbdb_url"],
+        outdir=lambda wildcards, output: Path(output.db).parent,
+    shadow:
+        "shallow"
+    shell:
+        """
+        wget {params.url} -O tbdb.zip 2> {log}
+        unzip -d {params.outdir} tbdb.zip 2>> {log}
+        mv {params.outdir}/tbdb* {output.db} 2>> {log}
+        """
+
+
+rule mykrobe_to_hgvs:
+    input:
+        panel=rules.convert_mutations.output.panel,
+        gff=RESOURCES / "NC_000962.3.gff3",
+    output:
+        panel=RESOURCES / "mykrobe_to_hgvs.csv",
+    log:
+        LOGS / "mykrobe_to_hgvs.log",
+    container:
+        CONTAINERS["python"]
+    params:
+        script=SCRIPTS / "mykrobe_to_hgvs.py",
+        opts="-v",
+    shell:
+        "python {params.script} {params.opts} -i {input.panel} -g {input.gff} -o {output.panel} 2> {log}"
+
+
+rule create_tbprofiler_db:
+    input:
+        panel=rules.mykrobe_to_hgvs.output.panel,
+        db=rules.download_tbprofiler_db.output.db,
+    output:
+        log=RESULTS / "tbprofiler/tbdb/tbdb.conversion.log",
+    log:
+        LOGS / "create_tbprofiler_db.log",
+    conda:
+        str(ENVS / "tbprofiler.yaml")
+    params:
+        opts="--load --custom --include_original_mutation",
+    shell:
+        """
+        cp {input.panel} {input.db}/tbdb.csv 2> {log}
+        cd {input.db} || exit 1
+        tb-profiler create_db {params.opts} 2>> {log}
+        """
