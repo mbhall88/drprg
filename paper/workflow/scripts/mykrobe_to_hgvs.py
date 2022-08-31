@@ -1,16 +1,19 @@
 """This script converts a mykrobe-style panel into the HGVS format accepted by
 TBProfiler.
 """
+import argparse
+import logging
 import re
 import sys
-import argparse
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 from enum import Enum
 from itertools import repeat
 from pathlib import Path
-import logging
 
-
+BOUNDARY_RGX = re.compile(r"-\d+_\d+")
+PROMOTER_DUP_RGX = re.compile(r"-\d+dup[ACGT]")
+HEADER = ["Gene", "Mutation", "Drug", "Confers", "Interaction", "Literature"]
 STOP = "*"
 CODON2AMINO = {
     "TCA": "S",
@@ -199,28 +202,80 @@ class MykrobeVariant:
     mutation: MykrobeMutation
     residue: Residue
 
+    @property
+    def ref(self) -> str:
+        return self.mutation.ref
+
+    @property
+    def alt(self) -> str:
+        return self.mutation.alt
+
+    @property
+    def pos(self) -> int:
+        return self.mutation.pos
+
     def convert(self, biotype: BioType) -> "HgvsVariant":
         return HgvsVariant.from_mykrobe(self, biotype)
 
     def is_snp(self) -> bool:
         return (
-            len(self.mutation.ref) == len(self.mutation.alt)
-            and len(self.mutation.ref) == 1
+            len(self.ref) == len(self.alt)
+            and len(self.ref) == 1
             and self.residue is Residue.Nucleic
         )
 
     def is_mnp(self) -> bool:
         return (
-            len(self.mutation.ref) == len(self.mutation.alt)
-            and len(self.mutation.ref) > 1
+            len(self.ref) == len(self.alt)
+            and len(self.ref) > 1
             and self.residue is Residue.Nucleic
         )
 
     def is_indel(self) -> bool:
-        return (
-            len(self.mutation.ref) != len(self.mutation.alt)
-            and self.residue is Residue.Nucleic
-        )
+        return len(self.ref) != len(self.alt) and self.residue is Residue.Nucleic
+
+    def is_ambiguous(self) -> bool:
+        return "X" in self.alt
+
+    def disambiguate(self) -> list["MykrobeVariant"]:
+        if not self.is_ambiguous():
+            return [self]
+
+        if self.residue is Residue.Protein:
+            alts = [
+                aa for aa in PROTEIN_LETTERS_1TO3.keys() if aa not in (self.ref, STOP)
+            ]
+        else:
+            alts = list("ACGT".replace(self.ref, ""))
+
+        variants = []
+        for alt in alts:
+            mut = MykrobeMutation(self.ref, self.pos, alt)
+            variants.append(MykrobeVariant(self.gene, mut, self.residue))
+
+        return variants
+
+
+class IndelType(Enum):
+    Deletion = "del"
+    Duplication = "dup"
+    Insertion = "ins"
+
+    @staticmethod
+    def from_mutation(mutation: MykrobeMutation) -> "IndelType":
+        if len(mutation.ref) > len(mutation.alt):
+            return IndelType.Deletion
+        elif len(mutation.ref) < len(mutation.alt):
+            if (
+                set(mutation.ref) == set(mutation.alt)
+                and len(mutation.alt) == 2
+                and len(mutation.ref) == 1
+            ):
+                return IndelType.Duplication
+            else:
+                return IndelType.Insertion
+        else:
+            raise ValueError(f"{mutation} is not an indel")
 
 
 @dataclass(frozen=True, eq=True)
@@ -228,23 +283,27 @@ class HgvsVariant:
     gene: str
     mutation: str
 
+    def spans_gene_boundary(self) -> bool:
+        m = BOUNDARY_RGX.search(self.mutation)
+        return m is not None
+
     @staticmethod
     def from_mykrobe(variant: MykrobeVariant, biotype: BioType) -> "HgvsVariant":
         if variant.residue is Residue.Protein:
             prefix = "p."
-            ref = PROTEIN_LETTERS_1TO3[variant.mutation.ref]
-            alt = PROTEIN_LETTERS_1TO3[variant.mutation.alt]
+            ref = PROTEIN_LETTERS_1TO3[variant.ref]
+            alt = PROTEIN_LETTERS_1TO3[variant.alt]
             pos = variant.mutation.pos
             if alt != "*" and len(ref) != len(alt):
                 raise NotImplementedError(
-                    f"Cannot handle non-substitution protein mutations: {self.mutation}"
+                    f"Cannot handle non-substitution protein mutations: {variant.mutation}"
                 )
             mut = f"{ref}{pos}{alt}"
         else:
             prefix = "n." if biotype is not BioType.Coding else "c."
-            ref = variant.mutation.ref
-            alt = variant.mutation.alt
-            pos = variant.mutation.pos
+            ref = variant.ref
+            alt = variant.alt
+            pos = variant.pos
             if variant.is_snp():
                 mut = f"{pos}{ref}>{alt}"
             elif variant.is_mnp():
@@ -258,6 +317,59 @@ class HgvsVariant:
                 alt_aa = PROTEIN_LETTERS_1TO3[CODON2AMINO[alt]]
                 mut = f"{ref_aa}{codon}{alt_aa}"
                 prefix = "p."
+            elif variant.is_indel():
+                indel_type = IndelType.from_mutation(variant.mutation)
+                match indel_type:
+                    case IndelType.Insertion:
+                        sm = SequenceMatcher(a=ref, b=alt)
+                        insertion = next(
+                            (tup for tup in sm.get_opcodes() if tup[0] == "insert"),
+                            None,
+                        )
+
+                        if insertion is None:
+                            raise ValueError(f"Expected an insertion but got {variant}")
+
+                        ins_start = pos + (insertion[1] - 1)
+                        ins_end = ins_start + 2 if ins_start == -1 else ins_start + 1
+
+                        ins_seq = alt[insertion[3] : insertion[4]]
+                        mut = (
+                            f"{ins_start}_{ins_end}{IndelType.Insertion.value}{ins_seq}"
+                        )
+                    case IndelType.Duplication:
+                        mut = f"{pos}{IndelType.Duplication.value}{ref}"
+                    case IndelType.Deletion:
+                        sm = SequenceMatcher(a=ref, b=alt)
+                        # we make an assumption here that there is only one deletion block between ref and alt
+                        deletion = next(
+                            (tup for tup in sm.get_opcodes() if tup[0] == "delete"),
+                            None,
+                        )
+
+                        if deletion is None:
+                            raise ValueError(f"Expected a deletion but got {variant}")
+
+                        del_size = len(ref) - len(alt)
+                        del_start = pos + deletion[1]
+                        del_end = del_start + (
+                            del_size - 1
+                        )  # end is inclusive for hgvs
+                        # if deletion crosses gene boundary, we need to change the offset
+                        if 0 in list(range(del_start, del_end)):
+                            if del_start >= 0:
+                                del_start += 1
+                            del_end += 1
+
+                        del_range = (
+                            str(del_start)
+                            if del_end == del_start
+                            else f"{del_start}_{del_end}"
+                        )
+                        mut = f"{del_range}{IndelType.Deletion.value}"
+                    case _:
+                        raise NotImplementedError(variant)
+
             else:
                 raise NotImplementedError(variant)
 
@@ -319,14 +431,17 @@ def main():
 
     logging.info("Converting the panel...")
     counter = 0
+    skipped_boundary = 0
+    skipped_prom_dup = 0
     converted = dict()
     with open(args.output, "w") as out_fp, open(args.panel) as in_fp:
+        print(",".join(HEADER), file=out_fp)
         for row in map(str.strip, in_fp):
-            counter += 1
             if counter % 1000 == 0:
                 logging.debug(f"Converted {counter} variants...")
 
             fields = row.split("\t")
+            drug = fields[-1]
             mykrobe_var = MykrobeVariant(
                 gene=fields[0],
                 mutation=MykrobeMutation.from_str(fields[1]),
@@ -336,12 +451,42 @@ def main():
             if biotype is None:
                 raise KeyError(f"Could not find a gene biotype for {mykrobe_var.gene}")
 
-            hgvs_var = converted.get(mykrobe_var, mykrobe_var.convert(biotype))
-            converted[mykrobe_var] = hgvs_var
+            variants = mykrobe_var.disambiguate()
 
-            drug = fields[-1]
+            for var in variants:
+                try:
+                    hgvs_var = converted.get(var, var.convert(biotype))
+                except ValueError as err:
+                    logging.warning(f"Failed to convert {var}..skipping..\n{err}")
+                    continue
+
+                if hgvs_var.spans_gene_boundary():
+                    logging.debug(
+                        f"Skipping {var} ({hgvs_var}) as it spans a gene boundary and "
+                        f"tb-profiler can't deal with that"
+                    )
+                    skipped_boundary += 1
+                    continue
+
+                is_promoter_duplication = PROMOTER_DUP_RGX.search(hgvs_var.mutation)
+                if is_promoter_duplication:
+                    logging.debug(
+                        f"Skipping {var} ({hgvs_var}) tb-profiler can't deal with "
+                        f"duplications in promoters"
+                    )
+                    skipped_prom_dup += 1
+                    continue
+
+                converted[var] = hgvs_var
+                row = [hgvs_var.gene, hgvs_var.mutation, drug, "resistance", "", ""]
+                print(",".join(row), file=out_fp)
+                counter += 1
 
     logging.info(f"Finished converting {counter} variants")
+    logging.info(f"Skipped {skipped_boundary} variants as they spanned a gene boundary")
+    logging.info(
+        f"Skipped {skipped_prom_dup} variants as they are promoter duplications"
+    )
 
 
 def test():
@@ -393,9 +538,212 @@ def test():
 
     assert actual == expected, (test_name, actual, expected)
 
-    # todo: test indels
-    # todo: test promoter
-    # todo: test X variants
+    # test deletions
+    test_name = "1bp deletion - first base is deleted"
+    mut = MykrobeMutation.from_str("AC1325C")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1325del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "1bp deletion - second base is deleted"
+    mut = MykrobeMutation.from_str("AC1325A")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1326del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp deletion - first two bases deleted"
+    mut = MykrobeMutation.from_str("ACT1325T")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1325_1326del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "1bp deletion - three base ref, first base deleted"
+    mut = MykrobeMutation.from_str("TGG884GG")
+    gene = "ethA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.884del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "1bp deletion - three base ref, last base deleted"
+    mut = MykrobeMutation.from_str("GTA714GT")
+    gene = "tylA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.716del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "1bp deletion - three base ref, deletion in the middle"
+    mut = MykrobeMutation.from_str("GTA825GA")
+    gene = "ethA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.826del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp deletion - four base ref, deletion in the middle"
+    mut = MykrobeMutation.from_str("GTAA825GA")
+    gene = "ethA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.826_827del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp deletion - second two bases deleted"
+    mut = MykrobeMutation.from_str("ACT1325A")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1326_1327del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    # test insertions (and duplications)
+    test_name = "1bp insertion"
+    mut = MykrobeMutation.from_str("A1325AC")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1325_1326insC")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "1bp insertion - duplication"
+    mut = MykrobeMutation.from_str("A1325AA")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1325dupA")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp insertion"
+    mut = MykrobeMutation.from_str("A1325ACT")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1325_1326insCT")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp insertion - duplication"
+    mut = MykrobeMutation.from_str("A1325AAA")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1325_1326insAA")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "1bp insertion - reference is two bases"
+    mut = MykrobeMutation.from_str("GC1112GGC")
+    gene = "ethA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1111_1112insG")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    # test promoter
+    test_name = "2bp insertion - promoter"
+    mut = MykrobeMutation.from_str("A-1325AAA")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.-1325_-1324insAA")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp insertion - promoter at gene boundary"
+    mut = MykrobeMutation.from_str("A-1ATG")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.-1_1insTG")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "2bp deletion - promoter at gene boundary"
+    mut = MykrobeMutation.from_str("AGT-1A")
+    gene = "pncA"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.1_2del")
+
+    assert actual == expected, (test_name, actual, expected)
+
+    test_name = "Substitution in promoter"
+    mut = MykrobeMutation.from_str("C-15T")
+    gene = "fabG1"
+    residue = Residue.Nucleic
+    var = MykrobeVariant(gene, mut, residue)
+    biotype = BioType.Coding
+
+    actual = var.convert(biotype)
+    expected = HgvsVariant(gene, "c.-15C>T")
+
+    assert actual == expected, (test_name, actual, expected)
 
     print("All tests pass")
 
