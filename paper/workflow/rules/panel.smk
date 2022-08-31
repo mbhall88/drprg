@@ -311,7 +311,7 @@ rule create_tbprofiler_db:
         panel=rules.mykrobe_to_hgvs.output.panel,
         db=rules.download_tbprofiler_db.output.db,
     output:
-        log=RESULTS / "tbprofiler/tbdb/tbdb.conversion.log",
+        log=touch(RESULTS / "tbprofiler/.db.built"),
     log:
         LOGS / "create_tbprofiler_db.log",
     conda:
