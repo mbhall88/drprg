@@ -188,3 +188,22 @@ def infer_drprg_reports(wildcards):
         files.append(p)
 
     return files
+
+
+def infer_tbprofiler_reports(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        p = (
+            RESULTS
+            / f"amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/results/{run}.results.json"
+        )
+        files.append(p)
+
+    return files

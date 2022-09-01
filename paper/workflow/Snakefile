@@ -1,9 +1,10 @@
 from collections import defaultdict
 from pathlib import Path
 from itertools import product
+from snakemake.utils import min_version
 import pandas as pd
 
-
+min_version("7.14.0")
 # =====================================
 # Workflow config items
 configfile: "config/config.yaml"
@@ -29,7 +30,7 @@ QC_DIR = Path(config["QC_dir"])
 MIN_ILLUMINA_COV = config["min_cov"]
 MIN_NANOPORE_COV = config["min_cov"]
 TECHS = ["nanopore", "illumina"]
-TOOLS = ["mykrobe", "drprg"]
+TOOLS = ["mykrobe", "drprg", "tbprofiler"]
 W = config["W"]
 K = config["K"]
 # =====================================
@@ -61,7 +62,6 @@ for w, k in WKS:
 for (tech, tool) in product(TECHS, TOOLS):
     target_files.add(RESULTS / f"amr_predictions/{tool}/{tech}/summary.csv")
 
-target_files.add(RESULTS / "tbprofiler/.db.built")
 # =====================================
 rule all:
     input:

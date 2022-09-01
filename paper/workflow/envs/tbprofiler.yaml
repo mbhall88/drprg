@@ -5,3 +5,5 @@ channels:
   - defaults
 dependencies:
   - tb-profiler =4.3.0
+  - seqfu =1.14
+  - bash >=4.0
