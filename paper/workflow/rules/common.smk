@@ -202,7 +202,7 @@ def infer_tbprofiler_reports(wildcards):
         sample = row["biosample"]
         p = (
             RESULTS
-            / f"amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/results/{run}.results.json"
+            / f"amr_predictions/tbprofiler/{wildcards.tech}/{proj}/{sample}/{run}/results/{run}.results.json"
         )
         files.append(p)
 
