@@ -85,6 +85,7 @@ rule drprg_predict:
             -i {input.reads} -o {params.outdir} -x {input.index} -t {threads} 2> {log}
         """
 
+
 rule combine_drprg_reports:
     input:
         reports=infer_drprg_reports,
@@ -97,6 +98,7 @@ rule combine_drprg_reports:
     script:
         str(SCRIPTS / "combine_drprg_reports.py")
 
+
 # ==========
 # TBProfiler
 # ==========
@@ -106,16 +108,50 @@ rule tbprofiler_predict:
         run_info=rules.aggregate_run_info.output.run_info,
         db=rules.create_tbprofiler_db.output[0],
     output:
-        report=RESULTS / "amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/results/{run}.results.json",
+        report=RESULTS
+        / "amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/results/{run}.results.json",
     log:
-        LOGS / "tbprofiler_predict/{tech}/{proj}/{sample}/{run}.log"
+        LOGS / "tbprofiler_predict/{tech}/{proj}/{sample}/{run}.log",
+    threads: 2
+    resources:
+        mem_mb=int(4 * GB),
     conda:
         str(ENVS / "tbprofiler.yaml")
     params:
         opts="--txt --no_trim -p {run}",
         outdir=lambda wildcards, output: Path(output.report).parent.parent,
-    script:
-        str(SCRIPTS / "tbprofiler_predict.sh")
+    shell:
+        """
+        exec 2> {log} # send all stderr from this script to the log file
+
+        reads={input.reads}
+        run_acc={wildcards.run}
+        run_info={input.run_info}
+
+        files_str=$(grep "$run_acc" "$run_info" | cut -f2)
+        IFS=';' read -r -a files <<< "$files_str"
+        n_files="${{#files[@]}}"
+
+        if [ "$n_files" -eq 2 ]; then
+            tmpout=$(mktemp -d)
+            prefix="${{tmpout}}/${{run_acc}}"
+            # we need to deinterleave the fastq file
+            seqfu deinterleave -o "$prefix" --check "$reads"
+            input_arg=("-1" "${{prefix}}_R1.fq" "-2" "${{prefix}}_R2.fq")
+        else
+            input_arg=("-1" "$reads")
+        fi
+
+        # shellcheck disable=SC2154
+        IFS=" " read -r -a opts <<< {params.opts}
+
+        if [ {wildcards.tech} = "nanopore" ]; then
+            opts+=("--platform" "nanopore")
+        fi
+
+        tb-profiler profile "${{input_arg[@]}}" "${{opts[@]}}" -t {threads} -d {params.outdir}
+
+        """
 
 
 rule combine_tbprofiler_reports:
