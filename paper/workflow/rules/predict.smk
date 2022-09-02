@@ -141,10 +141,7 @@ rule tbprofiler_predict:
             input_arg=("-1" "$reads")
         fi
 
-        # shellcheck disable=SC2154
-        IFS=" " read -r -a opts <<< {params.opts}
-
-        tb-profiler profile "${{input_arg[@]}}" "${{opts[@]}}" -t {threads} -d {params.outdir} --platform {wildcards.tech}
+        tb-profiler profile "${{input_arg[@]}}" {params.opts} -t {threads} -d {params.outdir} --platform {wildcards.tech}
 
         """
 
