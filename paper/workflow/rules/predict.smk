@@ -145,11 +145,7 @@ rule tbprofiler_predict:
         # shellcheck disable=SC2154
         IFS=" " read -r -a opts <<< {params.opts}
 
-        if [ {wildcards.tech} = "nanopore" ]; then
-            opts+=("--platform" "nanopore")
-        fi
-
-        tb-profiler profile "${{input_arg[@]}}" "${{opts[@]}}" -t {threads} -d {params.outdir}
+        tb-profiler profile "${{input_arg[@]}}" "${{opts[@]}}" -t {threads} -d {params.outdir} --platform {wildcards.tech}
 
         """
 
