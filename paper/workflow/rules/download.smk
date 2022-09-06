@@ -10,10 +10,10 @@ rule download_data:
         mem_mb=lambda wildcards, attempt: attempt * int(0.5 * GB),
     params:
         db="sra",
+    shadow:
+        "shallow"
     shell:
         "fastq-dl --outdir {output.outdir} {wildcards.run} {params.db} > {log} 2>&1"
-
-
 
 
 rule aggregate_run_info:
