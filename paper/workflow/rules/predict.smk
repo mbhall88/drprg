@@ -129,7 +129,7 @@ rule tbprofiler_predict:
         run_info={input.run_info}
 
         files_str=$(grep "$run_acc" "$run_info" | cut -f2)
-        n_files=$(awk -F \; '{{print NF-1}}' <<< "$files_str")
+        n_files=$(awk -F \; '{{print NF}}' <<< "$files_str")
 
         if [ "$n_files" -eq 2 ]; then
             tmpout=$(mktemp -d)
