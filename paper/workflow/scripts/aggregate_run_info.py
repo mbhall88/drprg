@@ -36,6 +36,7 @@ def main():
                 continue
 
             layout = data["library_layout"]
+            model = data["instrument_model"]
             fastqs = list(d.glob("*.fastq.gz"))
 
             if not all(p.exists() for p in fastqs):
@@ -84,7 +85,7 @@ def main():
             if data["tax_id"] != "1773":
                 eprint(f"[WARNING]: Got non-MTB tax ID for {run} - {data['tax_id']}")
 
-        out_data.append((run, files))
+        out_data.append((run, files, model))
 
     if wrong_platform:
         eprint(
@@ -97,7 +98,7 @@ def main():
         sys.exit(1)
 
     with open(snakemake.output.run_info, "w") as fp:
-        print(f"run{DELIM}layout", file=fp)
+        print(f"run{DELIM}layout{DELIM}model", file=fp)
         for t in out_data:
             print(DELIM.join(t), file=fp)
 
