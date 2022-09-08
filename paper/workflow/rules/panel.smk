@@ -302,12 +302,10 @@ rule mykrobe_to_hgvs:
     params:
         script=SCRIPTS / "mykrobe_to_hgvs.py",
         opts="-v",
-        frameshift_genes=",".join(
-            [f"{gene}:{drug}" for gene, drug in config["frameshift-genes"].items()]
-        ),
+        expert_rules=config["expert_rules"],
     shell:
         """
-        python {params.script} {params.opts} -F {params.frameshift_genes} \
+        python {params.script} {params.opts} -E {params.expert_rules} \
             -i {input.panel} -g {input.gff} -o {output.panel} 2> {log}
         """
 

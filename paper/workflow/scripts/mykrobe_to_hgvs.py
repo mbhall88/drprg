@@ -5,11 +5,13 @@ import argparse
 import logging
 import re
 import sys
+from collections import defaultdict
 from dataclasses import dataclass
 from difflib import SequenceMatcher
 from enum import Enum
 from itertools import repeat
 from pathlib import Path
+from typing import Optional
 
 BOUNDARY_RGX = re.compile(r"-\d+_\d+")
 PROMOTER_DUP_RGX = re.compile(r"-\d+dup[ACGT]")
@@ -239,6 +241,9 @@ class MykrobeVariant:
             abs(len(self.ref) - len(self.alt)) % 3 != 0
         )
 
+    def is_stop(self) -> bool:
+        return self.residue is Residue.Protein and self.alt == STOP
+
     def is_ambiguous(self) -> bool:
         return "X" in self.alt
 
@@ -388,6 +393,22 @@ def pos2codon(pos: int) -> int:
     return codon + 1
 
 
+class RuleType(Enum):
+    Missense = "missense"
+    Frameshift = "frame"
+    Nonsense = "nonsense"
+
+
+@dataclass
+class Rule:
+    rule_type: RuleType
+    gene: str
+    drug: str
+    start: Optional[int] = None  # 1-based inclusive
+    stop: Optional[int] = None  # 1-based inclusive
+    grade: Optional[int] = None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -415,12 +436,17 @@ def main():
         type=Path,
     )
     parser.add_argument(
-        "-F",
-        "--frameshift-genes",
-        type=lambda x: {k: v for k, v in (i.split(":") for i in x.split(","))},
+        "-E",
+        "--expert_rule",
+        type=Path,
         help=(
-            "comma-separated gene:drug pairs, e.g. katG:Isoniazid,pnca:Pyrazinamide "
-            "for which any frameshift means resistance"
+            "Comma-separated file with expert rules. The format of this file is type, gene, start, "
+            "stop, drugs (semi-colon (;) separated), grade. Valid types are missense, "
+            "frame (any frameshift indel), or nonsense (premature stop codon). If both "
+            "start and stop are empty, the whole "
+            "gene is used. If only start is given, then stop is considered the end of "
+            "the gene and vice versa. Start and stop are CODONS, not positions, and are "
+            "both 1-based inclusive. Grade is the (optional) grading to provide mutations arising from the rule"
         ),
     )
     parser.add_argument("--test", help=argparse.SUPPRESS, action="store_true")
@@ -440,6 +466,31 @@ def main():
     biotypes = load_biotypes(args.gff)
     logging.info(f"Loaded {len(biotypes)} gene biotypes")
 
+    logging.info("Loading expert rules")
+    gene2rules = defaultdict(list)
+    n_rules = 0
+    if args.expert_rules:
+        with args.expert_rules.open() as rules_fp:
+            for row in map(str.rstrip, rules_fp):
+                if row.startswith("type,"):  # header
+                    continue
+                fields = row.split(",")
+                start = int(fields[2]) if fields[2] else None
+                stop = int(fields[3]) if fields[3] else None
+                grade = int(fields[5]) if fields[5] else None
+                drug = fields[4]
+                rule = Rule(
+                    rule_type=RuleType(fields[0]),
+                    gene=fields[1],
+                    drug=drug,
+                    start=start,
+                    stop=stop,
+                    grade=grade,
+                )
+                gene2rules[rule.gene].append(rule)
+                n_rules += 1
+    logging.info(f"{n_rules} expert rules loaded")
+
     if args.output is None:
         args.output = 1
 
@@ -452,10 +503,27 @@ def main():
         print(",".join(HEADER), file=out_fp)
 
         # add frameshift genes
-        for gene, drug in args.frameshift_genes.items():
-            row = [gene, "frameshift", drug, "resistance", "", ""]
-            print(",".join(row), file=out_fp)
-            counter += 1
+        for gene, rules in gene2rules:
+            for rule in rules:
+                match rule.rule_type:
+                    case RuleType.Frameshift:
+                        if rule.start is None:
+                            tbp_name = "frameshift"
+                        else:
+                            tbp_name = f"any_indel_nucleotide_{rule.start}_{rule.stop}"
+                    case RuleType.Nonsense if rule.start is None:
+                        tbp_name = "premature_stop"
+                    case RuleType.Missense if rules.start is not None:
+                        tbp_name = f"any_missense_codon_{rule.start}_{rule.stop}"
+                    case _:
+                        logging.warning(
+                            f"Don't know how to handle rule: {rule}...skipping..."
+                        )
+                        continue
+
+                row = [gene, tbp_name, rule.drug, "resistance", "", ""]
+                print(",".join(row), file=out_fp)
+                counter += 1
 
         for row in map(str.strip, in_fp):
             if counter % 1000 == 0:
@@ -469,12 +537,40 @@ def main():
                 residue=Residue(fields[2]),
             )
 
-            # skip frameshifts as we add them at the gene level
-            if (
-                mykrobe_var.is_frameshift()
-                and mykrobe_var.gene in args.frameshift_genes
-            ):
-                continue
+            gene_rules = gene2rules.get(mykrobe_var.gene)
+            if gene_rules is not None:
+                is_covered_by_rule = False
+                for gene_rule in gene_rules:
+                    if mykrobe_var.residue is Residue.Protein:
+                        codon_pos = mykrobe_var.pos
+                    else:
+                        codon_pos = pos2codon(mykrobe_var.pos)
+                    if gene_rule.start is not None and (
+                        codon_pos < gene_rule.start or codon_pos > gene_rule.stop
+                    ):
+                        continue
+                    # skip frameshifts as we add them at the gene level
+                    if (
+                        mykrobe_var.is_frameshift()
+                        and gene_rule.rule_type is RuleType.Frameshift
+                    ):
+                        is_covered_by_rule = True
+                        break
+                    if (
+                        mykrobe_var.is_stop()
+                        and gene_rule.rule_type is RuleType.Nonsense
+                    ):
+                        is_covered_by_rule = True
+                        break
+                    if (
+                        mykrobe_var.is_ambiguous()
+                        and gene_rule.rule_type is RuleType.Missense
+                    ):
+                        is_covered_by_rule = True
+                        break
+
+                if is_covered_by_rule:
+                    continue
 
             biotype = biotypes.get(mykrobe_var.gene)
             if biotype is None:
