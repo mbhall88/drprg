@@ -513,7 +513,7 @@ def main():
                             tbp_name = f"any_indel_nucleotide_{rule.start}_{rule.stop}"
                     case RuleType.Nonsense if rule.start is None:
                         tbp_name = "premature_stop"
-                    case RuleType.Missense if rules.start is not None:
+                    case RuleType.Missense if rule.start is not None:
                         tbp_name = f"any_missense_codon_{rule.start}_{rule.stop}"
                     case _:
                         logging.warning(
