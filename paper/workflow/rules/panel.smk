@@ -302,14 +302,14 @@ rule mykrobe_to_hgvs:
     params:
         script=SCRIPTS / "mykrobe_to_hgvs.py",
         opts="-v",
-        frameshift_genes={
-            "pncA": "Pyrazinamide",
-            "katG": "Isoniazid",
-            "ethA": "Ethionamide",
-            "gid": "Streptomycin",
-        },
+        frameshift_genes=",".join(
+            [f"{gene}:{drug}" for gene, drug in config["frameshift-genes"].items()]
+        ),
     shell:
-        "python {params.script} {params.opts} -i {input.panel} -g {input.gff} -o {output.panel} 2> {log}"
+        """
+        python {params.script} {params.opts} -F {params.frameshift_genes} \
+            -i {input.panel} -g {input.gff} -o {output.panel} 2> {log}
+        """
 
 
 rule create_tbprofiler_db:

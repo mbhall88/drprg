@@ -106,8 +106,6 @@ PROTEIN_LETTERS_1TO3 = {
     STOP: STOP,
 }
 
-FRAMESHIFTS: dict[str, str] = snakemake.params.frameshift_genes
-
 
 class BioType(Enum):
     Other = "other"
@@ -416,6 +414,15 @@ def main():
         help="File to write hgvs panel to [default: stdout]",
         type=Path,
     )
+    parser.add_argument(
+        "-F",
+        "--frameshift-genes",
+        type=lambda x: {k: v for k, v in (i.split(":") for i in x.split(","))},
+        help=(
+            "comma-separated gene:drug pairs, e.g. katG:Isoniazid,pnca:Pyrazinamide "
+            "for which any frameshift means resistance"
+        ),
+    )
     parser.add_argument("--test", help=argparse.SUPPRESS, action="store_true")
     parser.add_argument("-v", "--verbose", action="store_true")
     args = parser.parse_args()
@@ -444,8 +451,8 @@ def main():
     with open(args.output, "w") as out_fp, open(args.panel) as in_fp:
         print(",".join(HEADER), file=out_fp)
 
-        # add framshift genes
-        for gene, drug in FRAMESHIFTS:
+        # add frameshift genes
+        for gene, drug in args.frameshift_genes.items():
             row = [gene, "frameshift", drug, "resistance", "", ""]
             print(",".join(row), file=out_fp)
             counter += 1
@@ -463,7 +470,10 @@ def main():
             )
 
             # skip frameshifts as we add them at the gene level
-            if mykrobe_var.is_frameshift() and mykrobe_var.gene in FRAMESHIFTS:
+            if (
+                mykrobe_var.is_frameshift()
+                and mykrobe_var.gene in args.frameshift_genes
+            ):
                 continue
 
             biotype = biotypes.get(mykrobe_var.gene)

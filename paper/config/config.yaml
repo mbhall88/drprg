@@ -42,6 +42,13 @@ filters:
     nanopore: 5
     illumina: 5
 
+# genes for which any frameshift causes resistance
+frameshift-genes:
+  katG: "Isoniazid"
+  pncA: "Pyrazinamide"
+  ethA: "Ethionamide"
+  gid:  "Streptomycin"
+
 containers:
   base:      "docker://bash:5.1"
   python:    "docker://python:3.10.4-slim-bullseye"
