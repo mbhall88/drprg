@@ -106,6 +106,8 @@ PROTEIN_LETTERS_1TO3 = {
     STOP: STOP,
 }
 
+FRAMESHIFTS: dict[str, str] = snakemake.params.frameshift_genes
+
 
 class BioType(Enum):
     Other = "other"
@@ -233,6 +235,11 @@ class MykrobeVariant:
 
     def is_indel(self) -> bool:
         return len(self.ref) != len(self.alt) and self.residue is Residue.Nucleic
+
+    def is_frameshift(self) -> bool:
+        return self.residue is Residue.Nucleic and (
+            abs(len(self.ref) - len(self.alt)) % 3 != 0
+        )
 
     def is_ambiguous(self) -> bool:
         return "X" in self.alt
@@ -436,6 +443,13 @@ def main():
     converted = dict()
     with open(args.output, "w") as out_fp, open(args.panel) as in_fp:
         print(",".join(HEADER), file=out_fp)
+
+        # add framshift genes
+        for gene, drug in FRAMESHIFTS:
+            row = [gene, "frameshift", drug, "resistance", "", ""]
+            print(",".join(row), file=out_fp)
+            counter += 1
+
         for row in map(str.strip, in_fp):
             if counter % 1000 == 0:
                 logging.debug(f"Converted {counter} variants...")
@@ -447,6 +461,11 @@ def main():
                 mutation=MykrobeMutation.from_str(fields[1]),
                 residue=Residue(fields[2]),
             )
+
+            # skip frameshifts as we add them at the gene level
+            if mykrobe_var.is_frameshift() and mykrobe_var.gene in FRAMESHIFTS:
+                continue
+
             biotype = biotypes.get(mykrobe_var.gene)
             if biotype is None:
                 raise KeyError(f"Could not find a gene biotype for {mykrobe_var.gene}")

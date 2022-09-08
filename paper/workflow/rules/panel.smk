@@ -302,6 +302,12 @@ rule mykrobe_to_hgvs:
     params:
         script=SCRIPTS / "mykrobe_to_hgvs.py",
         opts="-v",
+        frameshift_genes={
+            "pncA": "Pyrazinamide",
+            "katG": "Isoniazid",
+            "ethA": "Ethionamide",
+            "gid": "Streptomycin",
+        },
     shell:
         "python {params.script} {params.opts} -i {input.panel} -g {input.gff} -o {output.panel} 2> {log}"
 
