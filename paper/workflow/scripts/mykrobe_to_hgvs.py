@@ -437,7 +437,7 @@ def main():
     )
     parser.add_argument(
         "-E",
-        "--expert_rule",
+        "--expert_rules",
         type=Path,
         help=(
             "Comma-separated file with expert rules. The format of this file is type, gene, start, "
