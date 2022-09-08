@@ -503,7 +503,7 @@ def main():
         print(",".join(HEADER), file=out_fp)
 
         # add frameshift genes
-        for gene, rules in gene2rules:
+        for gene, rules in gene2rules.items():
             for rule in rules:
                 match rule.rule_type:
                     case RuleType.Frameshift:
