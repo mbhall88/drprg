@@ -242,7 +242,9 @@ class MykrobeVariant:
         )
 
     def is_stop(self) -> bool:
-        return self.residue is Residue.Protein and self.alt == STOP
+        return (
+            self.residue is Residue.Protein and self.alt == STOP
+        ) or CODON2AMINO.get(self.alt) == STOP
 
     def is_ambiguous(self) -> bool:
         return "X" in self.alt
