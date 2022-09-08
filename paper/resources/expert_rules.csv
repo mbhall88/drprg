@@ -1,0 +1,12 @@
+type,gene,start,nonsense,drugs,grade
+missense,rpoB,426,452,rifampicin,2
+nonsense,rpoB,426,452,rifampicin,2
+frame,rpoB,426,452,rifampicin,2
+nonsense,katG,,,isoniazid,2
+frame,katG,,,isoniazid,2
+nonsense,ethA,,,ethionamide,2
+frame,ethA,,,ethionamide,2
+nonsense,gid,,,streptomycin,2
+frame,gid,,,streptomycin,2
+nonsense,pncA,,,pyrazinamide,2
+frame,pncA,,,pyrazinamide,2
