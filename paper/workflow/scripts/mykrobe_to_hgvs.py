@@ -512,7 +512,10 @@ def main():
                         if rule.start is None:
                             tbp_name = "frameshift"
                         else:
-                            tbp_name = f"any_indel_nucleotide_{rule.start}_{rule.stop}"
+                            tbp_name = [
+                                f"any_indel_nucleotide_{i}"
+                                for i in range(rule.start, rule.stop + 1)
+                            ]
                     case RuleType.Nonsense if rule.start is None:
                         tbp_name = "premature_stop"
                     case RuleType.Missense if rule.start is not None:
@@ -523,9 +526,13 @@ def main():
                         )
                         continue
 
-                row = [gene, tbp_name, rule.drug, "resistance", "", ""]
-                print(",".join(row), file=out_fp)
-                counter += 1
+                if isinstance(tbp_name, str):
+                    tbp_name = [tbp_name]
+
+                for name in tbp_name:
+                    row = [gene, name, rule.drug, "resistance", "", ""]
+                    print(",".join(row), file=out_fp)
+                    counter += 1
 
         for row in map(str.strip, in_fp):
             if counter % 1000 == 0:
