@@ -114,7 +114,7 @@ rule tbprofiler_predict:
         LOGS / "tbprofiler_predict/{tech}/{proj}/{sample}/{run}.log",
     threads: 2
     resources:
-        mem_mb=int(4 * GB),
+        mem_mb=lambda wildcards, attempt: attempt * int(6 * GB),
     conda:
         str(ENVS / "tbprofiler.yaml")
     params:
