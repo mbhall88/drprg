@@ -516,7 +516,9 @@ def main():
                             # tbp_name = f"any_indel_nucleotide_{rule.start}_{rule.stop}"
                             continue
                     case RuleType.Nonsense if rule.start is None:
-                        tbp_name = "premature_stop"
+                        # tbprofiler doesnt seem to support this anymore?
+                        # tbp_name = "premature_stop"
+                        continue
                     case RuleType.Missense if rule.start is not None:
                         tbp_name = f"any_missense_codon_{rule.start}_{rule.stop}"
                     case _:
@@ -563,12 +565,12 @@ def main():
                             continue
                         is_covered_by_rule = True
                         break
-                    if (
-                        mykrobe_var.is_stop()
-                        and gene_rule.rule_type is RuleType.Nonsense
-                    ):
-                        is_covered_by_rule = True
-                        break
+                    # if (
+                    #     mykrobe_var.is_stop()
+                    #     and gene_rule.rule_type is RuleType.Nonsense
+                    # ):
+                    #     is_covered_by_rule = True
+                    #     break
                     if (
                         mykrobe_var.is_ambiguous()
                         and gene_rule.rule_type is RuleType.Missense
