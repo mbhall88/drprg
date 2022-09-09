@@ -512,10 +512,9 @@ def main():
                         if rule.start is None:
                             tbp_name = "frameshift"
                         else:
-                            tbp_name = [
-                                f"any_indel_nucleotide_{i}"
-                                for i in range(rule.start, rule.stop + 1)
-                            ]
+                            # this commented section doesn't work in tbprofiler
+                            # tbp_name = f"any_indel_nucleotide_{rule.start}_{rule.stop}"
+                            continue
                     case RuleType.Nonsense if rule.start is None:
                         tbp_name = "premature_stop"
                     case RuleType.Missense if rule.start is not None:
@@ -526,13 +525,9 @@ def main():
                         )
                         continue
 
-                if isinstance(tbp_name, str):
-                    tbp_name = [tbp_name]
-
-                for name in tbp_name:
-                    row = [gene, name, rule.drug, "resistance", "", ""]
-                    print(",".join(row), file=out_fp)
-                    counter += 1
+                row = [gene, tbp_name, rule.drug, "resistance", "", ""]
+                print(",".join(row), file=out_fp)
+                counter += 1
 
         for row in map(str.strip, in_fp):
             if counter % 1000 == 0:
@@ -563,6 +558,9 @@ def main():
                         mykrobe_var.is_frameshift()
                         and gene_rule.rule_type is RuleType.Frameshift
                     ):
+                        # a hacky shortcircuit until I can cover the RRDR with a blanket rule
+                        if mykrobe_var.gene == "rpoB":
+                            continue
                         is_covered_by_rule = True
                         break
                     if (
