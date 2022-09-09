@@ -58,7 +58,7 @@ with open(snakemake.output.report, "w") as fout:
             eprint(f"[WARNING] {run} has no susceptibility results")
             continue
 
-        for variant in variants:
+        for variant in report:
             for info in variant["drugs"]:
                 drug = info["drug"]
                 if info["confers"] != "resistance":
