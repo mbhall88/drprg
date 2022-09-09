@@ -287,7 +287,7 @@ rule download_tbprofiler_db:
         unzip -d {params.outdir} tbdb.zip 2>> {log}
         mv {params.outdir}/tbdb* {output.db} 2>> {log}
         # clear the other annotations file
-        > tbdb.other_annotations.csv
+        > {output.db}/tbdb.other_annotations.csv
         """
 
 
