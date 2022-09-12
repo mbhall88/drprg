@@ -1,7 +1,7 @@
 rule preprocessing:
     input:
         run_dir=rules.download_data.output.outdir,
-        run_info=rules.aggregate_run_info.output.run_info,
+        run_info=rules.validate_run_info.output.run_info,
     output:
         fastq=RESULTS / "preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz",
     threads: 2
@@ -81,7 +81,7 @@ rule map_to_decontam_db:
         mm2_index=rules.index_decontam_db_with_minimap2.output.index,
         ref=rules.index_decontam_db_with_bwa.input.fasta,
         reads=rules.preprocessing.output.fastq,
-        run_info=rules.aggregate_run_info.output.run_info,
+        run_info=rules.validate_run_info.output.run_info,
     output:
         bam=temp(RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam"),
         index=temp(RESULTS / "mapped/{tech}/{proj}/{sample}/{run}.sorted.bam.bai"),

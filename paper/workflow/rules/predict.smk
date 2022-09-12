@@ -105,7 +105,7 @@ rule combine_drprg_reports:
 rule tbprofiler_predict:
     input:
         reads=rules.extract_decontaminated_reads.output.reads,
-        run_info=rules.aggregate_run_info.output.run_info,
+        run_info=rules.validate_run_info.output.run_info,
         db=rules.create_tbprofiler_db.output[0],
     output:
         report=RESULTS
