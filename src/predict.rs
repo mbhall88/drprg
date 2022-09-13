@@ -180,6 +180,9 @@ pub struct Predict {
     ignore_synonymous: bool,
     #[clap(flatten)]
     filterer: Filterer,
+    /// Set the minimum cluster size in pandora
+    #[clap(short = 'C', long, hidden = true, default_value = "10")]
+    pandora_min_cluster_size: u16,
 }
 
 impl Runner for Predict {
@@ -214,7 +217,8 @@ impl Runner for Predict {
         }
         // safe to unwrap as we have already validated the index, which checks this
         let (w, k) = self.index_w_and_k().unwrap();
-        let mut args = vec!["-t", threads, "-w", &w, "-k", &k];
+        let c = self.pandora_min_cluster_size.to_string();
+        let mut args = vec!["-t", threads, "-w", &w, "-k", &k, "-c", &c];
         if self.is_illumina {
             args.push("-I");
         }
@@ -250,7 +254,7 @@ impl Runner for Predict {
         info!("Genotyping reads against the panel with pandora");
         // safe to unwrap as we have already validated the index, which checks this
         let (w, k) = self.index_w_and_k().unwrap();
-        let mut gt_args = vec!["-t", threads, "-w", &w, "-k", &k];
+        let mut gt_args = vec!["-t", threads, "-w", &w, "-k", &k, "-c", &c];
         if self.is_illumina {
             gt_args.push("-I");
         }
