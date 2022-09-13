@@ -46,7 +46,7 @@ def infer_mykrobe_reports(wildcards):
 
 
 def infer_drprg_tech_opts(wildcards) -> str:
-    return {"illumina": "-I"}.get(wildcards.tech, "")
+    return {"illumina": "-I -C 4"}.get(wildcards.tech, "")
 
 
 def infer_preprocessing_tech_opts(wildcards) -> str:
