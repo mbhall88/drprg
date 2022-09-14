@@ -536,7 +536,7 @@ def main():
                 logging.debug(f"Converted {counter} variants...")
 
             fields = row.split("\t")
-            drug = fields[-1]
+            drugs = fields[-1].split(",")
             mykrobe_var = MykrobeVariant(
                 gene=fields[0],
                 mutation=MykrobeMutation.from_str(fields[1]),
@@ -612,9 +612,10 @@ def main():
                     continue
 
                 converted[var] = hgvs_var
-                row = [hgvs_var.gene, hgvs_var.mutation, drug, "resistance", "", ""]
-                print(",".join(row), file=out_fp)
-                counter += 1
+                for d in drugs:
+                    row = [hgvs_var.gene, hgvs_var.mutation, d, "resistance", "", ""]
+                    print(",".join(row), file=out_fp)
+                    counter += 1
 
     logging.info(f"Finished converting {counter} variants")
     logging.info(f"Skipped {skipped_boundary} variants as they spanned a gene boundary")
