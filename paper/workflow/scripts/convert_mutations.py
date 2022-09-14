@@ -23,8 +23,7 @@ def main():
                 gene, var = mut.split("_")
                 alphabet = snakemake.params["new_alphabet"]
 
-            for drug in drugs:
-                print(DELIM.join([gene, var, alphabet, drug]), file=out_fp)
+            print(DELIM.join([gene, var, alphabet, ",".join(drugs)]), file=out_fp)
 
 
 main()
