@@ -44,9 +44,9 @@ with open(snakemake.output.report, "w") as fout:
     )
 
     for p in map(Path, snakemake.input.reports):
-        proj = p.parts[-3]
-        sample = p.parts[-2]
-        run = p.name.split(".")[0]
+        proj = p.parts[-5]
+        sample = p.parts[-4]
+        run = p.parts[-3]
         tech = snakemake.wildcards.tech
 
         fopen = gzip.open if p.suffix == ".gz" else open
@@ -58,10 +58,12 @@ with open(snakemake.output.report, "w") as fout:
             eprint(f"[WARNING] {run} has no susceptibility results")
             continue
 
+        seen_drugs = set()
+
         for variant in report:
             for info in variant["drugs"]:
                 drug = info["drug"]
-                if info["confers"] != "resistance":
+                if info["confers"] != "resistance" or drug in seen_drugs:
                     continue
                 print(
                     DELIM.join(
@@ -77,3 +79,4 @@ with open(snakemake.output.report, "w") as fout:
                     ),
                     file=fout,
                 )
+                seen_drugs.add(drug)
