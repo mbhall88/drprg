@@ -5,6 +5,8 @@ from snakemake.utils import min_version
 import pandas as pd
 
 min_version("7.14.0")
+
+
 # =====================================
 # Workflow config items
 configfile: "config/config.yaml"
@@ -59,8 +61,10 @@ for w, k in WKS:
             WK_WILDCARDS["k"].append(k)
 
 # target_files.add(PLOTS / "wk_sweep.png")
-for (tech, tool) in product(TECHS, TOOLS):
-    target_files.add(RESULTS / f"amr_predictions/{tool}/{tech}/summary.csv")
+
+for tech in TECHS:
+    target_files.add(TABLES / f"sn_sp/summary.{tech}.csv")
+
 
 # =====================================
 rule all:
@@ -88,3 +92,4 @@ include: RULES / "wk_sweep.smk"
 include: RULES / "download.smk"
 include: RULES / "qc.smk"
 include: RULES / "predict.smk"
+include: RULES / "report.smk"
