@@ -241,7 +241,7 @@ def main():
         cols = ["run", "drug", "classification", "tool"]
         df = pd.DataFrame(pheno_clf, columns=cols)
 
-        df.to_csv(snakemake.params.classification, index=False)
+        df.to_csv(snakemake.output.classification, index=False)
 
         cms = defaultdict()
 
