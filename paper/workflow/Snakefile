@@ -47,7 +47,7 @@ illumina_df = pd.read_csv(
 ).sample(n=n, random_state=seed)
 ont_df = pd.read_csv(
     config["nanopore_samplesheet"], index_col="run", low_memory=False
-).sample(n=n, random_state=seed)
+)
 
 # =====================================
 target_files = set()

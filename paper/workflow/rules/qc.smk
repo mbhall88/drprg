@@ -6,7 +6,7 @@ rule preprocessing:
         fastq=RESULTS / "preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz",
     threads: 2
     resources:
-        mem_mb=lambda wildcards, attempt: attempt * int(8 * GB),
+        mem_mb=lambda wildcards, attempt: attempt * int(16 * GB),
     log:
         LOGS / "preprocessing/{tech}/{proj}/{sample}/{run}.log",
     conda:
