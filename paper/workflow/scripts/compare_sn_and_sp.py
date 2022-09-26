@@ -377,12 +377,12 @@ def main():
         long2short = dict()
         for line in s.splitlines():
             ab, d = line.split()
-            long2short[d.capitalize()] = ab
+            long2short[d] = ab
 
         short2long = dict()
         for line in s.splitlines():
             ab, d = line.split()
-            short2long[ab] = d.capitalize()
+            short2long[ab] = d
 
         first_line = [short2long[d] for d in ["INH", "RIF", "EMB", "PZA"]]
         fluoroquinolones = [
@@ -399,11 +399,11 @@ def main():
         ]
 
         def sort_drugs(a):
-            xs = list(map(str.capitalize, drug_order))
+            xs = drug_order
             out = []
             c = Counter()
             for x in a:
-                i = xs.index(x.capitalize())
+                i = xs.index(x)
                 d = xs[i]
                 c[d] += 1
                 out.append((i, c[d]))
