@@ -190,18 +190,18 @@ def round_down_to_base(x, base=10):
 
 
 def main():
+    ignore_drugs = snakemake.params.ignore_drugs
     frames = []
     for p in snakemake.input.summary_files:
         frames.append(pd.read_csv(p))
     calls = pd.concat(frames)
     calls["drug"] = calls.drug.str.lower()
+    tools = sorted(set(calls["tool"]))
+    runs = set(calls["run"])
+    calls.query("drug not in @ignore_drugs", inplace=True)
     calls.set_index(
         ["run", "tool", "drug"], verify_integrity=True, inplace=True, drop=False
     )
-
-    tools = sorted(set(calls["tool"]))
-    runs = set(calls["run"])
-    ignore_drugs = snakemake.params.ignore_drugs
 
     phenotypes = pd.read_csv(
         snakemake.input.phenotypes, index_col="run", low_memory=False
@@ -228,9 +228,6 @@ def main():
             raise KeyError(f"{run} has no phenotype column for {drug}")
 
         ix = (run, tool, drug)
-        if drug.lower() in ignore_drugs:
-            continue
-
         drugs.add(drug)
         try:
             pred = calls.at[ix, "prediction"]

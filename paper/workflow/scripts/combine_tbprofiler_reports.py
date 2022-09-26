@@ -55,7 +55,20 @@ with open(snakemake.output.report, "w") as fout:
             report = load_susceptibility(fp)
 
         if not report:
-            eprint(f"[WARNING] {run} has no susceptibility results")
+            print(
+                DELIM.join(
+                    (
+                        run,
+                        sample,
+                        proj,
+                        tech,
+                        "tbprofiler",
+                        "all",
+                        "S",
+                    )
+                ),
+                file=fout,
+            )
             continue
 
         seen_drugs = set()
