@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 from itertools import product
 from math import sqrt
-from typing import Tuple
+from typing import Tuple, Optional
 
 import matplotlib.lines as mlines
 import matplotlib.pyplot as plt
@@ -140,7 +140,7 @@ class ConfusionMatrix:
         except ZeroDivisionError:
             return None, None, None
 
-    def mcc(self) -> float:
+    def mcc(self) -> Optional[float]:
         """Matthews correlation coefficient"""
         numerator = (self.tp * self.tn) - (self.fp * self.fn)
         denominator = (
@@ -149,7 +149,10 @@ class ConfusionMatrix:
             * (self.tn + self.fp)
             * (self.tn + self.fn)
         )
-        return numerator / sqrt(denominator)
+        try:
+            return numerator / sqrt(denominator)
+        except ZeroDivisionError:
+            return None
 
     @staticmethod
     def from_series(s: pd.Series) -> "ConfusionMatrix":
@@ -324,7 +327,7 @@ def main():
                     fp_str,
                     ci_str(sn),
                     ci_str(sp),
-                    mcc,
+                    mcc or "-",
                 )
             )
         pretty_cols = [
