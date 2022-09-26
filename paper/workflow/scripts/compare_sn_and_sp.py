@@ -406,7 +406,7 @@ def main():
             out = []
             c = Counter()
             for x in a:
-                i = xs.index(x)
+                i = xs.index(x.capitalize())
                 d = xs[i]
                 c[d] += 1
                 out.append((i, c[d]))
