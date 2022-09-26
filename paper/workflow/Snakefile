@@ -40,11 +40,14 @@ K = config["K"]
 inclusion_expr = f"illumina_covg >= {MIN_ILLUMINA_COV} and nanopore_covg >= {MIN_NANOPORE_COV} and lineage != 'mixed'"
 h2h_df = pd.read_csv(config["h2h_samplesheet"]).query(inclusion_expr)
 
-n = 200
-seed = 88
+illumina_subsample_runs = set()
+with open("config/illumina.sample") as fp:
+    for line in fp:
+        illumina_subsample_runs.add(line.strip())
+
 illumina_df = pd.read_csv(
     config["illumina_samplesheet"], index_col="run", low_memory=False
-).sample(n=n, random_state=seed)
+).loc[list(illumina_subsample_runs)]
 ont_df = pd.read_csv(
     config["nanopore_samplesheet"], index_col="run", low_memory=False
 )
