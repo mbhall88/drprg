@@ -136,3 +136,4 @@ tmp
 .ipynb_checkpoints/
 results/
 notepad.ipynb
+.DS_Store
