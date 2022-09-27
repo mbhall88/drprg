@@ -239,311 +239,301 @@ def main():
 
         pheno_clf.append((run, drug, str(clf), tool))
         cols = ["run", "drug", "classification", "tool"]
-        df = pd.DataFrame(pheno_clf, columns=cols)
+    df = pd.DataFrame(pheno_clf, columns=cols)
 
-        df.to_csv(snakemake.output.classification, index=False)
+    df.to_csv(snakemake.output.classification, index=False)
 
-        cms = defaultdict()
+    cms = defaultdict()
 
-        for drug, tool in product(drugs, tools):
-            s = df.query("drug == @drug and tool == @tool").value_counts(
-                subset=["classification"]
+    for drug, tool in product(drugs, tools):
+        s = df.query("drug == @drug and tool == @tool").value_counts(
+            subset=["classification"]
+        )
+        cm = ConfusionMatrix.from_series(s)
+        cms[(drug, tool)] = cm
+
+    metrics = []
+    for (drug, tool), cm in cms.items():
+        sn = cm.sensitivity()[0]
+        sp = cm.specificity()[0]
+        metrics.append((drug, tool, sn, sp))
+
+    summary_cols = [
+        "drug",
+        "tool",
+        "Sensitivity",
+        "Specificity",
+    ]
+
+    summary = pd.DataFrame(
+        metrics,
+        columns=summary_cols,
+    ).melt(id_vars=["drug", "tool"], var_name="metric")
+
+    table = (
+        summary.set_index(["drug", "tool", "metric"])["value"].unstack().reset_index()
+    )
+
+    for clf in ["TP", "FP", "FN", "TN"]:
+        table[clf] = 0
+
+    for i, row in table.iterrows():
+        ix = (row["drug"], row["tool"])
+        cm = cms[ix]
+        table.at[i, "TP"] = cm.tp
+        table.at[i, "FP"] = cm.fp
+        table.at[i, "TN"] = cm.tn
+        table.at[i, "FN"] = cm.fn
+
+    for k in ["drug", "tool"]:
+        table[k] = table[k].str.capitalize()
+
+    table.fillna("-", inplace=True)
+    summary_cols = [
+        "drug",
+        "tool",
+        "Sensitivity",
+        "Specificity",
+        "TP",
+        "TN",
+        "FN",
+        "FP",
+    ]
+    table = table[summary_cols]
+
+    rows = []
+    ci_str = (
+        lambda tup: f"{tup[0]:.1%} ({tup[1] * 100:.1f}-{tup[2]:.1%})"
+        if tup[0] is not None
+        else "-"
+    )
+    for i, row in table.iterrows():
+        cm = ConfusionMatrix(tp=row["TP"], fp=row["FP"], tn=row["TN"], fn=row["FN"])
+        sn = cm.sensitivity()
+        sp = cm.specificity()
+        mcc = cm.mcc()
+        fn_str = f"{cm.fn}({cm.num_positive()})"
+        fp_str = f"{cm.fp}({cm.num_negative()})"
+        rows.append(
+            (
+                row["drug"].capitalize(),
+                row["tool"],
+                fn_str,
+                fp_str,
+                ci_str(sn),
+                ci_str(sp),
+                mcc or "-",
             )
-            cm = ConfusionMatrix.from_series(s)
-            cms[(drug, tool)] = cm
+        )
+    pretty_cols = [
+        "Drug",
+        "Tool",
+        "FN(R)",
+        "FP(S)",
+        "Sensitivity (95% CI)",
+        "Specificity (95% CI)",
+        "MCC",
+    ]
+    table = pd.DataFrame(rows, columns=pretty_cols)
 
-        metrics = []
-        for (drug, tool), cm in cms.items():
-            sn = cm.sensitivity()[0]
-            sp = cm.specificity()[0]
-            metrics.append((drug, tool, sn, sp))
+    table.to_csv(snakemake.output.table, index=False)
 
-        summary_cols = [
-            "drug",
-            "tool",
-            "Sensitivity",
-            "Specificity",
+    sn_data = []
+    sp_data = []
+    for drug, tool in product(drugs, tools):
+        s = df.query("drug == @drug and tool == @tool").value_counts(
+            subset=["classification"]
+        )
+        cm = ConfusionMatrix.from_series(s)
+        sn = cm.sensitivity()
+        sp = cm.specificity()
+        sn_data.append((drug, tool, *sn))
+        sp_data.append((drug, tool, *sp))
+
+    sn_df = pd.DataFrame(sn_data, columns=["drug", "tool", "value", "lower", "upper"])
+    sp_df = pd.DataFrame(sp_data, columns=["drug", "tool", "value", "lower", "upper"])
+
+    s = """AMK amikacin
+    CAP capreomycin
+    CFX ciprofloxacin
+    DLM delamanid
+    EMB ethambutol
+    ETO ethionamide
+    INH isoniazid
+    KAN kanamycin
+    LFX levofloxacin
+    LZD linezolid
+    MFX moxifloxacin
+    OFX ofloxacin
+    PZA pyrazinamide
+    RIF rifampicin
+    STM streptomycin"""
+    long2short = dict()
+    for line in s.splitlines():
+        ab, d = line.split()
+        long2short[d] = ab
+
+    short2long = dict()
+    for line in s.splitlines():
+        ab, d = line.split()
+        short2long[ab] = d
+
+    first_line = [short2long[d] for d in ["INH", "RIF", "EMB", "PZA"]]
+    fluoroquinolones = [short2long[d] for d in ["LFX", "MFX", "OFX", "CFX"]]  # group A
+    macrolides = [
+        short2long[d] for d in ["AMK", "CAP", "KAN", "STM"]
+    ]  # group B - second-line injectables
+    other = [short2long[d] for d in ["ETO", "LZD", "DLM"]]  # group C and D
+    drug_order = [
+        d for d in [*first_line, *fluoroquinolones, *macrolides, *other] if d in drugs
+    ]
+
+    def sort_drugs(a):
+        xs = drug_order
+        out = []
+        c = Counter()
+        for x in a:
+            i = xs.index(x)
+            d = xs[i]
+            c[d] += 1
+            out.append((i, c[d]))
+        return out
+
+    sn_df = sn_df.sort_values(by="drug", key=sort_drugs).reset_index(drop=True)
+    sp_df = sp_df.sort_values(by="drug", key=sort_drugs).reset_index(drop=True)
+
+    # PLOT
+    fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
+
+    # plot details
+    bar_width = 0.2
+    epsilon = 0.05
+    fontsize = 12
+    rotate = 0
+    dodge = 0.1
+    capsize = 2
+    marker_alpha = 0.8
+    marker_size = 7
+    edge_alpha = 0.7
+    edgecol = to_rgba("black", alpha=edge_alpha)
+    edge_line_width = 1
+    sn_marker = snakemake.params.sn_marker
+    sp_marker = snakemake.params.sp_marker
+    legend_marker_size = 8
+
+    i = -1
+    all_positions = []
+    leghandles = []
+
+    for tool in tools:
+        i += 1
+        positions = [
+            (p - 1) + ((bar_width + epsilon) * i) for p in np.arange(len(drugs))
         ]
 
-        summary = pd.DataFrame(
-            metrics,
-            columns=summary_cols,
-        ).melt(id_vars=["drug", "tool"], var_name="metric")
+        all_positions.append(positions)
 
-        table = (
-            summary.set_index(["drug", "tool", "metric"])["value"]
-            .unstack()
-            .reset_index()
+        colour = to_rgba(CMAP[i], alpha=marker_alpha)
+        label = tool
+
+        tool_sp_df = sp_df.query("tool==@tool")
+        sp_ys = tool_sp_df["value"] * 100
+        sp_lb = sp_ys - tool_sp_df["lower"] * 100
+        sp_ub = tool_sp_df["upper"] * 100 - sp_ys
+        sp_ub = [min(100, x) for x in sp_ub]
+
+        plotprops = dict(
+            label=label,
+            color=colour,
+            capsize=capsize,
+            elinewidth=edge_line_width,
+            mec=edgecol,
+            markersize=marker_size,
         )
 
-        for clf in ["TP", "FP", "FN", "TN"]:
-            table[clf] = 0
-
-        for i, row in table.iterrows():
-            ix = (row["drug"], row["tool"])
-            cm = cms[ix]
-            table.at[i, "TP"] = cm.tp
-            table.at[i, "FP"] = cm.fp
-            table.at[i, "TN"] = cm.tn
-            table.at[i, "FN"] = cm.fn
-
-        for k in ["drug", "tool"]:
-            table[k] = table[k].str.capitalize()
-
-        table.fillna("-", inplace=True)
-        summary_cols = [
-            "drug",
-            "tool",
-            "Sensitivity",
-            "Specificity",
-            "TP",
-            "TN",
-            "FN",
-            "FP",
-        ]
-        table = table[summary_cols]
-
-        rows = []
-        ci_str = (
-            lambda tup: f"{tup[0]:.1%} ({tup[1] * 100:.1f}-{tup[2]:.1%})"
-            if tup[0] is not None
-            else "-"
-        )
-        for i, row in table.iterrows():
-            cm = ConfusionMatrix(tp=row["TP"], fp=row["FP"], tn=row["TN"], fn=row["FN"])
-            sn = cm.sensitivity()
-            sp = cm.specificity()
-            mcc = cm.mcc()
-            fn_str = f"{cm.fn}({cm.num_positive()})"
-            fp_str = f"{cm.fp}({cm.num_negative()})"
-            rows.append(
-                (
-                    row["drug"].capitalize(),
-                    row["tool"],
-                    fn_str,
-                    fp_str,
-                    ci_str(sn),
-                    ci_str(sp),
-                    mcc or "-",
-                )
-            )
-        pretty_cols = [
-            "Drug",
-            "Tool",
-            "FN(R)",
-            "FP(S)",
-            "Sensitivity (95% CI)",
-            "Specificity (95% CI)",
-            "MCC",
-        ]
-        table = pd.DataFrame(rows, columns=pretty_cols)
-
-        table.to_csv(snakemake.output.table, index=False)
-
-        sn_data = []
-        sp_data = []
-        for drug, tool in product(drugs, tools):
-            s = df.query("drug == @drug and tool == @tool").value_counts(
-                subset=["classification"]
-            )
-            cm = ConfusionMatrix.from_series(s)
-            sn = cm.sensitivity()
-            sp = cm.specificity()
-            sn_data.append((drug, tool, *sn))
-            sp_data.append((drug, tool, *sp))
-
-        sn_df = pd.DataFrame(
-            sn_data, columns=["drug", "tool", "value", "lower", "upper"]
-        )
-        sp_df = pd.DataFrame(
-            sp_data, columns=["drug", "tool", "value", "lower", "upper"]
+        sp_bar = ax.errorbar(
+            x=positions, y=sp_ys, yerr=[sp_lb, sp_ub], fmt=sp_marker, **plotprops
         )
 
-        s = """AMK amikacin
-        CAP capreomycin
-        CFX ciprofloxacin
-        DLM delamanid
-        EMB ethambutol
-        ETO ethionamide
-        INH isoniazid
-        KAN kanamycin
-        LFX levofloxacin
-        LZD linezolid
-        MFX moxifloxacin
-        OFX ofloxacin
-        PZA pyrazinamide
-        RIF rifampicin
-        STM streptomycin"""
-        long2short = dict()
-        for line in s.splitlines():
-            ab, d = line.split()
-            long2short[d] = ab
+        tool_sn_df = sn_df.query("tool==@tool")
+        sn_ys = tool_sn_df["value"] * 100
+        sn_lb = sn_ys - tool_sn_df["lower"] * 100
+        sn_ub = tool_sn_df["upper"] * 100 - sn_ys
 
-        short2long = dict()
-        for line in s.splitlines():
-            ab, d = line.split()
-            short2long[ab] = d
-
-        first_line = [short2long[d] for d in ["INH", "RIF", "EMB", "PZA"]]
-        fluoroquinolones = [
-            short2long[d] for d in ["LFX", "MFX", "OFX", "CFX"]
-        ]  # group A
-        macrolides = [
-            short2long[d] for d in ["AMK", "CAP", "KAN", "STM"]
-        ]  # group B - second-line injectables
-        other = [short2long[d] for d in ["ETO", "LZD", "DLM"]]  # group C and D
-        drug_order = [
-            d
-            for d in [*first_line, *fluoroquinolones, *macrolides, *other]
-            if d in drugs
-        ]
-
-        def sort_drugs(a):
-            xs = drug_order
-            out = []
-            c = Counter()
-            for x in a:
-                i = xs.index(x)
-                d = xs[i]
-                c[d] += 1
-                out.append((i, c[d]))
-            return out
-
-        sn_df = sn_df.sort_values(by="drug", key=sort_drugs).reset_index(drop=True)
-        sp_df = sp_df.sort_values(by="drug", key=sort_drugs).reset_index(drop=True)
-
-        # PLOT
-        fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
-
-        # plot details
-        bar_width = 0.2
-        epsilon = 0.05
-        fontsize = 12
-        rotate = 0
-        dodge = 0.1
-        capsize = 2
-        marker_alpha = 0.8
-        marker_size = 7
-        edge_alpha = 0.7
-        edgecol = to_rgba("black", alpha=edge_alpha)
-        edge_line_width = 1
-        sn_marker = snakemake.params.sn_marker
-        sp_marker = snakemake.params.sp_marker
-        legend_marker_size = 8
-
-        i = -1
-        all_positions = []
-        leghandles = []
-
-        for tool in tools:
-            i += 1
-            positions = [
-                (p - 1) + ((bar_width + epsilon) * i) for p in np.arange(len(drugs))
-            ]
-
-            all_positions.append(positions)
-
-            colour = to_rgba(CMAP[i], alpha=marker_alpha)
-            label = tool
-
-            tool_sp_df = sp_df.query("tool==@tool")
-            sp_ys = tool_sp_df["value"] * 100
-            sp_lb = sp_ys - tool_sp_df["lower"] * 100
-            sp_ub = tool_sp_df["upper"] * 100 - sp_ys
-            sp_ub = [min(100, x) for x in sp_ub]
-
-            plotprops = dict(
-                label=label,
-                color=colour,
-                capsize=capsize,
-                elinewidth=edge_line_width,
-                mec=edgecol,
-                markersize=marker_size,
-            )
-
-            sp_bar = ax.errorbar(
-                x=positions, y=sp_ys, yerr=[sp_lb, sp_ub], fmt=sp_marker, **plotprops
-            )
-
-            tool_sn_df = sn_df.query("tool==@tool")
-            sn_ys = tool_sn_df["value"] * 100
-            sn_lb = sn_ys - tool_sn_df["lower"] * 100
-            sn_ub = tool_sn_df["upper"] * 100 - sn_ys
-
-            sn_bar = ax.errorbar(
-                x=[p - dodge for p in positions],
-                y=sn_ys,
-                yerr=[sn_lb, sn_ub],
-                fmt=sn_marker,
-                **plotprops,
-            )
-
-            h = mlines.Line2D(
-                [],
-                [],
-                color=CMAP[i],
-                marker=sp_marker,
-                markersize=legend_marker_size,
-                label=label,
-            )
-            leghandles.append(h)
-
-        labels = [long2short[d] for d in drug_order]
-        label_pos = [np.mean(ps) for ps in zip(*all_positions)]
-        plt.xticks(label_pos, labels, rotation=rotate, fontsize=fontsize)
-        ax.set_ylabel("Sensitivity/Specificity (%)")
-        yticks = [0, 10, 30, 40, 50, 60, 70, 80, 85, 90, 95, 100]
-        ax.set_yticks(yticks)
-        ax.set_yticklabels(yticks)
-        ax.set_xticks(label_pos)
-        ax.set_xticklabels(ax.get_xticklabels(), rotation=rotate, fontsize=fontsize)
-        ax.tick_params("both", labelsize=fontsize)
-
-        leghandles.append(
-            mlines.Line2D(
-                [],
-                [],
-                color="black",
-                marker=sn_marker,
-                markersize=legend_marker_size,
-                label="Sensitivity",
-            )
-        )
-        leghandles.append(
-            mlines.Line2D(
-                [],
-                [],
-                color="black",
-                marker=sp_marker,
-                markersize=legend_marker_size,
-                label="Specificity",
-            )
+        sn_bar = ax.errorbar(
+            x=[p - dodge for p in positions],
+            y=sn_ys,
+            yerr=[sn_lb, sn_ub],
+            fmt=sn_marker,
+            **plotprops,
         )
 
-        legend_props = dict(
-            loc="upper center",
-            prop=dict(size=fontsize),
-            frameon=False,
-            ncol=len(leghandles),
+        h = mlines.Line2D(
+            [],
+            [],
+            color=CMAP[i],
+            marker=sp_marker,
+            markersize=legend_marker_size,
+            label=label,
         )
-        ax.legend(handles=leghandles, bbox_to_anchor=(0.5, 1.05), **legend_props)
+        leghandles.append(h)
 
-        ax.grid(
-            False,
-            axis="x",
+    labels = [long2short[d] for d in drug_order]
+    label_pos = [np.mean(ps) for ps in zip(*all_positions)]
+    plt.xticks(label_pos, labels, rotation=rotate, fontsize=fontsize)
+    ax.set_ylabel("Sensitivity/Specificity (%)")
+    yticks = [0, 10, 30, 40, 50, 60, 70, 80, 85, 90, 95, 100]
+    ax.set_yticks(yticks)
+    ax.set_yticklabels(yticks)
+    ax.set_xticks(label_pos)
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=rotate, fontsize=fontsize)
+    ax.tick_params("both", labelsize=fontsize)
+
+    leghandles.append(
+        mlines.Line2D(
+            [],
+            [],
+            color="black",
+            marker=sn_marker,
+            markersize=legend_marker_size,
+            label="Sensitivity",
         )
-        # draw line between drug bars
-        for xpos in all_positions[-1]:
-            vpos = xpos + epsilon + bar_width
-            ax.axvline(vpos, color="white", linestyle="-", alpha=1, linewidth=6)
+    )
+    leghandles.append(
+        mlines.Line2D(
+            [],
+            [],
+            color="black",
+            marker=sp_marker,
+            markersize=legend_marker_size,
+            label="Specificity",
+        )
+    )
 
-        xlim = (all_positions[0][0] - (epsilon + bar_width), vpos + epsilon)
-        ax.set_xlim(xlim)
-        _ = ax.set_xlabel("Drug", fontsize=fontsize + 2)
-        plt.tight_layout()
-        
-        for plot in snakemake.output.plots:
-            fig.savefig(plot)
+    legend_props = dict(
+        loc="upper center",
+        prop=dict(size=fontsize),
+        frameon=False,
+        ncol=len(leghandles),
+    )
+    ax.legend(handles=leghandles, bbox_to_anchor=(0.5, 1.05), **legend_props)
+
+    ax.grid(
+        False,
+        axis="x",
+    )
+    # draw line between drug bars
+    for xpos in all_positions[-1]:
+        vpos = xpos + epsilon + bar_width
+        ax.axvline(vpos, color="white", linestyle="-", alpha=1, linewidth=6)
+
+    xlim = (all_positions[0][0] - (epsilon + bar_width), vpos + epsilon)
+    ax.set_xlim(xlim)
+    _ = ax.set_xlabel("Drug", fontsize=fontsize + 2)
+    plt.tight_layout()
+
+    for plot in snakemake.output.plots:
+        fig.savefig(plot)
 
 
 if __name__ == "__main__":
