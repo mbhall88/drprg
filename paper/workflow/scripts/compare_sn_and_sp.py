@@ -540,8 +540,10 @@ def main():
         xlim = (all_positions[0][0] - (epsilon + bar_width), vpos + epsilon)
         ax.set_xlim(xlim)
         _ = ax.set_xlabel("Drug", fontsize=fontsize + 2)
-
-        fig.savefig(snakemake.output.plot)
+        plt.tight_layout()
+        
+        for plot in snakemake.output.plots:
+            fig.savefig(plot)
 
 
 if __name__ == "__main__":
