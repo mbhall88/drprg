@@ -313,6 +313,10 @@ def main():
         sn = cm.sensitivity()
         sp = cm.specificity()
         mcc = cm.mcc()
+        if mcc is not None:
+            mcc = round(mcc, 3)
+        else:
+            mcc = "-"
         fn_str = f"{cm.fn}({cm.num_positive()})"
         fp_str = f"{cm.fp}({cm.num_negative()})"
         rows.append(
@@ -323,7 +327,7 @@ def main():
                 fp_str,
                 ci_str(sn),
                 ci_str(sp),
-                mcc or "-",
+                mcc,
             )
         )
     pretty_cols = [

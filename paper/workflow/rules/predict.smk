@@ -23,6 +23,7 @@ rule mykrobe_predict:
                 "-D 0.20",
                 "--species tb",
                 "--sample {run}",
+                "--model median_depth",
             ]
         ),
         tech_opts=infer_mykrobe_tech_opts,
@@ -110,8 +111,12 @@ rule tbprofiler_predict:
     output:
         report=RESULTS
         / "amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/results/{run}.results.json",
+        vcf=RESULTS
+        / "amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/vcf/{run}.targets.csq.vcf.gz",
     log:
         LOGS / "tbprofiler_predict/{tech}/{proj}/{sample}/{run}.log",
+    shadow:
+        "shallow"
     threads: 2
     resources:
         mem_mb=lambda wildcards, attempt: attempt * int(6 * GB),
