@@ -23,7 +23,6 @@ rule mykrobe_predict:
                 "-D 0.20",
                 "--species tb",
                 "--sample {run}",
-                "--model median_depth",
             ]
         ),
         tech_opts=infer_mykrobe_tech_opts,
