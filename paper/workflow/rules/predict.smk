@@ -57,8 +57,8 @@ rule drprg_predict:
         reads=rules.extract_decontaminated_reads.output.reads,
         index=RESULTS / f"drprg/index/w{W}/k{K}",
     output:
-        report=RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}.drprg.json",
-        vcf=RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}.drprg.bcf",
+        report=RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}/{run}.drprg.json",
+        vcf=RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}/{run}.drprg.bcf",
     shadow:
         "shallow"
     resources:
