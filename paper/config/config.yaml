@@ -1,6 +1,6 @@
 population_vcf:       "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
 padding:              100  # number of bases to add to the end and start of each gene/PRG
-match_len:            7  # minimum match length parameter to use in make_prg
+match_len:            5  # minimum match length parameter to use in make_prg
 illumina_samplesheet: "config/illumina.samplesheet.csv"
 nanopore_samplesheet: "config/nanopore.samplesheet.csv"
 h2h_samplesheet:      "config/h2h.samplesheet.csv"
@@ -37,7 +37,7 @@ K:                    15
 filters:
   min_covg:        3
   min_strand_bias: 0.01
-  min_frs:         0.7
+  min_frs:         0.6
   max_indel:       20
   min_gt_conf:
     nanopore: 5
