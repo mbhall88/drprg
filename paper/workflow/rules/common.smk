@@ -183,7 +183,7 @@ def infer_drprg_reports(wildcards):
         sample = row["biosample"]
         p = (
             RESULTS
-            / f"amr_predictions/drprg/{wildcards.tech}/{proj}/{sample}/{run}.drprg.json"
+            / f"amr_predictions/drprg/{wildcards.tech}/{proj}/{sample}/{run}/{run}.drprg.json"
         )
         files.append(p)
 
