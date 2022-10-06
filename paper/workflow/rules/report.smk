@@ -5,9 +5,24 @@ rule compare_sn_and_sp:
         ),
         phenotypes=lambda wildcards: config[f"{wildcards.tech}_samplesheet"],
     output:
-        plots=multiext(str(PLOTS / "sn_sp/{tech}"), ".png", ".svg"),
-        table=TABLES / "sn_sp/summary.{tech}.csv",
-        classification=TABLES / "sn_sp/classifications.{tech}.csv",
+        plots=report(
+            multiext(str(PLOTS / "sn_sp/{tech}"), ".png", ".svg"),
+            category="Sn/Sp",
+            subcategory="Figure",
+            labels={"Technology": "{tech}"},
+        ),
+        table=report(
+            TABLES / "sn_sp/summary.{tech}.csv",
+            category="Sn/Sp",
+            subcategory="Tables",
+            labels={"Technology": "{tech}", "Table": "Summary"},
+        ),
+        classification=report(
+            TABLES / "sn_sp/classifications.{tech}.csv",
+            category="Sn/Sp",
+            subcategory="Tables",
+            labels={"Technology": "{tech}", "Table": "Classifications"},
+        ),
     log:
         LOGS / "compare_sn_and_sp/{tech}.log",
     params:
