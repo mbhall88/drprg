@@ -435,6 +435,27 @@ impl Predict {
                             } else {
                                 prediction = Prediction::Unknown
                             }
+                            let ev = self.consequence(&record).context(format!(
+                                "Failed to find the consequence of novel variant {}",
+                                record.id().to_str_lossy()
+                            ))?;
+                            let vid_str = vid.to_str_lossy();
+                            let (drugs, _) = &panel.get(&*vid_str).unwrap();
+                            let csqs = ev.atomise();
+                            for csq in csqs {
+                                let csq_str =
+                                    format!("{}_{}", csq.gene, csq.variant);
+                                if csq_str == vid_str {
+                                    if !drugs.contains(NONE_DRUG) {
+                                        prediction = Prediction::Resistant;
+                                        record_has_match_in_idx = true;
+                                        break;
+                                    } else {
+                                        prediction = Prediction::Susceptible;
+                                        break;
+                                    }
+                                }
+                            }
                         }
                         Some(i) if i > 0 => {
                             record_has_match_in_idx = true;
@@ -602,7 +623,7 @@ impl Predict {
 
             if has_unknown && !self.no_unknown && record.called_allele() > 0 {
                 let ev = self.consequence(&record).context(format!(
-                    "Failed to find consequence of novel variant {}",
+                    "Failed to find the consequence of novel variant {}",
                     record.id().to_str_lossy()
                 ))?;
 

@@ -183,6 +183,12 @@ impl Variant {
             self.clone()
         }
     }
+    pub fn is_indel(&self) -> bool {
+        self.new.len() != self.reference.len()
+    }
+    pub fn is_snp(&self) -> bool {
+        self.reference.len() == 1 && self.new.len() == 1
+    }
 }
 
 impl fmt::Display for Variant {
@@ -1163,6 +1169,48 @@ mod tests {
         let actual = record.all_alt_alleles().unwrap_err();
         let expected = PanelError::MultiAminoAlleleNotSupported(record.name());
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_variant_is_indel_snp() {
+        let v = Variant::from_str("A4T").unwrap();
+        assert!(!v.is_indel())
+    }
+
+    #[test]
+    fn test_variant_is_indel_mnp() {
+        let v = Variant::from_str("AA4TA").unwrap();
+        assert!(!v.is_indel())
+    }
+
+    #[test]
+    fn test_variant_is_indel_deletion() {
+        let v = Variant::from_str("AA4A").unwrap();
+        assert!(v.is_indel())
+    }
+
+    #[test]
+    fn test_variant_is_indel_insertion() {
+        let v = Variant::from_str("AA4ACGT").unwrap();
+        assert!(v.is_indel())
+    }
+
+    #[test]
+    fn test_variant_is_snp_insertion() {
+        let v = Variant::from_str("AA4ACGT").unwrap();
+        assert!(!v.is_snp())
+    }
+
+    #[test]
+    fn test_variant_is_snp_snp() {
+        let v = Variant::from_str("A4T").unwrap();
+        assert!(v.is_snp())
+    }
+
+    #[test]
+    fn test_variant_is_snp_mnp() {
+        let v = Variant::from_str("AA4GT").unwrap();
+        assert!(!v.is_snp())
     }
 
     #[test]

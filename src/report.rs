@@ -1,6 +1,7 @@
 use crate::panel::{Residue, Variant};
 use crate::predict::Prediction;
 use serde_derive::{Deserialize, Serialize};
+use std::str::FromStr;
 
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Susceptibility {
@@ -19,6 +20,36 @@ impl Evidence {
     pub fn is_synonymous(&self) -> bool {
         self.residue == Residue::Amino && self.variant.reference == self.variant.new
     }
+    pub fn atomise(&self) -> Vec<Self> {
+        if self.variant.is_snp() || self.variant.is_indel() {
+            return vec![self.to_owned()];
+        }
+
+        let mut v = vec![];
+
+        for (i, (r, a)) in self
+            .variant
+            .reference
+            .chars()
+            .zip(self.variant.new.chars())
+            .enumerate()
+        {
+            // we unwrap here as we know we have valid data
+            let var = Variant::from_str(
+                format!("{}{}{}", r, self.variant.pos + i as i64, a).as_str(),
+            )
+            .unwrap();
+            let ev = Evidence {
+                variant: var,
+                gene: self.gene.to_owned(),
+                residue: self.residue.to_owned(),
+                vcfid: self.vcfid.to_owned(),
+            };
+            v.push(ev);
+        }
+
+        v
+    }
 }
 
 #[cfg(test)]
@@ -28,6 +59,103 @@ mod tests {
 
     fn remove_whitespace(s: &str) -> String {
         s.split_whitespace().collect()
+    }
+
+    #[test]
+    fn evidence_atomise_snp_returns_vec_of_same() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4A").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.atomise();
+        let expected = vec![ev];
+
+        assert_eq!(actual, expected)
+    }
+    #[test]
+    fn evidence_atomise_mnp_returns_vec_of_snps() {
+        let ev = Evidence {
+            variant: Variant::from_str("AG4AT").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.atomise();
+        let expected = vec![
+            Evidence {
+                variant: Variant::from_str("A4A").unwrap(),
+                gene: "inhA".to_string(),
+                residue: Residue::Nucleic,
+                vcfid: "abcd1234".to_string(),
+            },
+            Evidence {
+                variant: Variant::from_str("G5T").unwrap(),
+                gene: "inhA".to_string(),
+                residue: Residue::Nucleic,
+                vcfid: "abcd1234".to_string(),
+            },
+        ];
+
+        assert_eq!(actual, expected)
+    }
+    #[test]
+    fn evidence_atomise_indel_returns_vec_of_same() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4CA").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.atomise();
+        let expected = vec![ev];
+
+        assert_eq!(actual, expected)
+    }
+    #[test]
+    fn evidence_atomise_single_amino_change_returns_vec_of_same() {
+        let ev = Evidence {
+            variant: Variant::from_str("D94G").unwrap(),
+            gene: "gyrA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.atomise();
+        let expected = vec![ev];
+
+        assert_eq!(actual, expected)
+    }
+    #[test]
+    fn evidence_atomise_multi_amino_change_returns_vec_of_single_amino_changes() {
+        let ev = Evidence {
+            variant: Variant::from_str("DS94GT").unwrap(),
+            gene: "gyrA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.atomise();
+        let expected = vec![
+            Evidence {
+                variant: Variant::from_str("D94G").unwrap(),
+                gene: "gyrA".to_string(),
+                residue: Residue::Amino,
+                vcfid: "abcd1234".to_string(),
+            },
+            Evidence {
+                variant: Variant::from_str("S95T").unwrap(),
+                gene: "gyrA".to_string(),
+                residue: Residue::Amino,
+                vcfid: "abcd1234".to_string(),
+            },
+        ];
+
+        assert_eq!(actual, expected)
     }
 
     #[test]
