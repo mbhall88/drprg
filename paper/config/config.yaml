@@ -47,7 +47,7 @@ containers:
   base:      "docker://bash:5.1"
   python:    "docker://python:3.10.4-slim-bullseye"
   mafft:     "docker://quay.io/biocontainers/mafft:7.475--h516909a_0"
-  drprg:     "docker://quay.io/mbhall88/drprg:e81bfc1"
+  drprg:     "docker://quay.io/mbhall88/drprg:1731863"
   samtools:  "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
   bcftools:  "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
   fastq_dl:  "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
