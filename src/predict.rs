@@ -443,8 +443,7 @@ impl Predict {
                             let (drugs, _) = &panel.get(&*vid_str).unwrap();
                             let csqs = ev.atomise();
                             for csq in csqs {
-                                let csq_str =
-                                    format!("{}_{}", csq.gene, csq.variant);
+                                let csq_str = format!("{}_{}", csq.gene, csq.variant);
                                 if csq_str == vid_str {
                                     if !drugs.contains(NONE_DRUG) {
                                         prediction = Prediction::Resistant;
