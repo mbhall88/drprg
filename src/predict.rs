@@ -443,8 +443,15 @@ impl Predict {
                             let (drugs, _) = &panel.get(&*vid_str).unwrap();
                             let csqs = ev.atomise();
                             for csq in csqs {
+                                let is_x_mutation = vid_str.ends_with('X');
                                 let csq_str = format!("{}_{}", csq.gene, csq.variant);
-                                if csq_str == vid_str {
+                                let csq_matches_variant = if is_x_mutation {
+                                    csq_str[..csq_str.len() - 1]
+                                        == vid_str[..vid_str.len() - 1]
+                                } else {
+                                    csq_str == vid_str
+                                };
+                                if csq_matches_variant {
                                     if !drugs.contains(NONE_DRUG) {
                                         prediction = Prediction::Resistant;
                                         record_has_match_in_idx = true;
