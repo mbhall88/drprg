@@ -14,6 +14,8 @@ rule mykrobe_predict:
         CONTAINERS["mykrobe"]
     log:
         LOGS / "mykrobe_predict/{tech}/{proj}/{sample}/{run}.log",
+    benchmark:
+        BENCH / "predict/mykrobe/{tech}/{proj}/{sample}/{run}.tsv"
     params:
         opts=" ".join(
             [
@@ -65,6 +67,8 @@ rule drprg_predict:
         mem_mb=lambda wildcards, attempt: attempt * 4 * GB,
     container:
         CONTAINERS["drprg"]
+    benchmark:
+        BENCH / "predict/drprg/{tech}/{proj}/{sample}/{run}.tsv"
     log:
         LOGS / "drprg_predict/{tech}/{proj}/{sample}/{run}.log",
     params:
@@ -124,6 +128,8 @@ rule tbprofiler_predict:
     params:
         opts="--txt --no_trim -p {run}",
         outdir=lambda wildcards, output: Path(output.report).parent.parent,
+    benchmark:
+        BENCH / "predict/tbprofiler/{tech}/{proj}/{sample}/{run}.tsv"
     shell:
         """
         exec 2> {log} # send all stderr from this script to the log file
