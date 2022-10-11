@@ -395,6 +395,13 @@ def pos2codon(pos: int) -> int:
     return codon + 1
 
 
+def codon2pos(codon: int) -> int:
+    """Convert a (one-based) codon position to a (one-based) genome position"""
+    codon -= 1
+    pos = codon * 3
+    return pos + 1
+
+
 class RuleType(Enum):
     Missense = "missense"
     Frameshift = "frame"
@@ -507,10 +514,11 @@ def main():
         # add frameshift genes
         for gene, rules in gene2rules.items():
             for rule in rules:
+                tbp_names = []
                 match rule.rule_type:
                     case RuleType.Frameshift:
                         if rule.start is None:
-                            tbp_name = "frameshift"
+                            tbp_names.append("frameshift")
                         else:
                             # this commented section doesn't work in tbprofiler
                             # tbp_name = f"any_indel_nucleotide_{rule.start}_{rule.stop}"
@@ -520,16 +528,19 @@ def main():
                         # tbp_name = "premature_stop"
                         continue
                     case RuleType.Missense if rule.start is not None:
-                        tbp_name = f"any_missense_codon_{rule.start}_{rule.stop}"
+                        # tbprofiler wants individual codons
+                        for p in range(rule.start, rule.stop + 1):
+                            tbp_names.append(f"any_missense_codon_{p}")
                     case _:
                         logging.warning(
                             f"Don't know how to handle rule: {rule}...skipping..."
                         )
                         continue
 
-                row = [gene, tbp_name, rule.drug, "resistance", "", ""]
-                print(",".join(row), file=out_fp)
-                counter += 1
+                for tbp_name in tbp_names:
+                    row = [gene, tbp_name, rule.drug, "resistance", "", ""]
+                    print(",".join(row), file=out_fp)
+                    counter += 1
 
         for row in map(str.strip, in_fp):
             if counter % 1000 == 0:
