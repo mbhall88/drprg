@@ -81,4 +81,4 @@ rule plot_predict_benchmark:
         figsize=(13, 8),
         stats_test="Wilcoxon",
     script:
-        SCRIPTS / "plot_predict_benchmark.py"
+        str(SCRIPTS / "plot_predict_benchmark.py")
