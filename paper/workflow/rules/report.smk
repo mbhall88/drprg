@@ -73,7 +73,7 @@ rule plot_predict_benchmark:
     log:
         LOGS / "plot_predict_benchmark/{tech}.log",
     conda:
-        ENVS / "plot_predict_benchmark.yaml"
+        str(ENVS / "plot_predict_benchmark.yaml")
     params:
         fontsize=14,
         palette="Set2",
