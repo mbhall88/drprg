@@ -4,7 +4,7 @@ from itertools import product
 from snakemake.utils import min_version
 import pandas as pd
 
-min_version("7.14.0")
+min_version("7.14.1")
 
 
 # =====================================
@@ -49,9 +49,7 @@ with open("config/illumina.sample") as fp:
 illumina_df = pd.read_csv(
     config["illumina_samplesheet"], index_col="run", low_memory=False
 ).loc[list(illumina_subsample_runs)]
-ont_df = pd.read_csv(
-    config["nanopore_samplesheet"], index_col="run", low_memory=False
-)
+ont_df = pd.read_csv(config["nanopore_samplesheet"], index_col="run", low_memory=False)
 
 # =====================================
 target_files = set()
@@ -68,6 +66,7 @@ for w, k in WKS:
 
 for tech in TECHS:
     target_files.add(PLOTS / f"sn_sp/{tech}.png")
+    target_files.add(BENCH / f"predict/{tech}.summary.csv")
 
 
 # =====================================

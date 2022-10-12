@@ -38,3 +38,18 @@ rule compare_sn_and_sp:
         str(ENVS / "compare_sn_and_sp.yaml")
     script:
         str(SCRIPTS / "compare_sn_and_sp.py")
+
+
+rule aggregate_predict_benchmarks:
+    input:
+        bench=infer_benchmark_reports,
+    output:
+        summary=BENCH / "predict/{tech}.summary.csv",
+    log:
+        LOGS / "aggregate_predict_benchmarks/{tech}.log",
+    container:
+        CONTAINERS["python"]
+    params:
+        delim=",",
+    script:
+        SCRIPTS / "aggregate_predict_benchmarks.py"

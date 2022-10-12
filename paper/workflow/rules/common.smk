@@ -207,3 +207,20 @@ def infer_tbprofiler_reports(wildcards):
         files.append(p)
 
     return files
+
+
+def infer_benchmark_reports(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for run, row in df.iterrows():
+        proj = row["bioproject"]
+        sample = row["biosample"]
+        for tool in TOOLS:
+            p = BENCH / f"predict/{tool}/{wildcards.tech}/{proj}/{sample}/{run}.tsv"
+            files.append(p)
+
+    return files
