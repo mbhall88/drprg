@@ -54,3 +54,31 @@ rule aggregate_predict_benchmarks:
         delim=",",
     script:
         SCRIPTS / "aggregate_predict_benchmarks.py"
+
+
+rule plot_predict_benchmark:
+    input:
+        summary=rules.aggregate_predict_benchmarks.output.summary,
+    output:
+        memory_plots=report(
+            multiext(PLOTS / "benchmark/predict/memory.{tech}", ".png", ".svg"),
+            category="Benchmark",
+            subcategory="Predict",
+        ),
+        runtime_plots=report(
+            multiext(PLOTS / "benchmark/predict/runtime.{tech}", ".png", ".svg"),
+            category="Benchmark",
+            subcategory="Predict",
+        ),
+    log:
+        LOGS / "plot_predict_benchmark/{tech}.log",
+    conda:
+        ENVS / "plot_predict_benchmark.yaml"
+    params:
+        fontsize=14,
+        palette="Set2",
+        dpi=300,
+        figsize=(13, 8),
+        stats_test="Mann-Whitney",
+    script:
+        SCRIPTS / "plot_predict_benchmark.py"

@@ -66,7 +66,9 @@ for w, k in WKS:
 
 for tech in TECHS:
     target_files.add(PLOTS / f"sn_sp/{tech}.png")
-    target_files.add(BENCH / f"predict/{tech}.summary.csv")
+    for ext in ("png", "svg"):
+        target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
+        target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
 
 
 # =====================================
