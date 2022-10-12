@@ -61,12 +61,12 @@ rule plot_predict_benchmark:
         summary=rules.aggregate_predict_benchmarks.output.summary,
     output:
         memory_plots=report(
-            multiext(PLOTS / "benchmark/predict/memory.{tech}", ".png", ".svg"),
+            multiext(str(PLOTS / "benchmark/predict/memory.{tech}"), ".png", ".svg"),
             category="Benchmark",
             subcategory="Predict",
         ),
         runtime_plots=report(
-            multiext(PLOTS / "benchmark/predict/runtime.{tech}", ".png", ".svg"),
+            multiext(str(PLOTS / "benchmark/predict/runtime.{tech}"), ".png", ".svg"),
             category="Benchmark",
             subcategory="Predict",
         ),
