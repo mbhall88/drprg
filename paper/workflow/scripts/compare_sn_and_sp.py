@@ -246,12 +246,17 @@ def main():
 
     cms = defaultdict()
 
+    low_pheno_drugs = set()
+
     for drug, tool in product(drugs, tools):
         s = df.query("drug == @drug and tool == @tool").value_counts(
             subset=["classification"]
         )
         cm = ConfusionMatrix.from_series(s)
         cms[(drug, tool)] = cm
+        n = sum(cm.ravel())
+        if n < snakemake.params.min_num_phenotypes:
+            low_pheno_drugs.add(drug)
 
     metrics = []
     for (drug, tool), cm in cms.items():
@@ -346,6 +351,9 @@ def main():
     sn_data = []
     sp_data = []
     for drug, tool in product(drugs, tools):
+        if drug in low_pheno_drugs:
+            continue
+
         s = df.query("drug == @drug and tool == @tool").value_counts(
             subset=["classification"]
         )
@@ -390,7 +398,9 @@ def main():
     ]  # group B - second-line injectables
     other = [short2long[d] for d in ["ETO", "LZD", "DLM"]]  # group C and D
     drug_order = [
-        d for d in [*first_line, *fluoroquinolones, *macrolides, *other] if d in drugs
+        d
+        for d in [*first_line, *fluoroquinolones, *macrolides, *other]
+        if d in drugs and d not in low_pheno_drugs
     ]
 
     def sort_drugs(a):
