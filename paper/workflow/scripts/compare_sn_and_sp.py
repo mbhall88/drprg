@@ -258,6 +258,8 @@ def main():
         if n < snakemake.params.min_num_phenotypes:
             low_pheno_drugs.add(drug)
 
+    drugs = {d for d in drugs if d not in low_pheno_drugs}
+
     metrics = []
     for (drug, tool), cm in cms.items():
         sn = cm.sensitivity()[0]
@@ -398,9 +400,7 @@ def main():
     ]  # group B - second-line injectables
     other = [short2long[d] for d in ["ETO", "LZD", "DLM"]]  # group C and D
     drug_order = [
-        d
-        for d in [*first_line, *fluoroquinolones, *macrolides, *other]
-        if d in drugs and d not in low_pheno_drugs
+        d for d in [*first_line, *fluoroquinolones, *macrolides, *other] if d in drugs
     ]
 
     def sort_drugs(a):
