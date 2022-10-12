@@ -79,6 +79,6 @@ rule plot_predict_benchmark:
         palette="Set2",
         dpi=300,
         figsize=(13, 8),
-        stats_test="t-test_paired",
+        stats_test="Wilcoxon",
     script:
         SCRIPTS / "plot_predict_benchmark.py"
