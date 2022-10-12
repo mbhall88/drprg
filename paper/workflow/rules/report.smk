@@ -33,7 +33,7 @@ rule compare_sn_and_sp:
         dpi=300,
         sn_marker="^",
         sp_marker="o",
-        ignore_drugs={"ciprofloxacin", "all"},
+        ignore_drugs=("ciprofloxacin", "all"),
     conda:
         str(ENVS / "compare_sn_and_sp.yaml")
     script:
