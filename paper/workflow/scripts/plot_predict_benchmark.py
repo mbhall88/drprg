@@ -80,9 +80,8 @@ def main():
     ax.set_ylabel("")
     ax.tick_params(axis="both", which="major", labelsize=FS)
 
-    pairs = (
-        [("drprg", "mykrobe"), ("mykrobe", "tbprofiler"), ("drprg", "tbprofiler")],
-    )
+    pairs = [("drprg", "mykrobe"), ("mykrobe", "tbprofiler"), ("drprg", "tbprofiler")]
+
     annot = Annotator(
         ax,
         pairs,
