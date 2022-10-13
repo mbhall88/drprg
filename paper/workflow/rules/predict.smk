@@ -77,6 +77,7 @@ rule drprg_predict:
                 "--sample {run}",
                 "--verbose",
                 "--failed",
+                "--ignore-synonymous",
             ]
         ),
         tech_opts=infer_drprg_tech_opts,

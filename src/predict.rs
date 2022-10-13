@@ -595,9 +595,6 @@ impl Predict {
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
                 .context(format!("Failed to read record {} in predict VCF", i))?;
-            if !record.is_pass() {
-                continue;
-            }
             let mut preds = match record
                 .info(InfoField::Prediction.id().as_bytes())
                 .string()
@@ -622,8 +619,16 @@ impl Predict {
                     .collect::<Vec<String>>(),
                 None => vec![],
             };
-            // todo: if the "highest" prediction is unknown, i.e., the variant overlaps stuff in the panel, but doesn't match any, then we clear this list and turn the variant into evidence in the same way we would if the variant didn't overlap the catalogue at all
+
             let max_pred = preds.iter().max();
+
+            // we basically ignore the FILTER column if the variant failed genotyping as we want to
+            // output this because it could indicate a deletion or some other event
+            let is_failed = max_pred == Some(&Prediction::Failed);
+            if !record.is_pass() && !is_failed {
+                continue;
+            }
+            
             let has_unknown =
                 preds.is_empty() || max_pred == Some(&Prediction::Unknown);
 
