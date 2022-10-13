@@ -82,14 +82,7 @@ def main():
 
     pairs = [("drprg", "mykrobe"), ("mykrobe", "tbprofiler"), ("drprg", "tbprofiler")]
 
-    annot = Annotator(
-        ax,
-        pairs,
-        data=df,
-        x=x,
-        y=y,
-        orient=orient,
-    )
+    annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
     annot.configure(test=STATS_TEST, pvalue_format=pval_fmt)
     annot.apply_test()
     annot.annotate()
@@ -126,7 +119,7 @@ def main():
     ax.set_ylabel("")
     ax.tick_params(axis="both", which="major", labelsize=FS)
 
-    annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient)
+    annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
     annot.configure(test=STATS_TEST, pvalue_format=pval_fmt)
     annot.apply_test()
     annot.annotate()
