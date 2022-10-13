@@ -28,7 +28,7 @@ def main():
     df = pd.read_csv(snakemake.input.summary)
 
     # PLOT MEMORY
-    fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
+    mem_fig, mem_ax = plt.subplots(figsize=FIGSIZE, dpi=DPI, tight_layout=True)
     y = "tool"
     hue = "tool"
     x = "max_rss"
@@ -55,17 +55,16 @@ def main():
         hue_order=hue_order,
         order=hue_order,
         orient=orient,
-        ax=ax,
         dodge=False,
     )
 
-    sns.violinplot(**kwargs, cut=0, inner="quartile")
-    for violin in ax.collections:
+    sns.violinplot(**kwargs, cut=0, inner="quartile", ax=mem_ax)
+    for violin in mem_ax.collections:
         violin.set_facecolor(to_rgba(violin.get_facecolor(), alpha=violin_alpha))
 
-    sns.stripplot(**kwargs, alpha=strip_alpha, edgecolor="gray", linewidth=1)
+    sns.stripplot(**kwargs, alpha=strip_alpha, edgecolor="gray", linewidth=1, ax=mem_ax)
 
-    ax.set_xscale("log")
+    mem_ax.set_xscale("log")
     ticks = [
         (100, "100MB"),
         (500, "500MB"),
@@ -74,37 +73,36 @@ def main():
         (3000, "3GB"),
         (4000, "4GB"),
     ]
-    ax.set_xticks([t[0] for t in ticks])
-    ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
-    ax.set_xlabel("Max. RAM usage", fontsize=FS)
-    ax.set_ylabel("")
-    ax.tick_params(axis="both", which="major", labelsize=FS)
+    mem_ax.set_xticks([t[0] for t in ticks])
+    mem_ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
+    mem_ax.set_xlabel("Max. RAM usage", fontsize=FS)
+    mem_ax.set_ylabel("")
+    mem_ax.tick_params(axis="both", which="major", labelsize=FS)
 
     pairs = [("drprg", "mykrobe"), ("mykrobe", "tbprofiler"), ("drprg", "tbprofiler")]
 
-    legend_without_duplicate_labels(ax)
+    legend_without_duplicate_labels(mem_ax)
 
-    annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
+    annot = Annotator(mem_ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
     annot.configure(test=STATS_TEST, pvalue_format=pval_fmt)
     annot.apply_test()
     annot.annotate()
 
-    plt.tight_layout()
-
     for p in snakemake.output.memory_plots:
-        fig.savefig(p)
+        mem_fig.savefig(p)
 
     # PLOT RUNTIME
-    fig, ax = plt.subplots(figsize=FIGSIZE, dpi=DPI)
+    rt_fig, rt_ax = plt.subplots(figsize=FIGSIZE, dpi=DPI, tight_layout=True)
     x = "s"
+    kwargs["x"] = x
 
-    sns.violinplot(**kwargs, cut=0, inner="quartile")
-    for violin in ax.collections:
+    sns.violinplot(**kwargs, cut=0, inner="quartile", ax=rt_ax)
+    for violin in rt_ax.collections:
         violin.set_facecolor(to_rgba(violin.get_facecolor(), alpha=violin_alpha))
 
-    sns.stripplot(**kwargs, alpha=strip_alpha, edgecolor="gray", linewidth=1)
+    sns.stripplot(**kwargs, alpha=strip_alpha, edgecolor="gray", linewidth=1, ax=rt_ax)
 
-    ax.set_xscale("log")
+    rt_ax.set_xscale("log")
     ticks = [
         (60, "1min"),
         (120, "2min"),
@@ -113,23 +111,22 @@ def main():
         (600, "10min"),
         (1800, "30min"),
     ]
-    ax.set_xticks([t[0] for t in ticks])
-    ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
-    ax.set_xlabel("Runtime", fontsize=FS)
-    ax.set_ylabel("")
-    ax.tick_params(axis="both", which="major", labelsize=FS)
+    rt_ax.set_xticks([t[0] for t in ticks])
+    rt_ax.set_xticklabels([t[1] for t in ticks], fontsize=FS)
+    rt_ax.set_xlabel("Runtime", fontsize=FS)
+    rt_ax.set_ylabel("")
+    rt_ax.tick_params(axis="both", which="major", labelsize=FS)
 
-    legend_without_duplicate_labels(ax)
+    legend_without_duplicate_labels(rt_ax)
 
-    annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
+    annot.reset_configuration()
+    annot = Annotator(rt_ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
     annot.configure(test=STATS_TEST, pvalue_format=pval_fmt)
     annot.apply_test()
     annot.annotate()
 
-    plt.tight_layout()
-
     for p in snakemake.output.runtime_plots:
-        fig.savefig(p)
+        rt_fig.savefig(p)
 
 
 main()
