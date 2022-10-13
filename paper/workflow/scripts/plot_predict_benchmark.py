@@ -82,12 +82,12 @@ def main():
 
     pairs = [("drprg", "mykrobe"), ("mykrobe", "tbprofiler"), ("drprg", "tbprofiler")]
 
+    legend_without_duplicate_labels(ax)
+
     annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
     annot.configure(test=STATS_TEST, pvalue_format=pval_fmt)
     annot.apply_test()
     annot.annotate()
-
-    legend_without_duplicate_labels(ax)
 
     plt.tight_layout()
 
@@ -119,12 +119,12 @@ def main():
     ax.set_ylabel("")
     ax.tick_params(axis="both", which="major", labelsize=FS)
 
+    legend_without_duplicate_labels(ax)
+
     annot = Annotator(ax, pairs, data=df, x=x, y=y, orient=orient, order=hue_order)
     annot.configure(test=STATS_TEST, pvalue_format=pval_fmt)
     annot.apply_test()
     annot.annotate()
-
-    legend_without_duplicate_labels(ax)
 
     plt.tight_layout()
 
