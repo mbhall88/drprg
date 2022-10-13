@@ -293,7 +293,7 @@ def main():
         table.at[i, "TN"] = cm.tn
         table.at[i, "FN"] = cm.fn
 
-    for k in ["drug", "tool"]:
+    for k in ["drug"]:
         table[k] = table[k].str.capitalize()
 
     table.fillna("-", inplace=True)
