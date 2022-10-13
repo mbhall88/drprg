@@ -628,7 +628,7 @@ impl Predict {
             if !record.is_pass() && !is_failed {
                 continue;
             }
-            
+
             let has_unknown =
                 preds.is_empty() || max_pred == Some(&Prediction::Unknown);
 
