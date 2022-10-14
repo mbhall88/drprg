@@ -37,7 +37,7 @@ K:                    15
 filters:
   min_covg:        3
   min_strand_bias: 0.01
-  min_frs:         0.6
+  min_frs:         0.51
   max_indel:       20
   min_gt_conf:
     nanopore: 5

@@ -69,7 +69,7 @@ for tech in TECHS:
     for ext in ("png", "svg"):
         target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
         target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
-
+    target_files.add(RESULTS / f"QC/{tech}.qc.csv")
 
 # =====================================
 rule all:
