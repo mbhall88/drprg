@@ -70,7 +70,7 @@ for tech in TECHS:
         target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
         target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
     target_files.add(RESULTS / f"QC/{tech}.qc.csv")
-    target_files.add(RESULTS / "depth/mykrobe/{tech}.summary.csv")
+    target_files.add(RESULTS / f"depth/mykrobe/{tech}.summary.csv")
 
 # =====================================
 rule all:
