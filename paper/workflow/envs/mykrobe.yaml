@@ -1,10 +1,9 @@
-name: tbprofiler
 channels:
   - conda-forge
   - bioconda
   - defaults
 dependencies:
-  - tb-profiler =4.3.0
-  - seqfu =1.14
+  - mykrobe=0.12.1
   - rasusa=0.7.0
-  - bash >=4.0
+  - seqfu=1.14
+  - bash=5

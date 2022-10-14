@@ -70,6 +70,7 @@ for tech in TECHS:
         target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
         target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
     target_files.add(RESULTS / f"QC/{tech}.qc.csv")
+    target_files.add(RESULTS / "depth/mykrobe/{tech}.summary.csv")
 
 # =====================================
 rule all:
@@ -97,4 +98,5 @@ include: RULES / "wk_sweep.smk"
 include: RULES / "download.smk"
 include: RULES / "qc.smk"
 include: RULES / "predict.smk"
+include: RULES / "depth.smk"
 include: RULES / "report.smk"

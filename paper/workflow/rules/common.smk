@@ -45,6 +45,26 @@ def infer_mykrobe_reports(wildcards):
     return files
 
 
+def infer_mykrobe_depth_reports(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for dp in config["depths"]:
+        for run, row in df.iterrows():
+            proj = row["bioproject"]
+            sample = row["biosample"]
+            p = (
+                RESULTS
+                / f"depth/mykrobe/{dp}/{wildcards.tech}/{proj}/{sample}/{run}.mykrobe.json.gz"
+            )
+            files.append(p)
+
+    return files
+
+
 def infer_drprg_tech_opts(wildcards) -> str:
     return {"illumina": "-I -C 4"}.get(wildcards.tech, "")
 

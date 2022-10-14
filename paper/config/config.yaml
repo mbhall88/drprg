@@ -7,6 +7,7 @@ h2h_samplesheet:      "config/h2h.samplesheet.csv"
 h2h_phenotypes:       "config/h2h.phenotypes.csv"
 tbdb_url:             "https://github.com/jodyphelan/tbdb/archive/feb5e89141a01ff03bbe0439284cc2490b1fe425.zip"
 min_cov:              3
+genome_size:          4411532
 QC_dir:               "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
 expert_rules:         "resources/expert_rules.csv"
 who_panel_url:        "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"
@@ -33,6 +34,15 @@ pandora:
 W:                    14
 K:                    15
 
+# mean read depths to use in depth analysis
+depths:
+  - 100
+  - 60
+  - 30
+  - 15
+  - 10
+  - 5
+
 # filtering used on the pandora VCF in drprg
 filters:
   min_covg:        3
@@ -56,3 +66,4 @@ containers:
   minimap2:  "docker://quay.io/biocontainers/minimap2:2.24--h7132678_1"
   seqkit:    "docker://quay.io/biocontainers/seqkit:2.2.0--h9ee0642_0"
   mykrobe:   "docker://quay.io/biocontainers/mykrobe:0.12.1--py38hf97919f_1"
+  rasusa:    "docker://quay.io/mbhall88/rasusa:0.7.0"
