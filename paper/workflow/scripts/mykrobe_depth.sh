@@ -38,6 +38,6 @@ else
     input_arg=("-1" "$subreads")
 fi
 
-mykrobe predict "${snakemake_params[tech_opts]}" "${snakemake_params[mykrobe_opts]}" \
+mykrobe predict ${snakemake_params[tech_opts]} ${snakemake_params[mykrobe_opts]} \
     "${input_arg[@]}" -t ${snakemake[threads]} -m "${snakemake_resources[mem_mb]}MB" \
     | gzip -c > "${snakemake_output[report]}"
