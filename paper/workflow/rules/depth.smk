@@ -8,6 +8,8 @@ rule mykrobe_depth:
         LOGS / "mykrobe_depth/{depth}/{tech}/{proj}/{sample}/{run}.log",
     shadow:
         "shallow"
+    resources:
+        mem_mb=int(4 * GB)
     params:
         seed=88,
         genome_size=config["genome_size"],

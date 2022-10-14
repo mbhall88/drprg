@@ -27,7 +27,7 @@ if [ "$n_files" -eq 2 ]; then
     in_r2="${prefix}_R2.fq"
     out_r2="${prefix}_${depth}_R2.fq"
 
-    rasusa -i "$in_r1 $in_r2" -o "$out_r1 $out_r2" -s $seed -c $depth -g $genome_size
+    rasusa -i "$in_r1" "$in_r2" -o "$out_r1" "$out_r2" -s $seed -c $depth -g $genome_size
 
     input_arg=("-1" "$out_r1" "-1" "$out_r2")
 else
