@@ -20,3 +20,8 @@ RUN apt update \
     && rm -rf /drprg "$DEB" /var/lib/apt/lists/*
 
 RUN drprg --help && pandora --help && make_prg --help && mafft --version && bcftools --version
+
+# These two are required for the paper pipeline
+RUN cargo install --root /usr --version 0.7.0 rasusa && rasusa --version
+ARG SEQFU_URL="https://github.com/telatin/seqfu2/releases/download/v1.16.0/SeqFu-v1.16.0-Linux-x86_64.zip"
+RUN wget -qO /seqfu.zip $SEQFU_URL && unzip -d /usr/bin /seqfu/zip && rm /seqfu/zip && seqfu version
