@@ -72,6 +72,8 @@ for tech in TECHS:
     target_files.add(RESULTS / f"QC/{tech}.qc.csv")
     target_files.add(RESULTS / f"depth/mykrobe/{tech}.summary.csv")
     target_files.add(RESULTS / f"depth/tbprofiler/{tech}.summary.csv")
+    target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
+    target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
 
 # =====================================
 rule all:

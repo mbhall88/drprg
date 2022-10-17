@@ -5,6 +5,6 @@ channels:
   - defaults
 dependencies:
   - tb-profiler =4.3.0
-  - seqfu =1.14
+  - seqfu =1.16
   - rasusa=0.7.0
   - bash >=4.0

@@ -210,6 +210,26 @@ def infer_drprg_reports(wildcards):
     return files
 
 
+def infer_drprg_depth_reports(wildcards):
+    if wildcards.tech == "illumina":
+        df = illumina_df
+    else:
+        df = ont_df
+
+    files = []
+    for dp in config["depths"]:
+        for run, row in df.iterrows():
+            proj = row["bioproject"]
+            sample = row["biosample"]
+            p = (
+                RESULTS
+                / f"depth/drprg/{dp}/{wildcards.tech}/{proj}/{sample}/{run}/{run}.drprg.json"
+            )
+            files.append(p)
+
+    return files
+
+
 def infer_tbprofiler_reports(wildcards):
     if wildcards.tech == "illumina":
         df = illumina_df

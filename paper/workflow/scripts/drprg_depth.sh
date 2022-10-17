@@ -15,6 +15,7 @@ files_str=$(grep "$run_acc" "$run_info" | cut -f2)
 n_files=$(awk -F \; '{print NF}' <<< "$files_str")
 tmpout=$(mktemp -d)
 prefix="${tmpout}/${run_acc}"
+subreads="${prefix}_${depth}.fq"
 
 if [ "$n_files" -eq 2 ]; then
     # we need to deinterleave the fastq file
@@ -28,14 +29,13 @@ if [ "$n_files" -eq 2 ]; then
 
     rasusa -i "$in_r1" "$in_r2" -o "$out_r1" "$out_r2" -s $seed -c $depth -g $genome_size
 
-    input_arg=("-1" "$out_r1" "-2" "$out_r2")
+    # re-interleave the subsampled reads
+    seqfu interleave --check -1 "$out_r1" -2 "$out_r2" > "$subreads"
+
 else
     # no need to deinterleave, we can just subsample the input fastq
-    subreads="${prefix}_${depth}.fq"
     rasusa -i "$reads" -o "$subreads" -s $seed -c $depth -g $genome_size
-
-    input_arg=("-1" "$subreads")
 fi
 
-tb-profiler profile "${input_arg[@]}" ${snakemake_params[opts]} -t ${snakemake[threads]} \
-    -d "${snakemake_params[outdir]}" --platform "${snakemake_wildcards[tech]}"
+drprg predict ${snakemake_params[opts]} ${snakemake_params[tech_opts]} ${snakemake_params[filters]} \
+    -i "$subreads" -o ${snakemake_params[outdir]} -x "${snakemake_input[index]}" -t ${snakemake[threads]}

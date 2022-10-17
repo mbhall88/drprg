@@ -74,3 +74,51 @@ rule combine_tbprofiler_depth_reports:
         CONTAINERS["python"]
     script:
         str(SCRIPTS / "combine_tbprofiler_depth_reports.py")
+
+
+rule drprg_depth:
+    input:
+        reads=rules.extract_decontaminated_reads.output.reads,
+        index=RESULTS / f"drprg/index/w{W}/k{K}",
+    output:
+        report=RESULTS
+        / "depth/drprg/{depth}/{tech}/{proj}/{sample}/{run}/{run}.drprg.json",
+        vcf=RESULTS / "depth/drprg/{depth}/{tech}/{proj}/{sample}/{run}/{run}.drprg.bcf",
+    shadow:
+        "shallow"
+    resources:
+        mem_mb=lambda wildcards, attempt: attempt * 4 * GB,
+    container:
+        CONTAINERS["drprg"]
+    log:
+        LOGS / "drprg_depth/{depth}/{tech}/{proj}/{sample}/{run}.log",
+    params:
+        opts=" ".join(
+            [
+                "--sample {run}",
+                "--verbose",
+                "--failed",
+                "--ignore-synonymous",
+            ]
+        ),
+        tech_opts=infer_drprg_tech_opts,
+        filters=drprg_filter_args,
+        outdir=lambda wildcards, output: Path(output.report).parent,
+        seed=rules.mykrobe_depth.params.seed,
+        genome_size=rules.mykrobe_depth.params.genome_size,
+    threads: 2
+    script:
+        SCRIPTS / "drprg_depth.sh"
+
+
+rule combine_drprg_depth_reports:
+    input:
+        reports=infer_drprg_depth_reports,
+    output:
+        report=RESULTS / "depth/drprg/{tech}.summary.csv",
+    log:
+        LOGS / "combine_drprg_depth_reports/{tech}.log",
+    container:
+        CONTAINERS["python"]
+    script:
+        str(SCRIPTS / "combine_drprg_depth_reports.py")
