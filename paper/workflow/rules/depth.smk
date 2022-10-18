@@ -80,6 +80,7 @@ rule drprg_depth:
     input:
         reads=rules.extract_decontaminated_reads.output.reads,
         index=RESULTS / f"drprg/index/w{W}/k{K}",
+        run_info=rules.validate_run_info.output.run_info,
     output:
         report=RESULTS
         / "depth/drprg/{depth}/{tech}/{proj}/{sample}/{run}/{run}.drprg.json",
