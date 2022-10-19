@@ -206,6 +206,19 @@ def main():
     phenotypes = pd.read_csv(
         snakemake.input.phenotypes, index_col="run", low_memory=False
     )
+
+    min_depth = snakemake.params.min_depth
+    max_contam = snakemake.params.max_contamination
+    qc = pd.read_csv(snakemake.input.qc, index_col="run")
+    valid_samples = qc.query("coverage>=@min_depth and f_contam<=@max_contam").index
+    print(
+        f"Excluding the following samples from the summary and plots due to depth less "
+        f"than {min_depth} and/or contamination fraction above {max_contam}",
+        file=sys.stderr,
+    )
+    for s in qc.index.difference(valid_samples):
+        print(s, file=sys.stderr)
+
     minor_is_susceptible = snakemake.params.minor_is_susceptible
     unknown_is_resistant = snakemake.params.unknown_is_resistant
     failed_is_resistant = snakemake.params.failed_is_resistant
@@ -243,6 +256,9 @@ def main():
     df = pd.DataFrame(pheno_clf, columns=cols)
 
     df.to_csv(snakemake.output.classification, index=False)
+
+    # now we remove samples with low depth or high contamination
+    df.query("run in @valid_samples", inplace=True)
 
     cms = defaultdict()
 

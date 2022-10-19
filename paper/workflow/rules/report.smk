@@ -4,6 +4,7 @@ rule compare_sn_and_sp:
             str(RESULTS / "amr_predictions/{tool}/{{tech}}/summary.csv"), tool=TOOLS
         ),
         phenotypes=lambda wildcards: config[f"{wildcards.tech}_samplesheet"],
+        qc=rules.qc_summary.output.summary,
     output:
         plots=report(
             multiext(str(PLOTS / "sn_sp/{tech}"), ".png", ".svg"),
@@ -35,6 +36,8 @@ rule compare_sn_and_sp:
         sp_marker="o",
         ignore_drugs=("ciprofloxacin", "all"),
         min_num_phenotypes=10,
+        min_depth=15,
+        max_contamination=0.05,
     conda:
         str(ENVS / "compare_sn_and_sp.yaml")
     script:
