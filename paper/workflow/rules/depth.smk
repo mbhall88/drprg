@@ -56,6 +56,7 @@ rule tbprofiler_depth:
         str(ENVS / "tbprofiler.yaml")
     params:
         opts="--txt --no_trim -p {run}",
+        min_depth=lambda wildcards: 10 if wildcards.depth > 20 else 1,
         outdir=lambda wildcards, output: Path(output.report).parent.parent,
         seed=rules.mykrobe_depth.params.seed,
         genome_size=rules.mykrobe_depth.params.genome_size,
@@ -103,7 +104,7 @@ rule drprg_depth:
             ]
         ),
         tech_opts=infer_drprg_tech_opts,
-        filters=drprg_filter_args,
+        filters=lambda wildcards: drprg_filter_args(wildcards, None if wildcards.depth > 20 else 1),
         outdir=lambda wildcards, output: Path(output.report).parent,
         seed=rules.mykrobe_depth.params.seed,
         genome_size=rules.mykrobe_depth.params.genome_size,

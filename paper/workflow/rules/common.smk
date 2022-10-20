@@ -170,9 +170,13 @@ def infer_unmapped_files(wildcards):
     return files
 
 
-def drprg_filter_args(wildcards) -> str:
+def drprg_filter_args(wildcards, override_depth: int=None) -> str:
     """Generate CLI args for drprg filters"""
     filters = config.get("filters", {})
+
+    if override_depth is not None:
+        filters["min_covg"] = override_depth
+
     args = ""
     for (flag, key) in [
         ("-d", "min_covg"),

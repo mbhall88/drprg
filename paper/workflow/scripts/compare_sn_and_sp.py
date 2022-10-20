@@ -238,7 +238,7 @@ def main():
             else:
                 truth = Prediction(ph)
         except KeyError:
-            print(f"[WARN]: {run} has no phenotype column for {drug}")
+            print(f"[WARN]: {run} has no phenotype column for {drug}", file=sys.stderr)
             continue
 
         ix = (run, tool, drug)

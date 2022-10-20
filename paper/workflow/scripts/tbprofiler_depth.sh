@@ -38,4 +38,5 @@ else
 fi
 
 tb-profiler profile "${input_arg[@]}" ${snakemake_params[opts]} -t ${snakemake[threads]} \
-    -d "${snakemake_params[outdir]}" --platform "${snakemake_wildcards[tech]}"
+    -d "${snakemake_params[outdir]}" --platform "${snakemake_wildcards[tech]}" \
+    --min_depth ${snakemake_params[min_depth]}
