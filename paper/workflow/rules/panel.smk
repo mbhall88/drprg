@@ -288,6 +288,8 @@ rule download_tbprofiler_db:
         mv {params.outdir}/tbdb* {output.db} 2>> {log}
         # clear the other annotations file
         > {output.db}/tbdb.other_annotations.csv
+        # clear the watchlist as it can cause error
+        > {output.db}/tbdb.watchlist.csv
         """
 
 
