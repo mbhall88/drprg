@@ -73,6 +73,9 @@ pub enum DependencyError {
     /// Missing an expected output file after running a dependency
     #[error("Missing expected output file {0}")]
     MissingExpectedOutput(String),
+    /// Denovo paths error
+    #[error("Failed to extract information about novel variants: {0}")]
+    NovelVariantParsingError(String),
 }
 
 pub struct Bcftools {
@@ -352,8 +355,7 @@ impl Pandora {
             "discover",
             "-g",
             &MTB_GENOME_SIZE.to_string(),
-            "-N",
-            "10",
+            "-K",
             "-v",
             "-o",
         ];
@@ -442,6 +444,58 @@ impl Pandora {
 
     pub fn vcf_filename() -> String {
         String::from("pandora_genotyped.vcf")
+    }
+
+    pub fn list_prgs_with_novel_variants(
+        denovo_file: &Path,
+    ) -> Result<Vec<String>, DependencyError> {
+        let mut genes = vec![];
+
+        let re = Regex::new(r"\n(?P<num>\d+) loci with denovo variants\n").unwrap();
+        let contents = std::fs::read_to_string(denovo_file).map_err(|_| {
+            DependencyError::NovelVariantParsingError(format!(
+                "Unable to read {:?}",
+                denovo_file
+            ))
+        })?;
+        let captures = re.captures(&contents).ok_or_else(|| {
+            DependencyError::NovelVariantParsingError(
+                "Unable to find line describing the number of novel variants"
+                    .to_string(),
+            )
+        })?;
+        // we unwrap here as we know we have a positive integer if the capture exists
+        let expected_num_genes: usize = captures
+            .name("num")
+            .ok_or_else(|| {
+                DependencyError::NovelVariantParsingError(
+                    "Unable to find line describing the number of novel variants"
+                        .to_string(),
+                )
+            })?
+            .as_str()
+            .parse()
+            .unwrap();
+
+        let mut previous_line = String::new();
+
+        for line in contents.lines() {
+            if line.ends_with("nodes") {
+                genes.push(previous_line)
+            }
+
+            previous_line = line.to_string();
+        }
+
+        if genes.len() != expected_num_genes {
+            Err(DependencyError::NovelVariantParsingError(format!(
+                "Expected {} genes with novel variants, but found {}",
+                expected_num_genes,
+                genes.len()
+            )))
+        } else {
+            Ok(genes)
+        }
     }
 }
 
@@ -900,6 +954,8 @@ mod tests {
     use rust_htslib::bcf;
     use rust_htslib::bcf::record::GenotypeAllele;
     use rust_htslib::bcf::Header;
+    use std::any::Any;
+    use std::io::Write;
     use tempfile::NamedTempFile;
 
     use crate::filter::test::{
@@ -2501,5 +2557,91 @@ mod tests {
 
         let actual = extract_w_and_k(&p);
         assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_list_prgs_with_novel_variants() {
+        let contents = r"1 samples
+Sample ERR2510154
+2 loci with denovo variants
+gid
+49 nodes
+(0 [0, 89) AGTAAGCGATGCGTGGCCGAGCGGCTGGGCCAGCGTCTCGAGAGCGGAGAATGTTTCACGTGAAACATGACACAGACCTCACGAGCCGG)
+(1 [92, 93) C)
+(3 [100, 126) GGAGTGCGTAATGTCTCCGATCGAGC)
+(4 [129, 130) C)
+(6 [137, 143) CGCGGC)
+(8 [174, 198) GTCTGCGATCTTCGGACCGCGGCG)
+(10 [206, 218) TGGCCTTGCTCG)
+(11 [222, 224) GC)
+1 denovo variants for this locus
+279     A
+ahpC
+9 nodes
+(0 [0, 10) TAAATATGGT)
+(1 [13, 16) GTG)
+(4 [31, 36) ATATA)
+(5 [39, 50) TCACCTTTGCC)
+(9 [86, 106) TGACAGCGACTTCACGGCAC)
+(10 [109, 110) G)
+(12 [118, 393) ATGGAATGTCGCAACCAAATGCATTGTCCGCTTTGATGATGAGGAGAGTCATGCCACTGCTAACCATTGGCGATCAATTCCCCGCCTACCAGCTCACCGCTCTCATCGGCGGTGACCTGTCCAAGGTCGACGCCAAGCAGCCCGGCGACTACTTCACCACTATCACCAGTGACGAACACCCAGGCAAGTGGCGGGTGGTGTTCTTTTGGCCGAAAGACTTCACGTTCGTGTGCCCTACCGAGATCGCGGCGTTCAGCAAGCTCAATGACGAGTTC)
+(13 [397, 398) G)
+(15 [407, 869) AGGACCGCGACGCCCAGATCCTGGGGGTTTCGATTGACAGCGAATTCGCGCATTTCCAGTGGCGTGCACAGCACAACGACCTCAAAACGTTACCCTTCCCGATGCTCTCCGACATCAAGCGCGAACTCAGCCAAGCCGCAGGTGTCCTCAACGCCGACGGTGTGGCCGACCGCGTGACCTTTATCGTCGACCCCAACAACGAGATCCAGTTCGTCTCGGCCACCGCCGGTTCGGTGGGACGCAACGTCGATGAGGTACTGCGAGTGCTCGACGCCCTCCAGTCCGACGAGCTGTGCGCATGCAACTGGCGCAAGGGCGACCCGACGCTAGACGCTGGCGAACTCCTCAAGGCTTCGGCCTAACCGGGATCTGGTTGGCCGGGAATCAATGAGTATAGAAAAGCTCAAGGCCGCGCTCCCCGAGTACGCCAAAGACATCAAGCTGAACCTGAGCTCAATCACC)
+2 denovo variants for this locus
+246     T       G
+249     T       G".to_string();
+        let mut tmpfile = NamedTempFile::new().unwrap();
+        let path = tmpfile.path().to_owned();
+        {
+            tmpfile.write_all(contents.as_ref()).unwrap();
+        }
+
+        let actual = Pandora::list_prgs_with_novel_variants(&path).unwrap();
+        let expected = vec!["gid".to_string(), "ahpC".to_string()];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_list_prgs_with_novel_variants_different_num_vars() {
+        let contents = r"1 samples
+Sample ERR2510154
+4 loci with denovo variants
+gid
+49 nodes
+(0 [0, 89) AGTAAGCGATGCGTGGCCGAGCGGCTGGGCCAGCGTCTCGAGAGCGGAGAATGTTTCACGTGAAACATGACACAGACCTCACGAGCCGG)
+(1 [92, 93) C)
+(3 [100, 126) GGAGTGCGTAATGTCTCCGATCGAGC)
+(4 [129, 130) C)
+(6 [137, 143) CGCGGC)
+(8 [174, 198) GTCTGCGATCTTCGGACCGCGGCG)
+(10 [206, 218) TGGCCTTGCTCG)
+(11 [222, 224) GC)
+1 denovo variants for this locus
+279     A
+ahpC
+9 nodes
+(0 [0, 10) TAAATATGGT)
+(1 [13, 16) GTG)
+(4 [31, 36) ATATA)
+(5 [39, 50) TCACCTTTGCC)
+(9 [86, 106) TGACAGCGACTTCACGGCAC)
+(10 [109, 110) G)
+(12 [118, 393) ATGGAATGTCGCAACCAAATGCATTGTCCGCTTTGATGATGAGGAGAGTCATGCCACTGCTAACCATTGGCGATCAATTCCCCGCCTACCAGCTCACCGCTCTCATCGGCGGTGACCTGTCCAAGGTCGACGCCAAGCAGCCCGGCGACTACTTCACCACTATCACCAGTGACGAACACCCAGGCAAGTGGCGGGTGGTGTTCTTTTGGCCGAAAGACTTCACGTTCGTGTGCCCTACCGAGATCGCGGCGTTCAGCAAGCTCAATGACGAGTTC)
+(13 [397, 398) G)
+(15 [407, 869) AGGACCGCGACGCCCAGATCCTGGGGGTTTCGATTGACAGCGAATTCGCGCATTTCCAGTGGCGTGCACAGCACAACGACCTCAAAACGTTACCCTTCCCGATGCTCTCCGACATCAAGCGCGAACTCAGCCAAGCCGCAGGTGTCCTCAACGCCGACGGTGTGGCCGACCGCGTGACCTTTATCGTCGACCCCAACAACGAGATCCAGTTCGTCTCGGCCACCGCCGGTTCGGTGGGACGCAACGTCGATGAGGTACTGCGAGTGCTCGACGCCCTCCAGTCCGACGAGCTGTGCGCATGCAACTGGCGCAAGGGCGACCCGACGCTAGACGCTGGCGAACTCCTCAAGGCTTCGGCCTAACCGGGATCTGGTTGGCCGGGAATCAATGAGTATAGAAAAGCTCAAGGCCGCGCTCCCCGAGTACGCCAAAGACATCAAGCTGAACCTGAGCTCAATCACC)
+2 denovo variants for this locus
+246     T       G
+249     T       G".to_string();
+        let mut tmpfile = NamedTempFile::new().unwrap();
+        let path = tmpfile.path().to_owned();
+        {
+            tmpfile.write_all(contents.as_ref()).unwrap();
+        }
+
+        let actual = Pandora::list_prgs_with_novel_variants(&path).unwrap_err();
+        let expected = DependencyError::NovelVariantParsingError("".to_string());
+
+        assert_eq!(actual.type_id(), expected.type_id())
     }
 }
