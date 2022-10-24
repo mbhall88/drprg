@@ -185,7 +185,7 @@ def drprg_filter_args(wildcards, override_depth: int=None) -> str:
         ("-L", "max_indel"),
         ("-K", "min_frs"),
     ]:
-        if key in filters:
+        if key in sorted(filters):
             if key == "min_gt_conf":
                 val = filters[key][wildcards.tech]
             else:
