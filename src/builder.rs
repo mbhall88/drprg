@@ -6,6 +6,7 @@ use std::io::{BufRead, BufReader, BufWriter, Seek};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
+use bstr::ByteSlice;
 use clap::{AppSettings, Parser};
 use log::{debug, info, warn};
 use noodles::core::Position;
@@ -17,6 +18,7 @@ use noodles::gff::record::Strand;
 use noodles::{fasta, gff};
 use rayon::prelude::*;
 use rust_htslib::bcf;
+use rust_htslib::bcf::Read;
 use thiserror::Error;
 
 use drprg::{
@@ -306,7 +308,7 @@ impl Runner for Build {
                 .read_index()?;
             let mut faidx = IndexedReader::new(fa_reader, index);
             debug!("Loaded the reference genome index");
-            let mut fa_writer = File::create(gene_refs_path)
+            let mut fa_writer = File::create(&gene_refs_path)
                 .map(BufWriter::new)
                 .map(fasta::Writer::new)?;
             if !premsa_dir.exists() {
@@ -338,27 +340,6 @@ impl Runner for Build {
                     .map(BufWriter::new)
                     .map(fasta::Writer::new)?;
                 premsa_writer.write_record(&fa_record)?;
-
-                if let Some(input_vcf_path) = &self.input_vcf {
-                    // todo: fetch vcf records for gene in input VCF
-                    // todo: loop over samples
-                    // todo: apply variants for sample to sequence
-                    for (i, allele) in vcf_record.alleles()[1..].iter().enumerate()
-                    {
-                        let mutated_seq =
-                            [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
-                                .concat();
-
-                        let mutated_record = fasta::Record::new(
-                            Definition::new(
-                                format!("{}_{}", panel_record.name(), i),
-                                None,
-                            ),
-                            Sequence::from(mutated_seq),
-                        );
-                        premsa_writer.write_record(&mutated_record)?;
-                    }
-                }
 
                 let panel_records_for_gene = &panel[gene];
                 for panel_record in panel_records_for_gene {
@@ -408,6 +389,94 @@ impl Runner for Build {
         info!("Panel VCF successfully indexed");
 
         if self.prebuilt_prg.is_none() {
+            info!("Applying input VCF variants to reference (pre-MSA)");
+            // we can unwrap as it MUST be some if prebuilt prg is none
+            let input_vcf_path = self.input_vcf.as_ref().unwrap();
+            let input_vcf = bcf::Reader::from_path(input_vcf_path)
+                .context("Failed to open input VCF file")?;
+            let samples = input_vcf.header().samples();
+
+            let consensus_dir = self.outdir.join("consensus");
+            if !consensus_dir.exists() {
+                debug!("Consensus directory doesn't exist...creating...");
+                std::fs::create_dir(&consensus_dir)
+                    .context(format!("Failed to create {:?}", &consensus_dir))?;
+            } else {
+                debug!("Existing consensus directory found...removing...");
+                std::fs::remove_dir_all(&consensus_dir)
+                    .and_then(|_| std::fs::create_dir(&consensus_dir))
+                    .context(format!(
+                        "Failed to remove and recreate {:?}",
+                        &consensus_dir
+                    ))?;
+            }
+
+            debug!("Writing consensus sequence reference file...");
+            let consensus_ref_path = consensus_dir.join("ref.fa");
+            let mut fa_reader = File::open(&gene_refs_path)
+                .map(BufReader::new)
+                .map(fasta::Reader::new)?;
+            {
+                let mut fa_writer = File::create(&consensus_ref_path)
+                    .map(BufWriter::new)
+                    .map(fasta::Writer::new)?;
+                for result in fa_reader.records() {
+                    let record = result?;
+                    let gene = record.definition().name();
+                    // safe to unwrap as we built this fasta from the annotations
+                    let gff_record = annotations.get(gene).unwrap();
+                    let seq = match gff_record.strand() {
+                        Strand::Reverse => Ok(revcomp(record.sequence().as_ref())),
+                        Strand::Forward => Ok(record.sequence().as_ref().to_vec()),
+                        _ => Err(BuildError::MissingStrand(gene.to_string())),
+                    }?;
+                    let out_record = fasta::Record::new(
+                        Definition::new(gene, None),
+                        Sequence::from(seq),
+                    );
+                    fa_writer
+                        .write_record(&out_record)
+                        .context("Failed to write consensus reference sequence")?;
+                }
+            }
+
+            samples.into_par_iter().try_for_each(|sample| {
+                let s = sample.to_str_lossy();
+                let consensus_path = consensus_dir.join(format!("{}.fa", s));
+                let args =
+                    &["-H", "A", "-s", &s, "-f", &consensus_ref_path.to_string_lossy()];
+                bcftools.consensus(input_vcf_path, &consensus_path, args)
+            })?;
+            debug!("Generated consensus sequences for each sample in the input VCF");
+            std::fs::remove_file(&consensus_ref_path).context("Failed to remove consensus reference file")?;
+
+            {
+                debug!("Combining consensus sequences into pre-MSAs...");
+                for sample in input_vcf.header().samples() {
+                    let s = sample.to_str_lossy().to_string();
+                    let sample_consensus_path = consensus_dir.join(format!("{}.fa", s));
+                    let mut sample_consensus_fasta = File::open(&sample_consensus_path).map(BufReader::new).map(fasta::Reader::new)?;
+                    for result in sample_consensus_fasta.records() {
+                        let consensus_record = result.context(format!("Couldn't parse fasta record from bcftools consensus for sample {}", &s))?;
+                        let gene = consensus_record.name();
+                        let is_reverse = annotations.get(gene).unwrap().strand() == Strand::Reverse;
+                        let gene_pre_msa_path = premsa_dir.join(format!("{}.fa", gene));
+                        {
+                            let mut premsa_writer = File::options().append(true).open(gene_pre_msa_path).map(BufWriter::new).map(fasta::Writer::new)?;
+                            let def = Definition::new(&s, None);
+                            let seq = if is_reverse {
+                                revcomp(consensus_record.sequence().as_ref())
+                            } else {
+                                consensus_record.sequence().as_ref().to_vec()
+                            };
+                            let out_record = fasta::Record::new(def, Sequence::from(seq));
+                            premsa_writer.write_record(&out_record)?;
+                        }
+                    }
+                }
+            }
+
+
             info!("Generating multiple sequence alignments and reference graphs for all genes and their variants...");
             let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
 
@@ -443,7 +512,6 @@ impl Runner for Build {
             makeprg.from_msas_with(
                 &msa_dir,
                 &self.prg_path(),
-                &self.update_ds_path(),
                 &self.update_prgs_path(),
                 make_prg_args,
             )?;
