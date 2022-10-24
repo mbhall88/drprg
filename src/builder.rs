@@ -73,12 +73,16 @@ pub struct Build {
     /// Annotation file that will be used to gather information about genes in panel
     #[clap(short = 'a', long = "gff", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     gff_file: PathBuf,
-    /// Panel to build index from
+    /// Panel to build index for
     #[clap(short = 'i', long = "panel", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
     #[clap(short = 'f', long = "fasta", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
     reference_file: PathBuf,
+    /// An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be
+    /// given. See `--prebuilt-prg`
+    #[clap(short = 'b', long = "vcf", parse(try_from_os_str = check_path_exists), value_name = "FILE", required_unless_present("prebuilt_prg"))]
+    input_vcf: Option<PathBuf>,
     /// Number of bases of padding to add to start and end of each gene
     #[clap(
         short = 'P',
@@ -99,12 +103,12 @@ pub struct Build {
     /// A prebuilt PRG to use.
     ///
     /// Only build the panel VCF and reference sequences - not the PRG. This directory MUST
-    /// contain a PRG file named `dr.prg`, a PRG update data structure named `dr.update_DS`, along
-    /// with the PRG directory output by `make_prg`, which should be called `dr_prgs/`. There can
-    /// optionally also be a pandora index file, but if not, the indexing will be performed by
-    /// drprg. Note: the PRG is expected to contain the reference sequence for each gene according
-    /// to the annotation and reference genome given (along with padding) and must be in the
-    /// forward strand orientation.
+    /// contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an
+    /// MSA fasta file for each gene `<gene>.fa`, and with the PRG directory output by `make_prg`,
+    /// which should be called `dr_prgs/`. There can optionally also be a pandora index file, but
+    /// if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the
+    /// reference sequence for each gene according to the annotation and reference genome given
+    /// (along with padding) and must be in the forward strand orientation.
     #[clap(short = 'd', long, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
     prebuilt_prg: Option<PathBuf>,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
@@ -175,8 +179,8 @@ impl Build {
     fn update_prgs_path(&self) -> PathBuf {
         self.outdir.join("dr_prgs")
     }
-    fn update_ds_path(&self) -> PathBuf {
-        self.prg_path().with_extension("update_DS")
+    fn msa_dir(&self) -> PathBuf {
+        self.outdir.join("msas")
     }
     fn prg_index_path(&self) -> PathBuf {
         let ext = format!("k{}.w{}.idx", self.pandora_k, self.pandora_w);
@@ -193,14 +197,13 @@ impl Build {
             Some(d) => d.canonicalize().unwrap(), // we know it exists so safe to unwrap
             _ => return Ok(()),
         };
-        //todo are all expected files there?
         let prg = prebuilt_dir.join(&self.prg_path().file_name().unwrap());
         if !prg.exists() {
             return Err(BuildError::MissingFile(prg));
         }
-        let update_ds = prebuilt_dir.join(&self.update_ds_path().file_name().unwrap());
-        if !update_ds.exists() {
-            return Err(BuildError::MissingFile(update_ds));
+        let msa_dir = prebuilt_dir.join(&self.msa_dir().file_name().unwrap());
+        if !msa_dir.exists() {
+            return Err(BuildError::MissingFile(msa_dir));
         }
         let update_prgs =
             prebuilt_dir.join(&self.update_prgs_path().file_name().unwrap());
@@ -225,7 +228,7 @@ impl Build {
                 content_only: false,
                 depth: 0,
             };
-            let mut to_copy = vec![prg, update_prgs, update_ds];
+            let mut to_copy = vec![prg, update_prgs, msa_dir];
             if index_exists {
                 to_copy.push(prg_index);
                 to_copy.push(prg_index_kmer_prgs);
@@ -257,7 +260,7 @@ impl Runner for Build {
             .context("Failed to organise prebuilt PRG files")?;
 
         let premsa_dir = self.outdir.join("premsa");
-        let msa_dir = self.outdir.join("msa");
+        let msa_dir = self.msa_dir();
         info!("Building panel index...");
 
         info!("Loading the panel...");
@@ -336,6 +339,27 @@ impl Runner for Build {
                     .map(fasta::Writer::new)?;
                 premsa_writer.write_record(&fa_record)?;
 
+                if let Some(input_vcf_path) = &self.input_vcf {
+                    // todo: fetch vcf records for gene in input VCF
+                    // todo: loop over samples
+                    // todo: apply variants for sample to sequence
+                    for (i, allele) in vcf_record.alleles()[1..].iter().enumerate()
+                    {
+                        let mutated_seq =
+                            [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
+                                .concat();
+
+                        let mutated_record = fasta::Record::new(
+                            Definition::new(
+                                format!("{}_{}", panel_record.name(), i),
+                                None,
+                            ),
+                            Sequence::from(mutated_seq),
+                        );
+                        premsa_writer.write_record(&mutated_record)?;
+                    }
+                }
+
                 let panel_records_for_gene = &panel[gene];
                 for panel_record in panel_records_for_gene {
                     let mut vcf_record = vcf_writer.empty_record();
@@ -359,26 +383,6 @@ impl Runner for Build {
                             panel_record.name()
                         ))?;
                     vcf_writer.write(&vcf_record)?;
-
-                    let s: usize = vcf_record.pos() as usize;
-                    let e: usize = s + vcf_record.inner().rlen as usize;
-                    if self.prebuilt_prg.is_none() {
-                        for (i, allele) in vcf_record.alleles()[1..].iter().enumerate()
-                        {
-                            let mutated_seq =
-                                [seq[..s].to_vec(), allele.to_vec(), seq[e..].to_vec()]
-                                    .concat();
-
-                            let mutated_record = fasta::Record::new(
-                                Definition::new(
-                                    format!("{}_{}", panel_record.name(), i),
-                                    None,
-                                ),
-                                Sequence::from(mutated_seq),
-                            );
-                            premsa_writer.write_record(&mutated_record)?;
-                        }
-                    }
                 }
             }
         }
