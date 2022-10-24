@@ -120,6 +120,40 @@ impl Bcftools {
             Ok(())
         }
     }
+
+    pub fn consensus<I, S>(
+        &self,
+        input: &Path,
+        output: &Path,
+        args: I,
+    ) -> Result<(), DependencyError>
+    where
+        I: IntoIterator<Item = S>,
+        S: AsRef<OsStr>,
+    {
+        let cmd_output = Command::new(&self.executable)
+            .arg("consensus")
+            .args(args)
+            .arg("-o")
+            .arg(output)
+            .arg(input)
+            .output()
+            .map_err(DependencyError::ProcessError)?;
+
+        if !cmd_output.status.success() {
+            let exit_code = cmd_output.status.to_string();
+            Err(DependencyError::ProcessError(std::io::Error::new(
+                ErrorKind::Other,
+                format!(
+                    "{} with stderr: {}",
+                    exit_code,
+                    cmd_output.stderr.to_str_lossy()
+                ),
+            )))
+        } else {
+            Ok(())
+        }
+    }
 }
 
 pub struct MakePrg {
@@ -146,7 +180,6 @@ impl MakePrg {
         &self,
         input: &Path,
         output_prg: &Path,
-        output_update_ds: &Path,
         output_update_prgs: &Path,
         args: I,
     ) -> Result<(), DependencyError>
@@ -185,15 +218,12 @@ impl MakePrg {
                 debug!("make_prg successfully ran. Cleaning up temporary files...");
                 let tmp_prefix = &dir.path().join(prefix);
                 let tmp_prg = tmp_prefix.with_extension("prg.fa");
-                let tmp_update_ds = tmp_prefix.with_extension("update_DS");
                 let tmp_update_prgs = &dir.path().join(format!("{}_prgs", prefix));
 
                 // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
                 // not on the same "mount" as the local filesystem see more info at
                 // https://doc.rust-lang.org/std/fs/fn.rename.html#platform-specific-behavior
-                std::fs::copy(tmp_prg, output_prg)
-                    .map_err(|source| DependencyError::FileError { source })?;
-                std::fs::copy(tmp_update_ds, output_update_ds)
+                fs::copy(tmp_prg, output_prg)
                     .map_err(|source| DependencyError::FileError { source })?;
                 let copyopts = fs_extra::dir::CopyOptions {
                     overwrite: true,
