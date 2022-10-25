@@ -47,8 +47,8 @@ with open("config/illumina.sample") as fp:
         illumina_subsample_runs.add(line.strip())
 
 illumina_df = pd.read_csv(
-    config["illumina_samplesheet"], index_col="run", low_memory=False
-).loc[list(illumina_subsample_runs)]
+    config["illumina_samplesheet"], low_memory=False
+).query("run in @illumina_subsample_runs or delamanid.notna()")
 ont_df = pd.read_csv(config["nanopore_samplesheet"], index_col="run", low_memory=False)
 
 # =====================================
@@ -70,10 +70,10 @@ for tech in TECHS:
         target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
         target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
     target_files.add(RESULTS / f"QC/{tech}.qc.csv")
-    target_files.add(RESULTS / f"depth/mykrobe/{tech}.summary.csv")
-    target_files.add(RESULTS / f"depth/tbprofiler/{tech}.summary.csv")
-    target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
-    target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
+    # target_files.add(RESULTS / f"depth/mykrobe/{tech}.summary.csv")
+    # target_files.add(RESULTS / f"depth/tbprofiler/{tech}.summary.csv")
+    # target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
+    # target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
 
 # =====================================
 rule all:
