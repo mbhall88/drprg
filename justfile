@@ -12,13 +12,13 @@ makeprg: make_extdir
     wget "{{ MAKEPRG_URL }}" -O "{{ MAKEPRG }}"
     chmod +x "{{ MAKEPRG }}"
 
-PANDORA_VERSION := "0.9.2"
-PANDORA_URL := "https://github.com/rmcolq/pandora/releases/download/" + PANDORA_VERSION + "/pandora-linux-precompiled-v" + PANDORA_VERSION
+PANDORA_VERSION := "1f9f7fb"
+PANDORA_URL := "https://github.com/rmcolq/pandora/files/9834729/pandora-" + PANDORA_VERSION + ".gz"
 PANDORA := join(EXTDIR, "pandora")
 
 # download pandora binary
 pandora: make_extdir
-    wget "{{ PANDORA_URL }}" -O "{{ PANDORA }}"
+    wget "{{ PANDORA_URL }}" -O - | gzip -dc > "{{ PANDORA }}"
     chmod +x "{{ PANDORA }}"
 
 BCFTOOLS_VERSION := "1.15.1"
