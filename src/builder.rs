@@ -308,9 +308,12 @@ impl Runner for Build {
                 .read_index()?;
             let mut faidx = IndexedReader::new(fa_reader, index);
             debug!("Loaded the reference genome index");
-            let mut fa_writer = File::create(&gene_refs_path)
-                .map(BufWriter::new)
-                .map(fasta::Writer::new)?;
+            let mut fa_writer =
+                File::create(&gene_refs_path).map(BufWriter::new).map(|f| {
+                    fasta::Writer::builder(f)
+                        .set_line_base_count(usize::MAX)
+                        .build()
+                })?;
             if !premsa_dir.exists() {
                 debug!("Pre-MSA directory doesn't exist...creating...");
                 std::fs::create_dir(&premsa_dir)
@@ -336,9 +339,12 @@ impl Runner for Build {
                 fa_writer.write_record(&fa_record)?;
 
                 let premsa_path = premsa_dir.join(format!("{}.fa", gene));
-                let mut premsa_writer = File::create(&premsa_path)
-                    .map(BufWriter::new)
-                    .map(fasta::Writer::new)?;
+                let mut premsa_writer =
+                    File::create(&premsa_path).map(BufWriter::new).map(|f| {
+                        fasta::Writer::builder(f)
+                            .set_line_base_count(usize::MAX)
+                            .build()
+                    })?;
                 premsa_writer.write_record(&fa_record)?;
 
                 let panel_records_for_gene = &panel[gene];
@@ -419,7 +425,11 @@ impl Runner for Build {
             {
                 let mut fa_writer = File::create(&consensus_ref_path)
                     .map(BufWriter::new)
-                    .map(fasta::Writer::new)?;
+                    .map(|f| {
+                        fasta::Writer::builder(f)
+                            .set_line_base_count(usize::MAX)
+                            .build()
+                    })?;
                 for result in fa_reader.records() {
                     let record = result?;
                     let gene = record.definition().name();
@@ -443,39 +453,60 @@ impl Runner for Build {
             samples.into_par_iter().try_for_each(|sample| {
                 let s = sample.to_str_lossy();
                 let consensus_path = consensus_dir.join(format!("{}.fa", s));
-                let args =
-                    &["-H", "A", "-s", &s, "-f", &consensus_ref_path.to_string_lossy()];
+                let args = &[
+                    "-H",
+                    "A",
+                    "-s",
+                    &s,
+                    "-f",
+                    &consensus_ref_path.to_string_lossy(),
+                ];
                 bcftools.consensus(input_vcf_path, &consensus_path, args)
             })?;
-            debug!("Generated consensus sequences for each sample in the input VCF");
-            std::fs::remove_file(&consensus_ref_path).context("Failed to remove consensus reference file")?;
+            debug!(
+                "Generated consensus sequences for all {} sample(s) in the input VCF",
+                input_vcf.header().sample_count()
+            );
+            std::fs::remove_file(&consensus_ref_path)
+                .context("Failed to remove consensus reference file")?;
 
             {
                 debug!("Combining consensus sequences into pre-MSAs...");
                 for sample in input_vcf.header().samples() {
                     let s = sample.to_str_lossy().to_string();
                     let sample_consensus_path = consensus_dir.join(format!("{}.fa", s));
-                    let mut sample_consensus_fasta = File::open(&sample_consensus_path).map(BufReader::new).map(fasta::Reader::new)?;
+                    let mut sample_consensus_fasta = File::open(&sample_consensus_path)
+                        .map(BufReader::new)
+                        .map(fasta::Reader::new)?;
                     for result in sample_consensus_fasta.records() {
                         let consensus_record = result.context(format!("Couldn't parse fasta record from bcftools consensus for sample {}", &s))?;
                         let gene = consensus_record.name();
-                        let is_reverse = annotations.get(gene).unwrap().strand() == Strand::Reverse;
+                        let is_reverse =
+                            annotations.get(gene).unwrap().strand() == Strand::Reverse;
                         let gene_pre_msa_path = premsa_dir.join(format!("{}.fa", gene));
                         {
-                            let mut premsa_writer = File::options().append(true).open(gene_pre_msa_path).map(BufWriter::new).map(fasta::Writer::new)?;
+                            let mut premsa_writer = File::options()
+                                .append(true)
+                                .open(gene_pre_msa_path)
+                                .map(BufWriter::new)
+                                .map(|f| {
+                                    fasta::Writer::builder(f)
+                                        .set_line_base_count(usize::MAX)
+                                        .build()
+                                })?;
                             let def = Definition::new(&s, None);
                             let seq = if is_reverse {
                                 revcomp(consensus_record.sequence().as_ref())
                             } else {
                                 consensus_record.sequence().as_ref().to_vec()
                             };
-                            let out_record = fasta::Record::new(def, Sequence::from(seq));
+                            let out_record =
+                                fasta::Record::new(def, Sequence::from(seq));
                             premsa_writer.write_record(&out_record)?;
                         }
                     }
                 }
             }
-
 
             info!("Generating multiple sequence alignments and reference graphs for all genes and their variants...");
             let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
