@@ -26,7 +26,7 @@ use drprg::{
 };
 use drprg::{MultipleSeqAligner, PathExt};
 
-use crate::cli::check_path_exists;
+use crate::cli::{check_path_exists,check_vcf_and_index_exists};
 use crate::panel::{Panel, PanelError, PanelExt, PanelRecord};
 use crate::Runner;
 
@@ -83,7 +83,7 @@ pub struct Build {
     reference_file: PathBuf,
     /// An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be
     /// given. See `--prebuilt-prg`
-    #[clap(short = 'b', long = "vcf", parse(try_from_os_str = check_path_exists), value_name = "FILE", required_unless_present("prebuilt_prg"))]
+    #[clap(short = 'b', long = "vcf", parse(try_from_os_str = check_vcf_and_index_exists), value_name = "FILE", required_unless_present("prebuilt_prg"))]
     input_vcf: Option<PathBuf>,
     /// Number of bases of padding to add to start and end of each gene
     #[clap(
