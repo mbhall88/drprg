@@ -710,6 +710,7 @@ mod tests {
 
     const PANEL: &str = "tests/cases/panel.tsv";
     const ANNOTATION: &str = "tests/cases/ann.gff3";
+    const VCF: &str = "tests/cases/build/input.bcf";
     const REF: &str = "tests/cases/ref.fa";
 
     #[test]
@@ -1064,6 +1065,7 @@ mod tests {
             bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
             gff_file: ANNOTATION.parse().unwrap(),
             panel_file: PANEL.parse().unwrap(),
+            input_vcf: Some(VCF.parse().unwrap()),
             reference_file: REF.parse().unwrap(),
             padding: 100,
             outdir: PathBuf::from(outdir.path()),
@@ -1076,7 +1078,7 @@ mod tests {
         let result = builder.run();
         assert!(result.is_ok());
 
-        let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
+        let mut file1 = File::open("tests/cases/expected/dr.prg").unwrap();
         let mut file2 =
             File::open(format!("{}/dr.prg", outdir.path().to_string_lossy())).unwrap();
 
@@ -1107,6 +1109,7 @@ mod tests {
             bcftools_exec: Some(PathBuf::from("src/ext/bcftools")),
             gff_file: ANNOTATION.parse().unwrap(),
             panel_file: PANEL.parse().unwrap(),
+            input_vcf: Some(VCF.parse().unwrap()),
             reference_file: REF.parse().unwrap(),
             padding: 100,
             outdir: outdir.to_owned(),
@@ -1119,10 +1122,9 @@ mod tests {
         let result = builder.run();
         assert!(result.is_ok());
 
-        let mut file1 = std::fs::File::open("tests/cases/expected/dr.prg").unwrap();
+        let mut file1 = File::open("tests/cases/expected/dr.prg").unwrap();
         let mut file2 =
-            std::fs::File::open(format!("{}/dr.prg", outdir.to_string_lossy()))
-                .unwrap();
+            File::open(format!("{}/dr.prg", outdir.to_string_lossy())).unwrap();
 
         let mut contents = String::new();
         file1.read_to_string(&mut contents).unwrap();
