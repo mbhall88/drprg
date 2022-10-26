@@ -166,12 +166,12 @@ pub struct Predict {
     /// associated with that gene. Using this flag will turn this off an ignore those variants.
     #[clap(short = 'U', long)]
     no_unknown: bool,
-    /// Require all resistance-associated sites to be genotyped
+    /// Do not require all resistance-associated sites to be genotyped
     ///
-    /// If a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
+    /// By default, if a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
     /// "failed" ('F') is returned for the drug(s) associated with that site.
-    #[clap(short = 'f', long = "failed")]
-    require_genotype: bool,
+    #[clap(short = 'F', long = "no-failed")]
+    no_require_genotype: bool,
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
@@ -430,7 +430,7 @@ impl Predict {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
                 let vid = idx_record.id();
                 let mut prediction = Prediction::Susceptible;
-                if record.called_allele() == -1 && self.require_genotype {
+                if record.called_allele() == -1 && !self.no_require_genotype {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
@@ -908,7 +908,7 @@ mod tests {
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: None,
             no_unknown: false,
-            require_genotype: false,
+            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -926,7 +926,7 @@ mod tests {
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: Some("sample2".to_string()),
             no_unknown: false,
-            require_genotype: false,
+            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -944,7 +944,7 @@ mod tests {
             index: PathBuf::from("foo"),
             sample: None,
             no_unknown: false,
-            require_genotype: false,
+            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -962,7 +962,7 @@ mod tests {
             index: PathBuf::from("foo"),
             sample: None,
             no_unknown: false,
-            require_genotype: false,
+            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -976,7 +976,7 @@ mod tests {
         let predictor = Predict {
             index: PathBuf::from("foo"),
             no_unknown: false,
-            require_genotype: false,
+            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -1228,8 +1228,7 @@ mod tests {
         let mut header = Header::new();
         let pred = Predict::default();
         pred.add_predict_info_to_header(&mut header);
-        let vcf =
-            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let vcf = bcf::Writer::from_path(path, &header, true, Format::Vcf).unwrap();
         let view = vcf.header();
 
         for field in &[InfoField::VarId, InfoField::Prediction] {
@@ -1256,6 +1255,7 @@ mod tests {
             sample: Some("test".to_string()),
             filterer: filt,
             no_unknown: true,
+            no_require_genotype: true,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
@@ -1323,7 +1323,7 @@ mod tests {
             sample: Some("test".to_string()),
             filterer: filt,
             no_unknown: false,
-            require_genotype: true,
+            no_require_genotype: false,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
@@ -1476,7 +1476,7 @@ mod tests {
             sample: Some("test".to_string()),
             filterer: filt,
             no_unknown: false,
-            require_genotype: true,
+            no_require_genotype: false,
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out2.vcf");
@@ -1575,7 +1575,7 @@ mod tests {
             sample: Some("test".to_string()),
             filterer: filt,
             no_unknown: false,
-            require_genotype: true,
+            no_require_genotype: false,
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out3.vcf");

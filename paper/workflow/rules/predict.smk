@@ -76,7 +76,6 @@ rule drprg_predict:
             [
                 "--sample {run}",
                 "--verbose",
-                "--failed",
                 "--ignore-synonymous",
             ]
         ),
