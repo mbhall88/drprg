@@ -236,9 +236,6 @@ impl Runner for Predict {
 
         // ==============================================================================================
         debug!("Updating the PRGs with novel variants");
-        // todo go through denovo path txt file and figure out which genes have novel variants
-        // todo add novel sequences to MSAs https://github.com/mbhall88/head_to_head_pipeline/blob/de6e054ae0aa2cc18cf9dfac4e7fd9573007d1dc/analysis/pandora_variants/scripts/update_msas.py#L59-L71
-        // todo remake the PRGS
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
         let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
         let prg_path = makeprg

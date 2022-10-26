@@ -14,11 +14,14 @@ use thiserror::Error;
 
 use crate::filter::Tags;
 use crate::interval::IntervalOp;
-use noodles::gff;
+use noodles::fasta::fai;
+use noodles::fasta::repository::adapters::IndexedReader;
+use noodles::fasta::repository::Adapter;
+use noodles::{fasta, gff};
 use regex::Regex;
 use std::cmp::{max, min};
 use std::fs;
-use std::io::ErrorKind;
+use std::io::{BufReader, BufWriter, ErrorKind};
 
 pub mod filter;
 pub mod interval;
@@ -253,7 +256,8 @@ impl MakePrg {
     /// Update a PRG with make_prg
     pub fn update<I, S>(
         &self,
-        update_ds: &Path,
+        index_msas_dir: &Path,
+        prgs_dir: &Path,
         denovo_paths: &Path,
         outdir: &Path,
         args: I,
@@ -264,6 +268,66 @@ impl MakePrg {
         S: AsRef<OsStr>,
     {
         let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
+        let genes_to_update = Pandora::list_prgs_with_novel_variants(denovo_paths)?;
+        let update_msa_dir = outdir.join("update_msas");
+        let aligner = MultipleSeqAligner::from_path(&Some(PathBuf::from(mafft)))?;
+        let denovo_sequences =
+            denovo_paths.parent().unwrap().join("denovo_sequences.fa");
+        if !denovo_sequences.exists() {
+            return Err(DependencyError::MissingExpectedOutput(
+                denovo_sequences.to_string_lossy().to_string(),
+            ));
+        }
+
+        let denovo_sequences_faidx = index_fasta(&denovo_sequences)?;
+        if !denovo_sequences_faidx.exists() {
+            return Err(DependencyError::MissingExpectedOutput(
+                denovo_sequences_faidx.to_string_lossy().to_string(),
+            ));
+        }
+
+        let fa_reader = File::open(&denovo_sequences)
+            .map(BufReader::new)
+            .map(fasta::Reader::new)?;
+        let index = File::open(&denovo_sequences_faidx)
+            .map(BufReader::new)
+            .map(fai::Reader::new)?
+            .read_index()?;
+        let mut faidx = IndexedReader::new(fa_reader, index);
+
+        for gene in genes_to_update {
+            debug!("Updating MSA for {}", gene);
+            let existing_msa = index_msas_dir.join(format!("{}.fa", gene));
+            let new_sequence = dir.path().join(format!("{}.consensus.fa", gene));
+            {
+                let record = match faidx.get(&gene) {
+                    Some(Ok(r)) => r,
+                    _ => return Err(DependencyError::HtslibIndexError(format!("Could not extract {} from pandora discover consensus sequences", gene)))
+                };
+                let mut fa_writer =
+                    File::create(&new_sequence).map(BufWriter::new).map(|f| {
+                        fasta::Writer::builder(f)
+                            .set_line_base_count(usize::MAX)
+                            .build()
+                    })?;
+                fa_writer.write_record(&record)?;
+            }
+            let updated_msa = update_msa_dir.join(format!("{}.fa", gene));
+            aligner.run_with(
+                &existing_msa,
+                &updated_msa,
+                &[
+                    "--auto",
+                    "--thread",
+                    "-1",
+                    "--quiet",
+                    "--add",
+                    new_sequence.to_str().unwrap(),
+                ],
+            )?;
+        }
+
+        // todo remake the PRGS
         let prefix = "dr";
         let logstream = File::create(outdir.join("update.log"))
             .map_err(|source| DependencyError::FileError { source })?;
@@ -277,8 +341,6 @@ impl MakePrg {
             .args(&fixed_args)
             .arg("-d")
             .arg(denovo_paths.canonicalize()?)
-            .arg("-u")
-            .arg(update_ds.canonicalize()?)
             .stdout(Stdio::null())
             .stderr(logstream)
             .output();
@@ -626,6 +688,29 @@ pub fn index_vcf(path: &Path) -> Result<(), DependencyError> {
                 "Failed to create and/or save the index (htslib exit code -4)"
                     .to_string(),
             )),
+            i => Err(DependencyError::HtslibIndexError(format!(
+                "Unknown htslib exit code ({}) received",
+                i
+            ))),
+        }
+    }
+}
+
+/// https://github.com/samtools/htslib/blob/3c6f83f11e6e99cdcbed3541ae7d8d5f7786578d/htslib/faidx.h#L101
+pub fn index_fasta(path: &Path) -> Result<PathBuf, DependencyError> {
+    let fname = std::ffi::CString::new(path.to_path_buf().into_os_string().into_vec())
+        .map_err(|_| {
+            DependencyError::HtslibIndexError(
+                "Failed to convert fasta path into a CString".to_string(),
+            )
+        })?;
+    unsafe {
+        match rust_htslib::htslib::fai_build(fname.as_ptr()) {
+            0 => Ok(path.add_extension(OsStr::new(".fai"))),
+            -1 => Err(DependencyError::HtslibIndexError(format!(
+                "Fasta indexing failed (htslib exit code -1) {:?}",
+                path
+            ))),
             i => Err(DependencyError::HtslibIndexError(format!(
                 "Unknown htslib exit code ({}) received",
                 i
