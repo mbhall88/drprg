@@ -99,7 +99,6 @@ rule drprg_depth:
             [
                 "--sample {run}",
                 "--verbose",
-                "--failed",
                 "--ignore-synonymous",
             ]
         ),

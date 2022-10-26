@@ -47,7 +47,7 @@ rule drprg_predict_sweep:
     container:
         CONTAINERS["drprg"]
     params:
-        opts=" ".join(["-v", "-s {sample}", "--failed"]),
+        opts=" ".join(["-v", "-s {sample}"]),
         filters=lambda wildcards: drprg_filter_args(wildcards),
         tech_flag=lambda wildcards: infer_drprg_tech_opts(wildcards),
     shell:
