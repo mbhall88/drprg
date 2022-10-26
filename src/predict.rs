@@ -243,7 +243,7 @@ impl Runner for Predict {
         let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
         let prg_path = makeprg
             .update(
-                &self.index_prg_update_path().canonicalize()?,
+                &self.index_prgs_path().canonicalize()?,
                 &denovo_paths.canonicalize()?,
                 &self.outdir,
                 &["-t", threads],
@@ -335,11 +335,11 @@ impl Predict {
         self.index.join("genes.fa")
     }
 
-    fn index_prg_update_path(&self) -> PathBuf {
-        self.index.join("dr.update_DS")
+    fn index_msa_dir(&self) -> PathBuf {
+        self.index.join("msas")
     }
 
-    fn index_update_prgs_path(&self) -> PathBuf {
+    fn index_prgs_path(&self) -> PathBuf {
         self.index.join("dr_prgs")
     }
 
@@ -373,8 +373,8 @@ impl Predict {
             self.index_vcf_index_path(),
             self.index_vcf_ref_path(),
             prg_index,
-            self.index_prg_update_path(),
-            self.index_update_prgs_path(),
+            self.index_prgs_path(),
+            self.index_msa_dir(),
         ];
         for p in expected_paths {
             if !p.exists() {
@@ -981,8 +981,8 @@ mod tests {
             ..Default::default()
         };
 
-        let actual = predictor.index_prg_update_path();
-        let expected = PathBuf::from("foo/dr.update_DS");
+        let actual = predictor.index_prgs_path();
+        let expected = PathBuf::from("foo/dr_prgs");
 
         assert_eq!(actual, expected)
     }
@@ -1041,8 +1041,8 @@ mod tests {
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
-            let _f = File::create(tmp_path.join("dr.update_DS")).unwrap();
             std::fs::create_dir(tmp_path.join("dr_prgs")).unwrap();
+            std::fs::create_dir(tmp_path.join("msas")).unwrap();
         }
         assert!(predictor.validate_index().is_ok())
     }
@@ -1175,7 +1175,7 @@ mod tests {
     }
 
     #[test]
-    fn validate_index_missing_prg_update() {
+    fn validate_index_missing_msas() {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
@@ -1189,16 +1189,17 @@ mod tests {
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
+            std::fs::create_dir(tmp_path.join("dr_prgs")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
-        let expected = PredictError::InvalidIndex(tmp_path.join("dr.update_DS"));
+        let expected = PredictError::InvalidIndex(tmp_path.join("msas"));
 
         assert_eq!(actual, expected)
     }
 
     #[test]
-    fn validate_index_missing_update_prgs() {
+    fn validate_index_missing_prgs() {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
         let predictor = Predict {
@@ -1212,7 +1213,6 @@ mod tests {
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
-            let _f = File::create(tmp_path.join("dr.update_DS")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
