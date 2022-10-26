@@ -243,7 +243,7 @@ impl Runner for Predict {
                 &self.index_prgs_path().canonicalize()?,
                 &denovo_paths.canonicalize()?,
                 &self.outdir,
-                &["-t", threads],
+                &["-t", threads, "--min_match_len", &min_match_len, "--max_nesting", &max_nesting],
                 mafft.executable,
             )
             .context("Failed to update discover PRG")?;

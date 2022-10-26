@@ -2,7 +2,7 @@ use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Seek};
+use std::io::{BufRead, BufReader, BufWriter, Seek, Write};
 use std::path::PathBuf;
 
 use anyhow::{anyhow, Context, Result};
@@ -565,6 +565,15 @@ impl Runner for Build {
             info!("Reference graph indexed successfully");
         }
         info!("Panel index built");
+
+        let config_file = &self.outdir.join(".config.toml");
+        {
+            let mut f = File::create(config_file).map(BufWriter::new)?;
+            writeln!(f, "min_match_len = {}", self.match_len.to_string())?;
+            writeln!(f, "max_nesting = {}", self.max_nesting.to_string())?;
+            writeln!(f, "k = {}", self.pandora_k.to_string())?;
+            writeln!(f, "w = {}", self.pandora_w.to_string())?;
+        }
 
         debug!("Cleaning up temporary files...");
         if premsa_dir.exists() {
