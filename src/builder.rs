@@ -571,10 +571,6 @@ impl Runner for Build {
             std::fs::remove_dir_all(&premsa_dir)
                 .context(format!("Failed to remove {:?}", &msa_dir))?;
         }
-        if msa_dir.exists() {
-            std::fs::remove_dir_all(&msa_dir)
-                .context(format!("Failed to remove {:?}", &msa_dir))?;
-        }
         Ok(())
     }
 }
