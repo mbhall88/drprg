@@ -260,6 +260,8 @@ impl MakePrg {
         prgs_dir: &Path,
         denovo_paths: &Path,
         outdir: &Path,
+        min_match_len: String,
+        max_nesting: String,
         args: I,
         mafft: String,
     ) -> Result<PathBuf, DependencyError>
@@ -270,7 +272,7 @@ impl MakePrg {
         let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
         let genes_to_update = Pandora::list_prgs_with_novel_variants(denovo_paths)?;
         let update_msa_dir = outdir.join("update_msas");
-        let aligner = MultipleSeqAligner::from_path(&Some(PathBuf::from(mafft)))?;
+        let aligner = MultipleSeqAligner::from_path(&Some(PathBuf::from(&mafft)))?;
         let denovo_sequences =
             denovo_paths.parent().unwrap().join("denovo_sequences.fa");
         if !denovo_sequences.exists() {
@@ -327,27 +329,28 @@ impl MakePrg {
             )?;
         }
 
-        // todo remake the PRGS
-        let prefix = "dr";
-        let logstream = File::create(outdir.join("update.log"))
+        let update_prgs_dir = outdir.join("update_prgs");
+        if !update_prgs_dir.exists() {
+            fs::create_dir(&update_prgs_dir)?;
+        }
+        let prefix = "updated";
+        let logstream = File::create(update_prgs_dir.join("update_prgs.log"))
             .map_err(|source| DependencyError::FileError { source })?;
 
         let fixed_args = vec!["-v", "-o", prefix, "--mafft", &mafft];
 
         let cmd_result = Command::new(&self.executable)
-            .current_dir(&dir)
-            .arg("update")
+            .current_dir(&update_prgs_dir)
+            .arg("from_msa")
             .args(args)
             .args(&fixed_args)
-            .arg("-d")
-            .arg(denovo_paths.canonicalize()?)
             .stdout(Stdio::null())
             .stderr(logstream)
             .output();
 
         match cmd_result {
             Ok(cmd_output) if !cmd_output.status.success() => {
-                error!("Failed to run make_prg update. Check update.log",);
+                error!("Failed to run make_prg update. Check update_prgs.log",);
                 Err(DependencyError::ProcessError(
                     std::io::Error::from_raw_os_error(
                         cmd_output.status.code().unwrap_or(129),
@@ -356,6 +359,7 @@ impl MakePrg {
             }
             Ok(_) => {
                 debug!("make_prg update successfully ran");
+                // todo combine with index PRGs
                 let tmpfile = dir.path().join(prefix).with_extension("prg.fa");
                 let output_prg = outdir.join("updated.dr.prg");
                 if tmpfile.exists() {
