@@ -5,6 +5,7 @@ use std::io::Read;
 const PANEL: &str = "tests/cases/panel.tsv";
 const ANNOTATION: &str = "tests/cases/ann.gff3";
 const REF: &str = "tests/cases/ref.fa";
+const VCF: &str = "tests/cases/build/input.bcf";
 
 #[test]
 fn build_paths_dont_exist() -> Result<(), Box<dyn std::error::Error>> {
@@ -17,6 +18,8 @@ fn build_paths_dont_exist() -> Result<(), Box<dyn std::error::Error>> {
         "fake.path",
         "-f",
         "abcdefg",
+        "-b",
+        "fake.vcf",
     ]);
     cmd.assert()
         .failure()
@@ -38,8 +41,14 @@ fn build_full_run() -> Result<(), Box<dyn std::error::Error>> {
         ANNOTATION,
         "-f",
         REF,
+        "-b",
+        VCF,
         "-o",
         outdir.path().to_string_lossy().as_ref(),
+        "-N",
+        "7",
+        "-l",
+        "5",
     ]);
     cmd.assert().success();
 

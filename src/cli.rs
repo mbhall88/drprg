@@ -2,9 +2,9 @@ use clap::Parser;
 
 use crate::builder::Build;
 use crate::predict::Predict;
+use drprg::PathExt;
 use std::ffi::OsStr;
 use std::path::PathBuf;
-use drprg::PathExt;
 
 /// A utility function that allows the CLI to error if a path doesn't exist
 pub fn check_path_exists<S: AsRef<OsStr> + ?Sized>(s: &S) -> Result<PathBuf, String> {
@@ -17,7 +17,9 @@ pub fn check_path_exists<S: AsRef<OsStr> + ?Sized>(s: &S) -> Result<PathBuf, Str
 }
 
 /// A utility function that allows the CLI to error if a VCF and its index doesn't exist
-pub fn check_vcf_and_index_exists<S: AsRef<OsStr> + ?Sized>(s: &S) -> Result<PathBuf, String> {
+pub fn check_vcf_and_index_exists<S: AsRef<OsStr> + ?Sized>(
+    s: &S,
+) -> Result<PathBuf, String> {
     let path = PathBuf::from(s);
     if !&path.exists() {
         Err(format!("{:?} does not exist", &path))
@@ -73,7 +75,8 @@ mod tests {
 
     #[test]
     fn check_vcf_and_index_exists_it_doesnt() {
-        let actual = check_vcf_and_index_exists(OsStr::new("tests/cases/predict/in.vcf"));
+        let actual =
+            check_vcf_and_index_exists(OsStr::new("tests/cases/predict/in.vcf"));
         assert!(actual.is_err())
     }
 
