@@ -28,6 +28,7 @@ strum_macros = "0.24.2"
 fs_extra = "1.2.0"
 clap = { version = "3.2.7", features = ["derive"] }
 noodles = { version = "0.24.0", features = ["fasta", "gff", "core"] }
+toml = "0.5"
 
 [dev-dependencies]
 assert_cmd = "2.0.4"

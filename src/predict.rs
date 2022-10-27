@@ -18,8 +18,8 @@ use uuid::Uuid;
 
 use drprg::filter::{Filter, Filterer};
 use drprg::{
-    extract_w_and_k, find_prg_index_in, unwrap_or_continue, MakePrg,
-    MultipleSeqAligner, Pandora, PathExt, VcfExt,
+    find_prg_index_in, unwrap_or_continue, MakePrg, MultipleSeqAligner, Pandora,
+    PathExt, VcfExt,
 };
 
 use crate::cli::check_path_exists;
@@ -30,6 +30,7 @@ use bstr::ByteSlice;
 
 use std::collections::{HashMap, HashSet};
 
+use crate::config::Config;
 use crate::consequence::consequence_of_variant;
 use noodles::fasta;
 use regex::Regex;
@@ -198,6 +199,8 @@ impl Runner for Predict {
             .context("Failed to canonicalize outdir")?;
 
         self.validate_index()?;
+        let config = Config::from_path(&self.index_config())
+            .context("Failed to load index config file")?;
         debug!("Index is valid");
         let threads = &rayon::current_num_threads().to_string();
         let pandora = Pandora::from_path(&self.pandora_exec)?;
@@ -216,7 +219,8 @@ impl Runner for Predict {
                 .context("Failed to write content to TSV file")?;
         }
         // safe to unwrap as we have already validated the index, which checks this
-        let (w, k) = self.index_w_and_k().unwrap();
+        let w = config.w.to_string();
+        let k = config.k.to_string();
         let c = self.pandora_min_cluster_size.to_string();
         let mut args = vec!["-t", threads, "-w", &w, "-k", &k, "-c", &c];
         if self.is_illumina {
@@ -238,12 +242,21 @@ impl Runner for Predict {
         debug!("Updating the PRGs with novel variants");
         let makeprg = MakePrg::from_path(&self.makeprg_exec)?;
         let mafft = MultipleSeqAligner::from_path(&self.mafft_exec)?;
+        let update_args = &[
+            "-t",
+            threads,
+            "--min_match_len",
+            &config.min_match_len.to_string(),
+            "--max_nesting",
+            &config.max_nesting.to_string(),
+        ];
         let prg_path = makeprg
             .update(
+                &self.index_msa_dir().canonicalize()?,
                 &self.index_prgs_path().canonicalize()?,
                 &denovo_paths.canonicalize()?,
-                &self.outdir,
-                &["-t", threads, "--min_match_len", &min_match_len, "--max_nesting", &max_nesting],
+                &self.outdir.canonicalize()?,
+                update_args,
                 mafft.executable,
             )
             .context("Failed to update discover PRG")?;
@@ -255,7 +268,6 @@ impl Runner for Predict {
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
         info!("Genotyping reads against the panel with pandora");
         // safe to unwrap as we have already validated the index, which checks this
-        let (w, k) = self.index_w_and_k().unwrap();
         let mut gt_args = vec!["-t", threads, "-w", &w, "-k", &k, "-c", &c];
         if self.is_illumina {
             gt_args.push("-I");
@@ -299,15 +311,8 @@ impl Predict {
         self.index.join("dr.prg")
     }
 
-    fn index_w_and_k(&self) -> Result<(String, String), PredictError> {
-        let fname = self
-            .index_prg_index_path()
-            .map_err(|_| PredictError::MissingKmerAndWindowSize)?
-            .to_string_lossy()
-            .to_string();
-        let (w, k) =
-            extract_w_and_k(&fname).ok_or(PredictError::MissingKmerAndWindowSize)?;
-        Ok((w, k))
+    fn index_config(&self) -> PathBuf {
+        self.index.join(".config.toml")
     }
 
     fn index_prg_index_path(&self) -> Result<PathBuf, PredictError> {
@@ -364,6 +369,7 @@ impl Predict {
     fn validate_index(&self) -> Result<(), PredictError> {
         let prg_index = self.index_prg_index_path()?;
         let expected_paths = &[
+            self.index_config(),
             self.index_prg_path(),
             self.index_kmer_prgs_path(),
             self.index_vcf_path(),
@@ -1033,6 +1039,7 @@ mod tests {
         };
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
@@ -1045,6 +1052,24 @@ mod tests {
     }
 
     #[test]
+    fn validate_index_missing_config() {
+        let dir = tempfile::tempdir().unwrap();
+        let tmp_path = dir.path();
+        let predictor = Predict {
+            index: PathBuf::from(tmp_path),
+            ..Default::default()
+        };
+        {
+            let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
+        }
+
+        let actual = predictor.validate_index().unwrap_err();
+        let expected = PredictError::InvalidIndex(tmp_path.join(".config.toml"));
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
     fn validate_index_missing_prg() {
         let dir = tempfile::tempdir().unwrap();
         let tmp_path = dir.path();
@@ -1054,6 +1079,7 @@ mod tests {
         };
         {
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -1073,6 +1099,7 @@ mod tests {
         {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -1094,6 +1121,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
         }
 
         let actual = predictor.validate_index().unwrap_err();
@@ -1116,6 +1144,7 @@ mod tests {
             let _f = File::create(tmp_path.join("dr.prg")).unwrap();
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
         }
 
@@ -1140,6 +1169,7 @@ mod tests {
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w12.idx")).unwrap();
         }
 
@@ -1162,6 +1192,7 @@ mod tests {
             let _f = File::create(tmp_path.join("kmer_prgs")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
         }
 
@@ -1185,6 +1216,7 @@ mod tests {
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
             std::fs::create_dir(tmp_path.join("dr_prgs")).unwrap();
         }
@@ -1209,6 +1241,7 @@ mod tests {
             let _f = File::create(tmp_path.join("panel.bcf")).unwrap();
             let _f = File::create(tmp_path.join("panel.bcf.csi")).unwrap();
             let _f = File::create(tmp_path.join("genes.fa")).unwrap();
+            let _f = File::create(tmp_path.join(".config.toml")).unwrap();
             let _f = File::create(tmp_path.join("dr.prg.k15.w14.idx")).unwrap();
         }
 
