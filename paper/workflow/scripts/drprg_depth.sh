@@ -39,3 +39,5 @@ fi
 
 drprg predict ${snakemake_params[opts]} ${snakemake_params[tech_opts]} ${snakemake_params[filters]} \
     -i "$subreads" -o ${snakemake_params[outdir]} -x "${snakemake_input[index]}" -t ${snakemake[threads]}
+
+rm -rf "$tmpout"
