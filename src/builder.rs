@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Seek, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use bstr::ByteSlice;
@@ -22,11 +22,12 @@ use rust_htslib::bcf::Read;
 use thiserror::Error;
 
 use drprg::{
-    find_prg_index_in, index_vcf, revcomp, Bcftools, GffExt, MakePrg, Pandora,
+    find_prg_index_in, index_fasta, index_vcf, revcomp, Bcftools, GffExt, MakePrg,
+    Pandora,
 };
 use drprg::{MultipleSeqAligner, PathExt};
 
-use crate::cli::{check_path_exists, check_vcf_and_index_exists};
+use crate::cli::check_path_exists;
 use crate::config::Config;
 use crate::panel::{Panel, PanelError, PanelExt, PanelRecord};
 use crate::Runner;
@@ -84,7 +85,7 @@ pub struct Build {
     reference_file: PathBuf,
     /// An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be
     /// given. See `--prebuilt-prg`
-    #[clap(short = 'b', long = "vcf", parse(try_from_os_str = check_vcf_and_index_exists), value_name = "FILE", required_unless_present("prebuilt-prg"))]
+    #[clap(short = 'b', long = "vcf", parse(try_from_os_str = check_path_exists), value_name = "FILE", required_unless_present("prebuilt-prg"))]
     input_vcf: Option<PathBuf>,
     /// Number of bases of padding to add to start and end of each gene
     #[clap(
@@ -150,11 +151,69 @@ pub struct Build {
         value_name = "INT"
     )]
     pandora_w: u32,
+    /// Don't index --fasta if an index doesn't exist
+    #[clap(short = 'I', long = "no-fai")]
+    dont_index_ref: bool,
+    /// Don't index --vcf if an index doesn't exist
+    #[clap(short = 'C', long = "no-csi")]
+    dont_index_vcf: bool,
 }
 
 impl Build {
     fn load_panel(&self) -> Result<Panel, anyhow::Error> {
         Panel::from_csv(&self.panel_file)
+    }
+
+    /// A utility function that checks if a VCF index exists and optionally indexes it
+    pub fn check_vcf_index_exists(
+        vcf_path: &Path,
+        create_index: bool,
+    ) -> Result<(), BuildError> {
+        for ext in [".csi", ".tbi"] {
+            let p = vcf_path.add_extension(ext.as_ref());
+            if p.exists() {
+                return Ok(());
+            }
+        }
+        if create_index {
+            info!("No index found for {:?}. Creating one...", vcf_path);
+            index_vcf(vcf_path).map_err(|src| {
+                BuildError::IndexError(format!(
+                    "Failed to create an index file for {:?} due to {:?}",
+                    vcf_path, src
+                ))
+            })
+        } else {
+            Err(BuildError::IndexError(format!(
+                "No index exists for {:?} and creation was not requested",
+                vcf_path
+            )))
+        }
+    }
+
+    /// A utility function that checks if a VCF index exists and optionally indexes it
+    pub fn check_fasta_index_exists(
+        fasta_path: &Path,
+        create_index: bool,
+    ) -> Result<(), BuildError> {
+        let p = fasta_path.add_extension(".fai".as_ref());
+        if p.exists() {
+            Ok(())
+        } else if create_index {
+            info!("No index found for {:?}. Creating one...", fasta_path);
+            match index_fasta(fasta_path) {
+                Err(src) => Err(BuildError::IndexError(format!(
+                    "Failed to create an index file for {:?} due to {:?}",
+                    fasta_path, src
+                ))),
+                Ok(_) => Ok(()),
+            }
+        } else {
+            Err(BuildError::IndexError(format!(
+                "No index exists for {:?} and creation was not requested",
+                fasta_path
+            )))
+        }
     }
 
     fn create_vcf_header(
@@ -259,8 +318,17 @@ impl Runner for Build {
             .canonicalize()
             .context("Failed to canonicalize outdir")?;
 
-        self.organise_prebuilt_prg()
-            .context("Failed to organise prebuilt PRG files")?;
+        if self.prebuilt_prg.is_some() {
+            self.organise_prebuilt_prg()
+                .context("Failed to organise prebuilt PRG files")?;
+        } else {
+            Build::check_vcf_index_exists(
+                self.input_vcf.as_ref().unwrap().as_path(),
+                !self.dont_index_vcf,
+            )?;
+        }
+
+        Build::check_fasta_index_exists(&self.reference_file, !self.dont_index_ref)?;
 
         let premsa_dir = self.outdir.join("premsa");
         let msa_dir = self.msa_dir();
@@ -607,6 +675,9 @@ pub enum BuildError {
     /// File copying error
     #[error("{0}")]
     CopyError(String),
+    /// An issue with an index file
+    #[error("{0}")]
+    IndexError(String),
 }
 
 fn load_annotations_for_genes<R>(
@@ -1148,5 +1219,19 @@ mod tests {
         sorted2.sort_unstable();
 
         assert_eq!(sorted1, sorted2);
+    }
+
+    #[test]
+    fn check_vcf_and_index_exists_it_doesnt() {
+        let p = PathBuf::from("tests/cases/predict/in.vcf");
+        let actual = Build::check_vcf_index_exists(&p, false);
+        assert!(actual.is_err())
+    }
+
+    #[test]
+    fn check_vcf_and_index_exists_it_does() {
+        let path = PathBuf::from("tests/cases/build/input.bcf");
+        let actual = Build::check_vcf_index_exists(&path, false);
+        assert!(actual.is_ok())
     }
 }

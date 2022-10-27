@@ -14,9 +14,10 @@ use thiserror::Error;
 
 use crate::filter::Tags;
 use crate::interval::IntervalOp;
-use noodles::fasta::fai;
+use noodles::fasta::record::Definition;
 use noodles::fasta::repository::adapters::IndexedReader;
 use noodles::fasta::repository::Adapter;
+use noodles::fasta::{fai, Record};
 use noodles::{fasta, gff};
 use regex::Regex;
 use std::cmp::{max, min};
@@ -270,9 +271,20 @@ impl MakePrg {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let dir = tempfile::tempdir().map_err(DependencyError::ProcessError)?;
+        let dir = outdir.join("tmp_msas");
+        if !dir.exists() {
+            fs::create_dir(&dir)?;
+        }
         let genes_to_update = Pandora::list_prgs_with_novel_variants(denovo_paths)?;
+        debug!(
+            "{} genes to update with novel variants: {:?}",
+            genes_to_update.len(),
+            genes_to_update
+        );
         let update_msa_dir = outdir.join("update_msas");
+        if !update_msa_dir.exists() {
+            fs::create_dir(&update_msa_dir)?;
+        }
         let aligner = MultipleSeqAligner::from_path(&Some(PathBuf::from(&mafft)))?;
         let denovo_sequences =
             denovo_paths.parent().unwrap().join("denovo_sequences.fa");
@@ -301,7 +313,7 @@ impl MakePrg {
         for gene in &genes_to_update {
             debug!("Updating MSA for {}", gene);
             let existing_msa = index_msas_dir.join(format!("{}.fa", gene));
-            let new_sequence = dir.path().join(format!("{}.consensus.fa", gene));
+            let new_sequence = dir.join(format!("{}.consensus.fa", gene));
             {
                 let record = match faidx.get(gene) {
                     Some(Ok(r)) => r,
@@ -313,7 +325,9 @@ impl MakePrg {
                             .set_line_base_count(usize::MAX)
                             .build()
                     })?;
-                fa_writer.write_record(&record)?;
+                let def = Definition::new(format!("{}_updated", gene), None);
+                let new_record = Record::new(def, record.sequence().to_owned());
+                fa_writer.write_record(&new_record)?;
             }
             let updated_msa = update_msa_dir.join(format!("{}.fa", gene));
             aligner.run_with(
@@ -338,13 +352,14 @@ impl MakePrg {
         let logstream = File::create(update_prgs_dir.join("update_prgs.log"))
             .map_err(|source| DependencyError::FileError { source })?;
 
-        let fixed_args = vec!["-v", "-o", prefix, "--mafft", &mafft];
+        let fixed_args = vec!["-v", "-o", prefix, "-i"];
 
         let cmd_result = Command::new(&self.executable)
             .current_dir(&update_prgs_dir)
             .arg("from_msa")
             .args(args)
             .args(&fixed_args)
+            .arg(update_msa_dir)
             .stdout(Stdio::null())
             .stderr(logstream)
             .output();
@@ -360,8 +375,8 @@ impl MakePrg {
             }
             Ok(_) => {
                 debug!("make_prg update successfully ran");
-                // todo combine with index PRGs
-                let updated_prgs = dir.path().join(prefix).with_extension("prg.fa");
+                let updated_prgs =
+                    update_prgs_dir.join(prefix).with_extension("prg.fa");
                 {
                     let mut prg_writer = File::options()
                         .append(true)
@@ -389,6 +404,7 @@ impl MakePrg {
                 let output_prg = outdir.join("updated.dr.prg");
                 fs::copy(&updated_prgs, &output_prg)
                     .map_err(|source| DependencyError::FileError { source })?;
+                let _ = fs::remove_dir_all(&dir);
                 Ok(output_prg)
             }
             Err(err) => {

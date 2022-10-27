@@ -2,7 +2,6 @@ use clap::Parser;
 
 use crate::builder::Build;
 use crate::predict::Predict;
-use drprg::PathExt;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
@@ -13,24 +12,6 @@ pub fn check_path_exists<S: AsRef<OsStr> + ?Sized>(s: &S) -> Result<PathBuf, Str
         Ok(path)
     } else {
         Err(format!("{:?} does not exist", path))
-    }
-}
-
-/// A utility function that allows the CLI to error if a VCF and its index doesn't exist
-pub fn check_vcf_and_index_exists<S: AsRef<OsStr> + ?Sized>(
-    s: &S,
-) -> Result<PathBuf, String> {
-    let path = PathBuf::from(s);
-    if !&path.exists() {
-        Err(format!("{:?} does not exist", &path))
-    } else {
-        for ext in &[".csi", ".tbi"] {
-            let p = &path.add_extension(ext.as_ref());
-            if p.exists() {
-                return Ok(path);
-            }
-        }
-        Err(format!("{:?} does not have an index", path))
     }
 }
 
@@ -70,21 +51,6 @@ mod tests {
     fn check_path_it_does() {
         let actual = check_path_exists(OsStr::new("Cargo.toml")).unwrap();
         let expected = PathBuf::from("Cargo.toml");
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    fn check_vcf_and_index_exists_it_doesnt() {
-        let actual =
-            check_vcf_and_index_exists(OsStr::new("tests/cases/predict/in.vcf"));
-        assert!(actual.is_err())
-    }
-
-    #[test]
-    fn check_vcf_and_index_exists_it_does() {
-        let path = OsStr::new("tests/cases/build/input.bcf");
-        let actual = check_vcf_and_index_exists(path).unwrap();
-        let expected = PathBuf::from(path);
         assert_eq!(actual, expected)
     }
 }
