@@ -70,7 +70,7 @@ pub enum DependencyError {
     /// Represents all other cases of `std::io::Error`.
     #[error(transparent)]
     ProcessError(#[from] std::io::Error),
-    /// An error associated with indexing VCFs with htslib
+    /// An error associated with indexing VCFs or fastas with htslib
     #[error("Failed to index VCF with htslib: {0}")]
     HtslibIndexError(String),
     /// Missing an expected output file after running a dependency
@@ -79,6 +79,9 @@ pub enum DependencyError {
     /// Denovo paths error
     #[error("Failed to extract information about novel variants: {0}")]
     NovelVariantParsingError(String),
+    /// Issue parsing fasta records
+    #[error("Failed to parse fasta record in {0:?}")]
+    FastaParserError(PathBuf),
 }
 
 pub struct Bcftools {
@@ -257,11 +260,9 @@ impl MakePrg {
     pub fn update<I, S>(
         &self,
         index_msas_dir: &Path,
-        prgs_dir: &Path,
+        index_prg: &Path,
         denovo_paths: &Path,
         outdir: &Path,
-        min_match_len: String,
-        max_nesting: String,
         args: I,
         mafft: String,
     ) -> Result<PathBuf, DependencyError>
@@ -297,12 +298,12 @@ impl MakePrg {
             .read_index()?;
         let mut faidx = IndexedReader::new(fa_reader, index);
 
-        for gene in genes_to_update {
+        for gene in &genes_to_update {
             debug!("Updating MSA for {}", gene);
             let existing_msa = index_msas_dir.join(format!("{}.fa", gene));
             let new_sequence = dir.path().join(format!("{}.consensus.fa", gene));
             {
-                let record = match faidx.get(&gene) {
+                let record = match faidx.get(gene) {
                     Some(Ok(r)) => r,
                     _ => return Err(DependencyError::HtslibIndexError(format!("Could not extract {} from pandora discover consensus sequences", gene)))
                 };
@@ -360,17 +361,35 @@ impl MakePrg {
             Ok(_) => {
                 debug!("make_prg update successfully ran");
                 // todo combine with index PRGs
-                let tmpfile = dir.path().join(prefix).with_extension("prg.fa");
-                let output_prg = outdir.join("updated.dr.prg");
-                if tmpfile.exists() {
-                    std::fs::copy(tmpfile, &output_prg)
-                        .map_err(|source| DependencyError::FileError { source })?;
-                    Ok(output_prg)
-                } else {
-                    Err(DependencyError::MissingExpectedOutput(
-                        tmpfile.to_string_lossy().to_string(),
-                    ))
+                let updated_prgs = dir.path().join(prefix).with_extension("prg.fa");
+                {
+                    let mut prg_writer = File::options()
+                        .append(true)
+                        .open(&updated_prgs)
+                        .map(BufWriter::new)
+                        .map(|f| {
+                            fasta::Writer::builder(f)
+                                .set_line_base_count(usize::MAX)
+                                .build()
+                        })?;
+                    let mut prg_reader = File::open(&index_prg)
+                        .map(BufReader::new)
+                        .map(fasta::Reader::new)?;
+
+                    for res in prg_reader.records() {
+                        let record = res.map_err(|_| {
+                            DependencyError::FastaParserError(index_prg.to_path_buf())
+                        })?;
+                        let name = record.name().to_string();
+                        if !genes_to_update.contains(&name) {
+                            prg_writer.write_record(&record)?;
+                        }
+                    }
                 }
+                let output_prg = outdir.join("updated.dr.prg");
+                fs::copy(&updated_prgs, &output_prg)
+                    .map_err(|source| DependencyError::FileError { source })?;
+                Ok(output_prg)
             }
             Err(err) => {
                 error!(
@@ -1058,14 +1077,6 @@ pub fn find_prg_index_in(dir: &Path) -> Option<PathBuf> {
         }
     }
     fname.map(|f| dir.join(f))
-}
-
-pub fn extract_w_and_k(path: &str) -> Option<(String, String)> {
-    let re = Regex::new(r"prg\.k(?P<k>\d+)\.w(?P<w>\d+)\.idx$").unwrap();
-    let captures = re.captures(path)?;
-    let w = captures.name("w")?.as_str();
-    let k = captures.name("k")?.as_str();
-    Some((w.to_owned(), k.to_owned()))
 }
 
 #[cfg(test)]
@@ -2654,28 +2665,6 @@ mod tests {
         let record = reader.records().next().unwrap().unwrap();
 
         assert!(record.name().is_none())
-    }
-
-    #[test]
-    fn extract_w_and_k_both_present() {
-        let w = 2;
-        let k = 12;
-        let p = format!("path/to/dr.prg.k{}.w{}.idx", k, w);
-
-        let actual = extract_w_and_k(&p);
-        let expected = Some((w.to_string(), k.to_string()));
-
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    fn extract_w_and_k_both_not_present() {
-        let w = 2;
-        let k = 12;
-        let p = format!("path/to/dr.prg.{}.w{}.idx", k, w);
-
-        let actual = extract_w_and_k(&p);
-        assert!(actual.is_none())
     }
 
     #[test]

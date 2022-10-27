@@ -27,6 +27,7 @@ use drprg::{
 use drprg::{MultipleSeqAligner, PathExt};
 
 use crate::cli::{check_path_exists, check_vcf_and_index_exists};
+use crate::config::Config;
 use crate::panel::{Panel, PanelError, PanelExt, PanelRecord};
 use crate::Runner;
 
@@ -569,10 +570,14 @@ impl Runner for Build {
         let config_file = &self.outdir.join(".config.toml");
         {
             let mut f = File::create(config_file).map(BufWriter::new)?;
-            writeln!(f, "min_match_len = {}", self.match_len.to_string())?;
-            writeln!(f, "max_nesting = {}", self.max_nesting.to_string())?;
-            writeln!(f, "k = {}", self.pandora_k.to_string())?;
-            writeln!(f, "w = {}", self.pandora_w.to_string())?;
+            let config: Config = Config {
+                min_match_len: self.match_len,
+                max_nesting: self.max_nesting,
+                k: self.pandora_k,
+                w: self.pandora_w,
+            };
+            let toml = toml::to_string(&config)?;
+            writeln!(f, "{}", toml)?;
         }
 
         debug!("Cleaning up temporary files...");
