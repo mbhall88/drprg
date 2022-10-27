@@ -14,8 +14,9 @@ files_str=$(grep "$run_acc" "$run_info" | cut -f2)
 IFS=';' read -r -a files <<< "$files_str"
 n_files="${#files[@]}"
 
+tmpout=$(mktemp -d)
+
 if [ "$n_files" -eq 2 ]; then
-    tmpout=$(mktemp -d)
     prefix="${tmpout}/${run_acc}"
     # we need to deinterleave the fastq file
     seqfu deinterleave -o "$prefix" --check "$reads"
@@ -33,3 +34,5 @@ fi
 
 # shellcheck disable=SC2154
 tb-profiler profile "${input_arg[@]}" "${opts[@]}" -t "${snakemake[threads]}" -d "${snakemake_params[outdir]}"
+
+rm -rf "$tmpout"
