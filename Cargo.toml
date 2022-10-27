@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 log = "0.4.17"
-env_logger = "0.9.0"
+env_logger = "0.9"
 thiserror = "1.0.31"
 anyhow = "1.0.58"
 serde = "1.0.137"
