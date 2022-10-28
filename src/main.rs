@@ -34,6 +34,7 @@ fn main() -> Result<()> {
     log_builder
         .filter(None, log_lvl)
         .format_module_path(false)
+        .format_target(false)
         .init();
     debug!("{:?}", args);
 
