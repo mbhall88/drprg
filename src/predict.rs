@@ -253,7 +253,7 @@ impl Runner for Predict {
         let prg_path = makeprg
             .update(
                 &self.index_msa_dir().canonicalize()?,
-                &self.index_prgs_path().canonicalize()?,
+                &self.index_prg_path().canonicalize()?,
                 &denovo_paths.canonicalize()?,
                 &self.outdir.canonicalize()?,
                 update_args,
