@@ -184,6 +184,9 @@ pub struct Predict {
     /// Set the minimum cluster size in pandora
     #[clap(short = 'C', long, hidden = true, default_value = "10")]
     pandora_min_cluster_size: u16,
+    /// Output debugging files. Mostly for development purposes
+    #[clap(long, hidden_short_help = true)]
+    debug: bool,
 }
 
 impl Runner for Predict {
@@ -225,6 +228,9 @@ impl Runner for Predict {
         let mut args = vec!["-t", threads, "-w", &w, "-k", &k, "-c", &c];
         if self.is_illumina {
             args.push("-I");
+        }
+        if self.debug {
+            args.push("-K");
         }
 
         debug!("Running pandora discover...");
@@ -272,6 +278,10 @@ impl Runner for Predict {
         if self.is_illumina {
             gt_args.push("-I");
         }
+        if self.debug {
+            args.push("-K");
+        }
+
         pandora.genotype_with(
             &prg_path,
             &self.index_vcf_ref_path(),

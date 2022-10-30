@@ -482,14 +482,7 @@ impl Pandora {
         }
         let logstream = File::create(outdir.join("discover.log"))
             .map_err(|source| DependencyError::FileError { source })?;
-        let fixed_args = &[
-            "discover",
-            "-g",
-            &MTB_GENOME_SIZE.to_string(),
-            "-K",
-            "-v",
-            "-o",
-        ];
+        let fixed_args = &["discover", "-g", &MTB_GENOME_SIZE.to_string(), "-v", "-o"];
         let cmd_output = Command::new(&self.executable)
             .args(fixed_args)
             .arg(&outdir)
