@@ -21,7 +21,7 @@ def infer_h2h_reads(wildcards, tech=None):
 
 
 def infer_mykrobe_tech_opts(wildcards):
-    return {"illumina": "-e 0.001 --ploidy haploid", "nanopore": "--ont"}[
+    return {"illumina": "--ploidy haploid", "nanopore": "--ont"}[
         wildcards.tech
     ]
 
