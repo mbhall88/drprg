@@ -22,7 +22,6 @@ rule mykrobe_predict:
                 "--force",
                 "-A",
                 "-O json",
-                "-D 0.20",
                 "--species tb",
                 "--sample {run}",
             ]
