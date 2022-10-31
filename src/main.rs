@@ -14,6 +14,7 @@ pub mod builder;
 mod cli;
 pub mod config;
 mod consequence;
+mod expert;
 mod panel;
 pub mod predict;
 pub mod report;
