@@ -12,8 +12,8 @@ makeprg: make_extdir
     wget "{{ MAKEPRG_URL }}" -O "{{ MAKEPRG }}"
     chmod +x "{{ MAKEPRG }}"
 
-PANDORA_VERSION := "1f9f7fb"
-PANDORA_URL := "https://github.com/rmcolq/pandora/files/9834729/pandora-" + PANDORA_VERSION + ".gz"
+PANDORA_VERSION := "9bb67c6"
+PANDORA_URL := "https://github.com/rmcolq/pandora/files/9908820/pandora-linux-precompiled-glibc.gz"
 PANDORA := join(EXTDIR, "pandora")
 
 # download pandora binary
