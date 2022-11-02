@@ -211,6 +211,7 @@ impl MakePrg {
 
         match cmd_result {
             Ok(cmd_output) if !cmd_output.status.success() => {
+                let _ = fs::remove_dir_all(&dir.path());
                 error!(
                     "Failed to run make_prg with sterr:\n{}",
                     cmd_output.stderr.to_str_lossy()
@@ -248,9 +249,11 @@ impl MakePrg {
                         ),
                     })?;
 
+                let _ = fs::remove_dir_all(&dir.path());
                 Ok(())
             }
             Err(err) => {
+                let _ = fs::remove_dir_all(&dir.path());
                 error!("make_prg failed to run with error: {}", err.to_string());
                 Err(DependencyError::ProcessError(err))
             }
