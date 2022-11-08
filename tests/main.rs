@@ -11,7 +11,7 @@ const VCF: &str = "tests/cases/build/input.bcf";
 fn build_paths_dont_exist() -> Result<(), Box<dyn std::error::Error>> {
     let sub = "build";
     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
-    cmd.args(&[
+    cmd.args([
         sub,
         "-i file/doesnt/exist",
         "-a",
@@ -33,7 +33,7 @@ fn build_full_run() -> Result<(), Box<dyn std::error::Error>> {
     let sub = "build";
     let mut cmd = Command::cargo_bin(env!("CARGO_PKG_NAME"))?;
     let outdir = tempfile::tempdir()?;
-    cmd.args(&[
+    cmd.args([
         sub,
         "-i",
         PANEL,

@@ -269,7 +269,7 @@ impl Runner for Predict {
         // ==============================================================================================
 
         debug!("Indexing updated PRG with pandora index...");
-        pandora.index_with(&prg_path, &["-t", threads, "-w", &w, "-k", &k])?;
+        pandora.index_with(&prg_path, ["-t", threads, "-w", &w, "-k", &k])?;
 
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
         info!("Genotyping reads against the panel with pandora");

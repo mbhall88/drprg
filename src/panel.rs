@@ -437,7 +437,7 @@ impl PanelRecord {
         let alt_alleles = self.all_alt_alleles()?;
         let mut alleles = vec![ref_allele];
         alleles.extend(alt_alleles);
-        record.set_alleles(&*alleles)?;
+        record.set_alleles(&alleles)?;
         Ok(())
     }
 }
