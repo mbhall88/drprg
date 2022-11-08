@@ -105,13 +105,22 @@ impl Bcftools {
     }
 
     pub fn sort(&self, input: &Path, output: &Path) -> Result<(), DependencyError> {
-        let cmd_output = Command::new(&self.executable)
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding
             .arg("sort")
-            .args(&["-O", "b", "-o"])
+            .args(["-O", "b", "-o"])
             .arg(output)
-            .arg(input)
-            .output()
-            .map_err(DependencyError::ProcessError)?;
+            .arg(input);
+        let cmd_output = cmd.output().map_err(DependencyError::ProcessError)?;
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         if !cmd_output.status.success() {
             let exit_code = cmd_output.status.to_string();
@@ -138,14 +147,23 @@ impl Bcftools {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let cmd_output = Command::new(&self.executable)
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding
             .arg("consensus")
             .args(args)
             .arg("-o")
             .arg(output)
-            .arg(input)
-            .output()
-            .map_err(DependencyError::ProcessError)?;
+            .arg(input);
+        let cmd_output = cmd.output().map_err(DependencyError::ProcessError)?;
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         if !cmd_output.status.success() {
             let exit_code = cmd_output.status.to_string();
@@ -199,19 +217,29 @@ impl MakePrg {
         let outdir = output_prg.parent().unwrap_or_else(|| Path::new("."));
         let logstream = File::create(outdir.join("makeprg.log"))
             .map_err(|source| DependencyError::FileError { source })?;
-        let cmd_result = Command::new(&self.executable)
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding
             .current_dir(&dir)
             .arg("from_msa")
             .args(args)
-            .args(&["-v", "-o", prefix, "-i"])
+            .args(["-v", "-o", prefix, "-i"])
             .arg(input)
             .stdout(Stdio::null())
-            .stderr(logstream)
-            .output();
+            .stderr(logstream);
+        let cmd_result = cmd.output();
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         match cmd_result {
             Ok(cmd_output) if !cmd_output.status.success() => {
-                let _ = fs::remove_dir_all(&dir.path());
+                let _ = fs::remove_dir_all(dir.path());
                 error!(
                     "Failed to run make_prg with sterr:\n{}",
                     cmd_output.stderr.to_str_lossy()
@@ -249,11 +277,11 @@ impl MakePrg {
                         ),
                     })?;
 
-                let _ = fs::remove_dir_all(&dir.path());
+                let _ = fs::remove_dir_all(dir.path());
                 Ok(())
             }
             Err(err) => {
-                let _ = fs::remove_dir_all(&dir.path());
+                let _ = fs::remove_dir_all(dir.path());
                 error!("make_prg failed to run with error: {}", err.to_string());
                 Err(DependencyError::ProcessError(err))
             }
@@ -336,7 +364,7 @@ impl MakePrg {
             aligner.run_with(
                 &existing_msa,
                 &updated_msa,
-                &[
+                [
                     "--auto",
                     "--thread",
                     "-1",
@@ -357,15 +385,25 @@ impl MakePrg {
 
         let fixed_args = vec!["-v", "-o", prefix, "-i"];
 
-        let cmd_result = Command::new(&self.executable)
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding
             .current_dir(&update_prgs_dir)
             .arg("from_msa")
             .args(args)
             .args(&fixed_args)
             .arg(update_msa_dir)
             .stdout(Stdio::null())
-            .stderr(logstream)
-            .output();
+            .stderr(logstream);
+        let cmd_result = cmd.output();
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         match cmd_result {
             Ok(cmd_output) if !cmd_output.status.success() => {
@@ -390,7 +428,7 @@ impl MakePrg {
                                 .set_line_base_count(usize::MAX)
                                 .build()
                         })?;
-                    let mut prg_reader = File::open(&index_prg)
+                    let mut prg_reader = File::open(index_prg)
                         .map(BufReader::new)
                         .map(fasta::Reader::new)?;
 
@@ -446,12 +484,18 @@ impl Pandora {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let cmd_output = Command::new(&self.executable)
-            .arg("index")
-            .args(args)
-            .arg(input)
-            .output()
-            .map_err(DependencyError::ProcessError)?;
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding.arg("index").args(args).arg(input);
+        let cmd_output = cmd.output().map_err(DependencyError::ProcessError)?;
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         if !cmd_output.status.success() {
             error!(
@@ -486,16 +530,25 @@ impl Pandora {
         let logstream = File::create(outdir.join("discover.log"))
             .map_err(|source| DependencyError::FileError { source })?;
         let fixed_args = &["discover", "-g", &MTB_GENOME_SIZE.to_string(), "-v", "-o"];
-        let cmd_output = Command::new(&self.executable)
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding
             .args(fixed_args)
-            .arg(&outdir)
+            .arg(outdir)
             .args(args)
             .arg(prg)
             .arg(query_idx)
             .stdout(logstream)
-            .stderr(Stdio::inherit())
-            .output()
-            .map_err(DependencyError::ProcessError)?;
+            .stderr(Stdio::inherit());
+        let cmd_output = cmd.output().map_err(DependencyError::ProcessError)?;
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         if !cmd_output.status.success() {
             error!(
@@ -544,15 +597,24 @@ impl Pandora {
             "--vcf-refs",
             &vcf_ref.to_string_lossy(),
         ];
-        let cmd_output = Command::new(&self.executable)
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding
             .args(fixed_args)
             .args(args)
             .arg(prg)
             .arg(reads)
             .stdout(errstream)
-            .stderr(Stdio::inherit())
-            .output()
-            .map_err(DependencyError::ProcessError)?;
+            .stderr(Stdio::inherit());
+        let cmd_output = cmd.output().map_err(DependencyError::ProcessError)?;
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
 
         if !cmd_output.status.success() {
             error!(
@@ -659,12 +721,19 @@ impl MultipleSeqAligner {
     {
         let ostream = File::create(output)
             .map_err(|source| DependencyError::FileError { source })?;
-        let result = Command::new(&self.executable)
-            .args(args)
-            .arg(input)
-            .stdout(ostream)
-            .output();
-        match result {
+        let mut binding = Command::new(&self.executable);
+        let cmd = binding.args(args).arg(input).stdout(ostream);
+        let cmd_result = cmd.output();
+        let cmd_args = cmd
+            .get_args()
+            .collect::<Vec<&OsStr>>()
+            .join(OsStr::new(" "));
+        debug!(
+            "Running: {} {}",
+            cmd.get_program().to_string_lossy(),
+            cmd_args.to_string_lossy()
+        );
+        match cmd_result {
             Ok(out) if out.status.success() => Ok(()),
             Ok(out) => {
                 error!(
@@ -694,7 +763,7 @@ fn from_path_or(path: &Option<PathBuf>, default: &Path) -> Option<String> {
         None => {
             let default_fname = default.file_name()?.to_string_lossy();
             is_executable(&default.to_string_lossy())
-                .or_else(|| is_executable(&*default_fname))
+                .or_else(|| is_executable(&default_fname))
         }
     }
 }
@@ -766,7 +835,7 @@ pub fn dependency_dir() -> PathBuf {
 /// executable file
 pub fn is_executable(program: &str) -> Option<String> {
     let cmd = format!("realpath $(command -v {})", program);
-    let result = Command::new("sh").args(&["-c", &cmd]).output();
+    let result = Command::new("sh").args(["-c", &cmd]).output();
     match result {
         Ok(output) => {
             let abspath = output.stdout.trim().to_str_lossy().to_string();
@@ -839,7 +908,7 @@ impl VcfExt for bcf::Record {
     }
 
     fn contig(&self) -> String {
-        String::from_utf8_lossy(&*Vec::from(
+        String::from_utf8_lossy(&Vec::from(
             self.header()
                 .rid2name(self.rid().expect("rid not set"))
                 .expect("unable to find rid in header"),

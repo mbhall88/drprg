@@ -227,7 +227,7 @@ impl Build {
             let length: u64 = ((usize::from(gff_record.end()) + 1)
                 - usize::from(gff_record.start())
                 + (&self.padding * 2) as usize) as u64;
-            header.push_record(&*vcf_contig_field(gene, length));
+            header.push_record(&vcf_contig_field(gene, length));
         }
         for entry in PanelRecord::vcf_header_entries() {
             header.push_record(entry);
@@ -259,16 +259,16 @@ impl Build {
             Some(d) => d.canonicalize().unwrap(), // we know it exists so safe to unwrap
             _ => return Ok(()),
         };
-        let prg = prebuilt_dir.join(&self.prg_path().file_name().unwrap());
+        let prg = prebuilt_dir.join(self.prg_path().file_name().unwrap());
         if !prg.exists() {
             return Err(BuildError::MissingFile(prg));
         }
-        let msa_dir = prebuilt_dir.join(&self.msa_dir().file_name().unwrap());
+        let msa_dir = prebuilt_dir.join(self.msa_dir().file_name().unwrap());
         if !msa_dir.exists() {
             return Err(BuildError::MissingFile(msa_dir));
         }
         let update_prgs =
-            prebuilt_dir.join(&self.update_prgs_path().file_name().unwrap());
+            prebuilt_dir.join(self.update_prgs_path().file_name().unwrap());
         if !update_prgs.exists() {
             return Err(BuildError::MissingFile(update_prgs));
         }
@@ -276,7 +276,7 @@ impl Build {
             BuildError::MissingFile(prebuilt_dir.join("dr.prg.kX.wY.idx"))
         })?;
         let prg_index_kmer_prgs =
-            prebuilt_dir.join(&self.prg_index_kmer_prgs_path().file_name().unwrap());
+            prebuilt_dir.join(self.prg_index_kmer_prgs_path().file_name().unwrap());
         let index_exists = prg_index.exists() && prg_index_kmer_prgs.exists();
 
         if self.outdir == prebuilt_dir {
@@ -595,7 +595,7 @@ impl Runner for Build {
                 let premsa_path = premsa_dir.join(format!("{}.fa", gene));
                 let msa_path = msa_dir.join(format!("{}.fa", gene));
                 debug!("Running MSA for {}", gene);
-                mafft.run_with(&premsa_path, &msa_path, &["--auto", "--thread", "-1"])
+                mafft.run_with(&premsa_path, &msa_path, ["--auto", "--thread", "-1"])
             })?;
             info!("Successfully generated MSAs");
 
