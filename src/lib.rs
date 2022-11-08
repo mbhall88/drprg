@@ -117,7 +117,7 @@ impl Bcftools {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -160,7 +160,7 @@ impl Bcftools {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -232,7 +232,7 @@ impl MakePrg {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -400,7 +400,7 @@ impl MakePrg {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -492,7 +492,7 @@ impl Pandora {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -545,7 +545,7 @@ impl Pandora {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -611,7 +611,7 @@ impl Pandora {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
@@ -729,7 +729,7 @@ impl MultipleSeqAligner {
             .collect::<Vec<&OsStr>>()
             .join(OsStr::new(" "));
         debug!(
-            "Running: {} {}",
+            "Ran: {} {}",
             cmd.get_program().to_string_lossy(),
             cmd_args.to_string_lossy()
         );
