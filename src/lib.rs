@@ -378,6 +378,9 @@ impl MakePrg {
         let update_prgs_dir = outdir.join("update_prgs");
         if !update_prgs_dir.exists() {
             fs::create_dir(&update_prgs_dir)?;
+        } else {
+            fs::remove_dir_all(&update_prgs_dir)
+                .and_then(|_| fs::create_dir(&update_prgs_dir))?;
         }
         let prefix = "updated";
         let logstream = File::create(update_prgs_dir.join("update_prgs.log"))
