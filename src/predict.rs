@@ -32,6 +32,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::config::Config;
 use crate::consequence::consequence_of_variant;
+use crate::expert::{ExpertRules, RuleExt};
 use noodles::fasta;
 use regex::Regex;
 use std::fs::File;
@@ -202,6 +203,9 @@ impl Runner for Predict {
             .context("Failed to canonicalize outdir")?;
 
         self.validate_index()?;
+        let expert_rules = self
+            .load_rules()
+            .context("Failed to load expert rules in index")?;
         let config = Config::from_path(&self.index_config())
             .context("Failed to load index config file")?;
         debug!("Index is valid");
@@ -329,6 +333,15 @@ impl Predict {
         find_prg_index_in(&self.index).ok_or_else(|| {
             PredictError::InvalidIndex(self.index.join("dr.prg.kX.wY.idx"))
         })
+    }
+
+    fn load_rules(&self) -> Result<ExpertRules, anyhow::Error> {
+        let p = self.index.join("rules.csv");
+        if p.exists() {
+            ExpertRules::from_csv(&p)
+        } else {
+            Ok(ExpertRules::new())
+        }
     }
 
     fn index_kmer_prgs_path(&self) -> PathBuf {

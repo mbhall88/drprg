@@ -351,11 +351,13 @@ impl Runner for Build {
         info!("Loaded panel");
 
         if let Some(p) = &self.rules {
-            let rules = ExpertRules::from_csv(p).context("Failed to read expert rules")?;
+            let rules =
+                ExpertRules::from_csv(p).context("Failed to read expert rules")?;
             for g in rules.keys() {
                 let _ = genes.insert(g.to_owned());
             }
-            fs::copy(p, self.rules_path()).context("Failed to copy expert rules file")?;
+            fs::copy(p, self.rules_path())
+                .context("Failed to copy expert rules file")?;
         }
 
         info!("Loading genome annotation for panel genes...");
