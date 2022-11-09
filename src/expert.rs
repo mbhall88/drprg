@@ -1,8 +1,10 @@
+use log::warn;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_derive::Deserialize;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::hash::Hash;
+use std::path::Path;
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -93,11 +95,48 @@ where
     Ok(s.split(';').map(|item| item.to_owned()).collect())
 }
 
+pub(crate) type ExpertRules = HashMap<String, HashSet<Rule>>;
+
+pub trait RuleExt {
+    fn from_csv(path: &Path) -> Result<ExpertRules, anyhow::Error>;
+}
+
+impl RuleExt for ExpertRules {
+    fn from_csv(path: &Path) -> Result<Self, anyhow::Error> {
+        let mut rules: ExpertRules = HashMap::new();
+        let mut n_records = 0;
+
+        let mut reader = csv::ReaderBuilder::new()
+            .has_headers(false)
+            .from_path(path)?;
+
+        for result in reader.deserialize() {
+            n_records += 1;
+            let record: Rule = result?;
+            let set_of_records = rules
+                .entry(record.gene.to_owned())
+                .or_insert_with(HashSet::new);
+            let seen_before = !set_of_records.insert(record);
+
+            if seen_before {
+                warn!(
+                    "Duplicate expert rule detected at line number {}",
+                    n_records
+                )
+            }
+        }
+        Ok(rules)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::expert::{ExpertError, Rule, VariantType};
-    use std::collections::BTreeSet;
+    use crate::expert::{ExpertError, ExpertRules, Rule, RuleExt, VariantType};
+    use std::collections::{BTreeSet, HashMap, HashSet};
+    use std::fs::File;
+    use std::io::Write;
     use std::str::FromStr;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn variant_type_display() {
@@ -292,5 +331,75 @@ mod tests {
 
         let record: Result<Rule, csv::Error> = reader.deserialize().next().unwrap();
         assert!(record.is_err());
+    }
+
+    #[test]
+    fn expert_rules_from_csv() {
+        const CSV: &[u8] = b"missense,geneA,1,2,drug\nnonsense,geneB,1,,drug;foo";
+        let tmp = NamedTempFile::new().unwrap();
+        {
+            let mut file = File::create(tmp.path()).unwrap();
+            file.write_all(CSV).unwrap();
+        }
+        let rules = ExpertRules::from_csv(tmp.path()).unwrap();
+        let mut expected: ExpertRules = HashMap::new();
+        expected.insert(
+            "geneA".to_string(),
+            HashSet::from([Rule {
+                variant_type: VariantType::Missense,
+                gene: "geneA".to_string(),
+                start: Some(1),
+                end: Some(2),
+                drugs: BTreeSet::from(["drug".to_string()]),
+            }]),
+        );
+        expected.insert(
+            "geneB".to_string(),
+            HashSet::from([Rule {
+                variant_type: VariantType::Nonsense,
+                gene: "geneB".to_string(),
+                start: Some(1),
+                end: None,
+                drugs: BTreeSet::from(["foo".to_string(), "drug".to_string()]),
+            }]),
+        );
+
+        assert_eq!(rules, expected)
+    }
+
+    #[test]
+    fn expert_rules_from_csv_duplicate_rule_ignored() {
+        const CSV: &[u8] = b"missense,geneA,1,2,drug\nmissense,geneA,1,2,drug";
+        let tmp = NamedTempFile::new().unwrap();
+        {
+            let mut file = File::create(tmp.path()).unwrap();
+            file.write_all(CSV).unwrap();
+        }
+        let rules = ExpertRules::from_csv(tmp.path()).unwrap();
+        let mut expected: ExpertRules = HashMap::new();
+        expected.insert(
+            "geneA".to_string(),
+            HashSet::from([Rule {
+                variant_type: VariantType::Missense,
+                gene: "geneA".to_string(),
+                start: Some(1),
+                end: Some(2),
+                drugs: BTreeSet::from(["drug".to_string()]),
+            }]),
+        );
+
+        assert_eq!(rules, expected)
+    }
+
+    #[test]
+    fn expert_rules_from_csv_malformatted() {
+        const CSV: &[u8] = b"missense,geneA,1,2,drug\nnonsense,geneB,1,drug;foo";
+        let tmp = NamedTempFile::new().unwrap();
+        {
+            let mut file = File::create(tmp.path()).unwrap();
+            file.write_all(CSV).unwrap();
+        }
+        let rules = ExpertRules::from_csv(tmp.path());
+        assert!(rules.is_err());
     }
 }
