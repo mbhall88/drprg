@@ -102,6 +102,28 @@ $ drprg build -a annotation.gff3 -i panel.tsv -f ref.fa -o outdir
 
 <!--todo: document the input and output files for build-->
 
+#### Expert rules
+
+These are blanket rules that describe resistance (or susceptibility). The file is a CSV 
+with each row representing a rule. The format of each row is
+
+```csv
+vartype,gene,start,end,drug
+```
+
+1. `vartype`: the variant type of the rule. Supported types are:
+    * [`frameshift`][frameshift] - any insertion or deletion whose length is not a multiple of three
+    * [`missense`][missense] - A DNA change that results in a different amino acid
+    * [`nonsense`][nonsense] - A DNA change that results in a stop codon instead of an amino acid
+2. `gene`: the name of the gene the rule applies to
+3. `start`: An optional start position for the rule to apply from. The position is in codon coordinates and is 1-based inclusive. If not provided, the start of the gene is inferred.
+4. `end`: An optional end position for the rule to apply to. The position is in codon coordinates and is 1-based inclusive. If not provided, the end of the gene is inferred.
+5. `drug`: A semi-colon-delimited (';') list of drugs the rule impacts. If the rule confers susceptibility, use `NONE` for this column.
+
+[frameshift]: https://www.genome.gov/genetics-glossary/Frameshift-Mutation
+[missense]: https://www.genome.gov/genetics-glossary/Missense-Mutation
+[nonsense]: https://www.genome.gov/genetics-glossary/Nonsense-Mutation
+
 #### Full usage
 
 ```
@@ -131,6 +153,8 @@ OPTIONS:
     -f, --fasta <reference-file>    Reference genome in FASTA format (must be indexed with samtools faidx)
     -t, --threads <threads>         Number of threads to use. Use 0 to select the number automatically [default: 1]
 ```
+
+
 
 [pandora]: https://github.com/rmcolq/pandora
 [mafft]: https://mafft.cbrc.jp/alignment/software/

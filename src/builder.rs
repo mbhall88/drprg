@@ -1,6 +1,7 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
 use std::convert::TryFrom;
+use std::fs;
 use std::fs::File;
 use std::io::{BufRead, BufReader, BufWriter, Seek, Write};
 use std::path::{Path, PathBuf};
@@ -29,6 +30,7 @@ use drprg::{MultipleSeqAligner, PathExt};
 
 use crate::cli::check_path_exists;
 use crate::config::Config;
+use crate::expert::{ExpertRules, RuleExt};
 use crate::panel::{Panel, PanelError, PanelExt, PanelRecord};
 use crate::Runner;
 
@@ -115,6 +117,12 @@ pub struct Build {
     /// (along with padding) and must be in the forward strand orientation.
     #[clap(short = 'd', long, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
     prebuilt_prg: Option<PathBuf>,
+    /// "Expert rules" to be applied in addition to the panel.
+    ///
+    /// CSV file with blanket rules that describe resistance (or susceptibility). The columns are
+    /// <variant type>,<gene>,<start>,<end>,<drug(s)>. See the docs for a detailed explanation.
+    #[clap(short, long, parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    rules: Option<PathBuf>,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
     #[clap(
         short = 'l',
@@ -235,6 +243,9 @@ impl Build {
         header
     }
 
+    fn rules_path(&self) -> PathBuf {
+        self.outdir.join("rules.csv")
+    }
     fn prg_path(&self) -> PathBuf {
         self.outdir.join("dr.prg")
     }
@@ -336,8 +347,16 @@ impl Runner for Build {
 
         info!("Loading the panel...");
         let panel: Panel = self.load_panel()?;
-        let genes: HashSet<String> = panel.keys().map(|k| k.to_owned()).collect();
+        let mut genes: HashSet<String> = panel.keys().map(|k| k.to_owned()).collect();
         info!("Loaded panel");
+
+        if let Some(p) = &self.rules {
+            let rules = ExpertRules::from_csv(p).context("Failed to read expert rules")?;
+            for g in rules.keys() {
+                let _ = genes.insert(g.to_owned());
+            }
+            fs::copy(p, self.rules_path()).context("Failed to copy expert rules file")?;
+        }
 
         info!("Loading genome annotation for panel genes...");
         debug!("Panel genes: {:?}", genes);
