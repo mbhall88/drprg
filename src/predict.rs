@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::string::ToString;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{AppSettings, Parser};
 use log::{debug, info};
 use rust_htslib::bcf;
@@ -425,11 +425,17 @@ impl Predict {
             .context("Failed to open panel VCF index")?;
         debug!("Loading the panel...");
         let panel = self.load_var_to_drugs()?;
+        let expert_rules = self
+            .load_rules()
+            .context("Failed to load expert rules in index")?;
         debug!("Loaded panel");
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
                 .context(format!("Failed to read record {} in pandora VCF", i))?;
+
+            let mut record_mutations: Vec<String> = Vec::new();
+            let mut record_predictions: Vec<Prediction> = Vec::new();
 
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
@@ -452,31 +458,38 @@ impl Predict {
                 iv.start as u64,
                 Some((iv.end - 1) as u64)
             ));
-            let mut record_has_match_in_idx = false;
             let ev = self.consequence(&record).context(format!(
                 "Failed to find the consequence of novel variant {}",
                 record.id().to_str_lossy()
             ))?;
             let csqs = ev.atomise();
+            for csq in &csqs {
+                let var_str = csq.to_variant_string();
+                let mut pred = Prediction::Susceptible;
+                for rule in expert_rules.matches(csq) {
+                    if !rule.drugs.contains(NONE_DRUG) {
+                        pred = Prediction::Resistant;
+                        break;
+                    }
+                }
+                record_mutations.push(var_str);
+                record_predictions.push(pred);
+            }
+
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
                 let vid = idx_record.id();
                 let vid_str = vid.to_str_lossy();
                 let (drugs, _) = &panel.get(&*vid_str).unwrap();
-                let mut prediction = Prediction::Susceptible;
+                let mut prediction = Prediction::None;
                 if record.called_allele() == -1 && !self.no_require_genotype {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
                         None if !self.no_unknown => {
-                            if record_has_match_in_idx {
-                                prediction = Prediction::Susceptible
-                            } else {
-                                prediction = Prediction::Unknown
-                            }
                             for csq in &csqs {
                                 let is_x_mutation = vid_str.ends_with('X');
-                                let csq_str = format!("{}_{}", csq.gene, csq.variant);
+                                let csq_str = csq.to_variant_string();
                                 let csq_matches_variant = if is_x_mutation {
                                     csq_str[..csq_str.len() - 1]
                                         == vid_str[..vid_str.len() - 1]
@@ -486,7 +499,6 @@ impl Predict {
                                 if csq_matches_variant {
                                     if !drugs.contains(NONE_DRUG) {
                                         prediction = Prediction::Resistant;
-                                        record_has_match_in_idx = true;
                                         break;
                                     } else {
                                         prediction = Prediction::Susceptible;
@@ -496,8 +508,6 @@ impl Predict {
                             }
                         }
                         Some(i) if i > 0 => {
-                            record_has_match_in_idx = true;
-                            // safe to unwrap here as the var id must be in the panel by definition
                             if !drugs.contains(NONE_DRUG) {
                                 prediction = Prediction::Resistant
                             }
@@ -505,58 +515,35 @@ impl Predict {
                         _ => (),
                     };
                 }
-                // todo: improve this. need to find a way to push all of these into a vector and just have a single update at the end of the loop
-                // I've tried, but the borrow checker is too smart for me and I can't solve the problem
-                // This works for now, but slows the execution down quite a bit
-                let pred = prediction.to_bytes();
-                let current_varids = record
-                    .info(InfoField::VarId.id().as_bytes())
-                    .string()
-                    .context("Couldn't unwrap VARIDs")?;
-                match current_varids {
-                    Some(v) => {
-                        let mut cur_v = v.clone();
-                        cur_v.push(&vid);
-                        record
-                            .push_info_string(InfoField::VarId.id().as_bytes(), &cur_v)
-                            .context("Failed to push VARID to record")?;
-                    }
-                    None => record
-                        .push_info_string(InfoField::VarId.id().as_bytes(), &[&vid])
-                        .context("Failed to push VARID to record")?,
-                };
-                let current_preds = record
-                    .info(InfoField::Prediction.id().as_bytes())
-                    .string()
-                    .context("Couldn't unwrap PREDICTs")?;
-                match current_preds {
-                    Some(v) => {
-                        let mut cur_v = v.clone();
-                        if record_has_match_in_idx {
-                            // change all unknowns to susceptible
-                            let u = Prediction::Unknown.to_bytes();
-                            for p in &mut cur_v {
-                                if p == &u {
-                                    *p = Prediction::Susceptible.to_bytes();
-                                }
-                            }
-                        }
-                        cur_v.push(pred);
-                        record
-                            .push_info_string(
-                                InfoField::Prediction.id().as_bytes(),
-                                &cur_v,
-                            )
-                            .context("Failed to push PREDICT to record")?;
-                    }
-                    None => record
-                        .push_info_string(
-                            InfoField::Prediction.id().as_bytes(),
-                            &[pred],
-                        )
-                        .context("Failed to push PREDICT to record")?,
-                }
+                record_predictions.push(prediction);
+                record_mutations.push(vid_str.to_string());
             }
+            match record_predictions.iter().max() {
+                Some(Prediction::None) | None => {
+                    for csq in csqs {
+                        record_mutations.push(csq.to_variant_string());
+                        if (csq.is_synonymous() && self.ignore_synonymous)
+                            || self.no_unknown
+                        {
+                            record_predictions.push(Prediction::None);
+                        } else {
+                            record_predictions.push(Prediction::Unknown);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            let mut_bytes: Vec<&[u8]> =
+                record_mutations.iter().map(|s| s.as_bytes()).collect();
+            record
+                .push_info_string(InfoField::VarId.id().as_bytes(), &mut_bytes)
+                .context("Failed to push VARIDs to record")?;
+
+            let pred_bytes: Vec<&[u8]> =
+                record_predictions.iter().map(|p| p.to_bytes()).collect();
+            record
+                .push_info_string(InfoField::Prediction.id().as_bytes(), &pred_bytes)
+                .context("Failed to push PREDs to record")?;
 
             writer
                 .write(&record)
@@ -604,7 +591,7 @@ impl Predict {
         let json_path = self.outdir.join(self.json_filename());
 
         debug!("Loading the panel...");
-        let mut var2drugs = self.load_var_to_drugs()?;
+        let var2drugs = self.load_var_to_drugs()?;
         let mut gene2drugs: HashMap<String, HashSet<String>> = HashMap::new();
         for (var, (drugs, _)) in &var2drugs {
             let (chrom, _) = var
@@ -638,7 +625,7 @@ impl Predict {
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
                 .context(format!("Failed to read record {} in predict VCF", i))?;
-            let mut preds = match record
+            let preds = match record
                 .info(InfoField::Prediction.id().as_bytes())
                 .string()
                 .context(format!(
@@ -651,7 +638,14 @@ impl Predict {
                     .collect::<Vec<Prediction>>(),
                 None => vec![],
             };
-            let mut varids = match record
+            if preds.is_empty() {
+                return Err(anyhow!(
+                    "{} tag is unexpectedly empty in VCF",
+                    InfoField::Prediction.id()
+                ));
+            }
+
+            let varids = match record
                 .info(InfoField::VarId.id().as_bytes())
                 .string()
                 .context(format!("Failed to get variant ID for record number {}", i))?
@@ -662,109 +656,92 @@ impl Predict {
                     .collect::<Vec<String>>(),
                 None => vec![],
             };
+            if varids.is_empty() {
+                return Err(anyhow!(
+                    "{} tag is unexpectedly empty in VCF",
+                    InfoField::VarId.id()
+                ));
+            }
 
-            let max_pred = preds.iter().max();
+            // safe to unwrap as we know preds i not empty
+            let max_pred = preds.iter().max().unwrap();
 
             // we basically ignore the FILTER column if the variant failed genotyping as we want to
             // output this because it could indicate a deletion or some other event
-            let is_failed = max_pred == Some(&Prediction::Failed);
-            if !record.is_pass() && !is_failed {
+            let is_failed = *max_pred == Prediction::Failed;
+            if (!record.is_pass() && !is_failed) || *max_pred == Prediction::None {
                 continue;
             }
 
-            let has_unknown =
-                preds.is_empty() || max_pred == Some(&Prediction::Unknown);
-
-            if has_unknown && !self.no_unknown && record.called_allele() > 0 {
-                let ev = self.consequence(&record).context(format!(
-                    "Failed to find the consequence of variant {}",
-                    record.id().to_str_lossy()
+            for (prediction, varid) in preds
+                .iter()
+                .zip(varids.iter())
+                .filter(|(p, _)| *p == max_pred)
+            {
+                let (chrom, var) = varid.split_once('_').context(format!(
+                    "Couldn't split variant ID {} at underscore",
+                    varid
                 ))?;
-
-                if !preds.is_empty() {
-                    preds.iter_mut().for_each(|p| {
-                        if *p == Prediction::Unknown {
-                            *p = Prediction::Susceptible
-                        }
-                    });
-                }
-                preds.push(Prediction::Unknown);
-                let var = format!("{}_{}", ev.gene, ev.variant);
-                varids.push(var.to_owned());
-
-                if self.ignore_synonymous && ev.is_synonymous() {
-                    continue;
-                }
-
-                // for novel variants, add 'U' for all drugs this gene is associated with
-                let chrom = record.contig();
-                match gene2drugs.get(&chrom) {
-                    Some(d) => {
-                        if let std::collections::hash_map::Entry::Vacant(e) =
-                            var2drugs.entry(var)
-                        {
-                            e.insert((d.clone(), ev.residue.clone()));
-                        }
-                        for drug in d.iter().filter(|el| *el != NONE_DRUG) {
-                            let entry = json
-                                .entry(drug.to_string())
-                                .or_insert_with(Susceptibility::default);
-                            match entry.predict {
-                                Prediction::None
-                                | Prediction::Susceptible
-                                | Prediction::Failed => {
-                                    entry.evidence = vec![ev.to_owned()];
-                                    entry.predict = Prediction::Unknown;
+                let (drugs, residue) = match var2drugs.get(varid) {
+                    Some((d, r)) => (d.clone(), r.clone()),
+                    None => {
+                        // variant must be in expert rules - find the drug(s) for the rule(s)
+                        let ev = self.consequence(&record).context(format!(
+                            "Failed to find the consequence of novel variant {}",
+                            record.id().to_str_lossy()
+                        ))?;
+                        let csqs = ev.atomise();
+                        let mut residue = None;
+                        let mut drugs = HashSet::new();
+                        for csq in &csqs {
+                            let var_str = csq.to_variant_string();
+                            if &var_str == varid {
+                                for rule in expert_rules.matches(csq) {
+                                    for d in rule.drugs {
+                                        let _ = drugs.insert(d);
+                                    }
                                 }
-                                Prediction::Unknown => {
-                                    entry.evidence.push(ev.to_owned())
-                                }
-                                Prediction::Resistant => {}
+                                residue = Some(csq.residue.clone());
+                                break;
                             }
                         }
+                        if residue.is_none() {
+                            return Err(anyhow!(
+                                "Could not find variant {} in panel or expert rules",
+                                varid
+                            ));
+                        }
+                        (drugs, residue.unwrap())
                     }
-                    None => continue,
-                }
-                continue;
-            }
-            for (prediction, v) in preds.iter().zip(varids.iter()) {
-                if *prediction != Prediction::Susceptible {
-                    let (drugs, residue) = var2drugs
-                        .get(v)
-                        .context(format!("Variant {} in VCF is not in the panel", v))?;
-                    let (chrom, var) = v.split_once('_').context(format!(
-                        "Couldn't split variant ID {} at underscore",
-                        v
-                    ))?;
-                    let ev = Evidence {
-                        variant: Variant::from_str(var)?,
-                        gene: chrom.to_owned(),
-                        residue: residue.to_owned(),
-                        vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
-                    };
-                    for drug in drugs.iter().filter(|d| *d != NONE_DRUG) {
-                        let entry = json
-                            .entry(drug.to_string())
-                            .or_insert_with(Susceptibility::default);
-                        match (entry.predict, *prediction) {
-                            (p1, p2) if p1 == p2 => entry.evidence.push(ev.to_owned()),
-                            (Prediction::Resistant, _) => {}
-                            (_, Prediction::Resistant) => {
-                                entry.predict = Prediction::Resistant;
-                                entry.evidence = vec![ev.to_owned()];
-                            }
-                            (Prediction::Unknown, _) => {}
-                            (_, Prediction::Unknown) => {
-                                entry.predict = Prediction::Unknown;
-                                entry.evidence = vec![ev.to_owned()];
-                            }
-                            (Prediction::Failed, _) => {}
-                            (_, Prediction::Failed) => {
-                                entry.predict = Prediction::Failed;
-                                entry.evidence = vec![ev.to_owned()];
-                            }
-                            _ => {}
+                };
+                let ev = Evidence {
+                    variant: Variant::from_str(var)?,
+                    gene: chrom.to_owned(),
+                    residue: residue.to_owned(),
+                    vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
+                };
+                for drug in drugs.iter().filter(|d| *d != NONE_DRUG) {
+                    let entry = json
+                        .entry(drug.to_string())
+                        .or_insert_with(Susceptibility::default);
+                    match (entry.predict, *prediction) {
+                        (p1, p2) if p1 == p2 => entry.evidence.push(ev.to_owned()),
+                        (Prediction::Resistant, _) => {}
+                        (_, Prediction::Resistant) => {
+                            entry.predict = Prediction::Resistant;
+                            entry.evidence = vec![ev.to_owned()];
                         }
+                        (Prediction::Unknown, _) => {}
+                        (_, Prediction::Unknown) => {
+                            entry.predict = Prediction::Unknown;
+                            entry.evidence = vec![ev.to_owned()];
+                        }
+                        (Prediction::Failed, _) => {}
+                        (_, Prediction::Failed) => {
+                            entry.predict = Prediction::Failed;
+                            entry.evidence = vec![ev.to_owned()];
+                        }
+                        _ => {}
                     }
                 }
             }

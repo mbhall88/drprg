@@ -19,6 +19,9 @@ pub struct Evidence {
 }
 
 impl Evidence {
+    pub fn to_variant_string(&self) -> String {
+        format!("{}_{}", self.gene, self.variant)
+    }
     pub fn is_synonymous(&self) -> bool {
         self.residue == Residue::Amino && self.variant.reference == self.variant.new
     }
@@ -419,5 +422,20 @@ mod tests {
         assert_eq!("R", Prediction::Resistant.to_string());
         assert_eq!(actual_data, expected_data);
         assert_eq!(actual_struct, expected_struct)
+    }
+
+    #[test]
+    fn evidence_to_variant_str() {
+        let ev = Evidence {
+            variant: Variant::from_str("K4S").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.to_variant_string();
+        let expected = String::from("inhA_K4S");
+
+        assert_eq!(actual, expected)
     }
 }
