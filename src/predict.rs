@@ -69,6 +69,9 @@ pub enum PredictError {
     Ord,
 )]
 pub enum Prediction {
+    #[strum(to_string = ".")]
+    #[serde(alias = ".", rename(serialize = "."))]
+    None,
     #[strum(to_string = "S")]
     #[serde(alias = "S", rename(serialize = "S"))]
     Susceptible,
@@ -95,13 +98,14 @@ impl<'de> Deserialize<'de> for Prediction {
 
 impl Default for Prediction {
     fn default() -> Self {
-        Self::Susceptible
+        Self::None
     }
 }
 
 impl Prediction {
     fn to_bytes(self) -> &'static [u8] {
         match self {
+            Self::None => b".",
             Self::Susceptible => b"S",
             Self::Resistant => b"R",
             Self::Failed => b"F",
@@ -203,9 +207,6 @@ impl Runner for Predict {
             .context("Failed to canonicalize outdir")?;
 
         self.validate_index()?;
-        let expert_rules = self
-            .load_rules()
-            .context("Failed to load expert rules in index")?;
         let config = Config::from_path(&self.index_config())
             .context("Failed to load index config file")?;
         debug!("Index is valid");
@@ -452,9 +453,16 @@ impl Predict {
                 Some((iv.end - 1) as u64)
             ));
             let mut record_has_match_in_idx = false;
+            let ev = self.consequence(&record).context(format!(
+                "Failed to find the consequence of novel variant {}",
+                record.id().to_str_lossy()
+            ))?;
+            let csqs = ev.atomise();
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
                 let vid = idx_record.id();
+                let vid_str = vid.to_str_lossy();
+                let (drugs, _) = &panel.get(&*vid_str).unwrap();
                 let mut prediction = Prediction::Susceptible;
                 if record.called_allele() == -1 && !self.no_require_genotype {
                     prediction = Prediction::Failed;
@@ -466,14 +474,7 @@ impl Predict {
                             } else {
                                 prediction = Prediction::Unknown
                             }
-                            let ev = self.consequence(&record).context(format!(
-                                "Failed to find the consequence of novel variant {}",
-                                record.id().to_str_lossy()
-                            ))?;
-                            let vid_str = vid.to_str_lossy();
-                            let (drugs, _) = &panel.get(&*vid_str).unwrap();
-                            let csqs = ev.atomise();
-                            for csq in csqs {
+                            for csq in &csqs {
                                 let is_x_mutation = vid_str.ends_with('X');
                                 let csq_str = format!("{}_{}", csq.gene, csq.variant);
                                 let csq_matches_variant = if is_x_mutation {
@@ -496,9 +497,7 @@ impl Predict {
                         }
                         Some(i) if i > 0 => {
                             record_has_match_in_idx = true;
-                            let vid_str = vid.to_str_lossy();
                             // safe to unwrap here as the var id must be in the panel by definition
-                            let (drugs, _) = &panel.get(&*vid_str).unwrap();
                             if !drugs.contains(NONE_DRUG) {
                                 prediction = Prediction::Resistant
                             }
@@ -618,6 +617,19 @@ impl Predict {
                 entry.insert(d.to_owned());
             });
         }
+        let expert_rules = self
+            .load_rules()
+            .context("Failed to load expert rules in index")?;
+        for (gene, rules) in &expert_rules {
+            let entry = gene2drugs
+                .entry(gene.to_owned())
+                .or_insert_with(HashSet::new);
+            rules.iter().for_each(|r| {
+                for d in &r.drugs {
+                    entry.insert(d.to_owned());
+                }
+            });
+        }
         debug!("Loaded panel");
 
         let mut json: BTreeMap<String, Susceptibility> = BTreeMap::new();
@@ -665,7 +677,7 @@ impl Predict {
 
             if has_unknown && !self.no_unknown && record.called_allele() > 0 {
                 let ev = self.consequence(&record).context(format!(
-                    "Failed to find the consequence of novel variant {}",
+                    "Failed to find the consequence of variant {}",
                     record.id().to_str_lossy()
                 ))?;
 
@@ -673,7 +685,6 @@ impl Predict {
                     preds.iter_mut().for_each(|p| {
                         if *p == Prediction::Unknown {
                             *p = Prediction::Susceptible
-                        } else {
                         }
                     });
                 }
@@ -699,7 +710,9 @@ impl Predict {
                                 .entry(drug.to_string())
                                 .or_insert_with(Susceptibility::default);
                             match entry.predict {
-                                Prediction::Susceptible | Prediction::Failed => {
+                                Prediction::None
+                                | Prediction::Susceptible
+                                | Prediction::Failed => {
                                     entry.evidence = vec![ev.to_owned()];
                                     entry.predict = Prediction::Unknown;
                                 }

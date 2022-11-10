@@ -1,3 +1,4 @@
+use crate::report::Evidence;
 use log::warn;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_derive::Deserialize;
@@ -15,7 +16,7 @@ pub enum ExpertError {
     UnknownVariantType(String),
 }
 
-#[derive(Eq, PartialEq, Debug, Hash)]
+#[derive(Eq, PartialEq, Debug, Hash, Copy, Clone)]
 enum VariantType {
     Frameshift,
     Nonsense,
@@ -69,7 +70,7 @@ impl<'de> Deserialize<'de> for VariantType {
 }
 
 /// An object containing the data in a row of the expert rules file
-#[derive(Debug, Deserialize, Eq, PartialEq, Hash)]
+#[derive(Debug, Deserialize, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
     /// The variant type the rule describes
     variant_type: VariantType,
@@ -83,7 +84,28 @@ pub struct Rule {
     end: Option<isize>,
     /// The drug(s) the rule applies to. Multiple drugs can be listed using a semi-colon delimiter
     #[serde(deserialize_with = "str_to_set")]
-    drugs: BTreeSet<String>,
+    pub(crate) drugs: BTreeSet<String>,
+}
+
+impl Rule {
+    fn contains(&self, mutation: &Evidence) -> bool {
+        if self.gene != mutation.gene {
+            return false;
+        }
+        let start = self.start.unwrap_or(1);
+        let end = self.end.unwrap_or(isize::MAX);
+        let rule_range = start..=end;
+        let mutation_pos = mutation.variant.pos as isize;
+        if !rule_range.contains(&mutation_pos) {
+            return false;
+        }
+        match self.variant_type {
+            VariantType::Frameshift if mutation.is_frameshift() => true,
+            VariantType::Missense if mutation.is_missense() => true,
+            VariantType::Nonsense if mutation.is_nonsense() => true,
+            _ => false,
+        }
+    }
 }
 
 /// Allow serde to deserialize the drugs section of the expert rules
@@ -99,6 +121,7 @@ pub(crate) type ExpertRules = HashMap<String, HashSet<Rule>>;
 
 pub trait RuleExt {
     fn from_csv(path: &Path) -> Result<ExpertRules, anyhow::Error>;
+    fn matches(&self, mutation: &Evidence) -> Vec<Rule>;
 }
 
 impl RuleExt for ExpertRules {
@@ -127,11 +150,25 @@ impl RuleExt for ExpertRules {
         }
         Ok(rules)
     }
+
+    fn matches(&self, mutation: &Evidence) -> Vec<Rule> {
+        let mut matches = Vec::new();
+        if let Some(rules) = self.get(&mutation.gene) {
+            for rule in rules {
+                if rule.contains(mutation) {
+                    matches.push(rule.to_owned());
+                }
+            }
+        }
+        matches
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use crate::expert::{ExpertError, ExpertRules, Rule, RuleExt, VariantType};
+    use crate::panel::{Residue, Variant};
+    use crate::report::Evidence;
     use std::collections::{BTreeSet, HashMap, HashSet};
     use std::fs::File;
     use std::io::Write;
@@ -401,5 +438,280 @@ mod tests {
         }
         let rules = ExpertRules::from_csv(tmp.path());
         assert!(rules.is_err());
+    }
+
+    #[test]
+    fn rule_contains_gene_doesnt_match() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A1T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "bar".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(!rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_variant_types_differ() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A1T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "foo".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(!rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_upstream_of_start() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A-1T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Missense,
+            gene: "foo".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(!rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_at_start() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A1T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Missense,
+            gene: "foo".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_past_end() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A5T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Missense,
+            gene: "foo".to_string(),
+            start: None,
+            end: Some(4),
+            drugs: Default::default(),
+        };
+
+        assert!(!rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_at_end() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A5T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Missense,
+            gene: "foo".to_string(),
+            start: None,
+            end: Some(5),
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_single_position() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A5T").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Missense,
+            gene: "foo".to_string(),
+            start: Some(5),
+            end: Some(5),
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_non_frameshift_indel() {
+        let mutation = Evidence {
+            variant: Variant::from_str("ACGT5A").unwrap(),
+            gene: "foo".to_string(),
+            residue: Default::default(),
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "foo".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(!rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_frameshift_indel() {
+        let mutation = Evidence {
+            variant: Variant::from_str("ACG5A").unwrap(),
+            gene: "foo".to_string(),
+            residue: Default::default(),
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "foo".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_frameshift_in_promoter() {
+        let mutation = Evidence {
+            variant: Variant::from_str("ACG-5A").unwrap(),
+            gene: "foo".to_string(),
+            residue: Default::default(),
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "foo".to_string(),
+            start: Some(-7),
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_nonsense() {
+        let mutation = Evidence {
+            variant: Variant::from_str("A5*").unwrap(),
+            gene: "foo".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Nonsense,
+            gene: "foo".to_string(),
+            start: Some(5),
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn expert_rules_matches_variant_type_matches_but_wrong_gene() {
+        const CSV: &[u8] = b"missense,geneA,1,2,drug\nnonsense,geneB,,,drug;foo";
+        let tmp = NamedTempFile::new().unwrap();
+        {
+            let mut file = File::create(tmp.path()).unwrap();
+            file.write_all(CSV).unwrap();
+        }
+        let rules = ExpertRules::from_csv(tmp.path()).unwrap();
+        let mutation = Evidence {
+            variant: Variant::from_str("A1T").unwrap(),
+            gene: "geneB".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+
+        assert!(rules.matches(&mutation).is_empty())
+    }
+
+    #[test]
+    fn expert_rules_matches_vartype_and_gene_matches_but_not_range() {
+        const CSV: &[u8] = b"missense,geneA,1,2,drug\nnonsense,geneB,,,drug;foo";
+        let tmp = NamedTempFile::new().unwrap();
+        {
+            let mut file = File::create(tmp.path()).unwrap();
+            file.write_all(CSV).unwrap();
+        }
+        let rules = ExpertRules::from_csv(tmp.path()).unwrap();
+        let mutation = Evidence {
+            variant: Variant::from_str("A3T").unwrap(),
+            gene: "geneA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+
+        assert!(rules.matches(&mutation).is_empty())
+    }
+
+    #[test]
+    fn expert_rules_matches() {
+        const CSV: &[u8] = b"missense,geneA,1,2,drug\nnonsense,geneB,,,drug;foo";
+        let tmp = NamedTempFile::new().unwrap();
+        {
+            let mut file = File::create(tmp.path()).unwrap();
+            file.write_all(CSV).unwrap();
+        }
+        let rules = ExpertRules::from_csv(tmp.path()).unwrap();
+        let mutation = Evidence {
+            variant: Variant::from_str("A3*").unwrap(),
+            gene: "geneB".to_string(),
+            residue: Residue::Amino,
+            vcfid: "".to_string(),
+        };
+
+        let actual = rules.matches(&mutation);
+        let expected = vec![Rule {
+            variant_type: VariantType::Nonsense,
+            gene: "geneB".to_string(),
+            start: None,
+            end: None,
+            drugs: BTreeSet::from(["drug".to_string(), "foo".to_string()]),
+        }];
+
+        assert_eq!(actual, expected)
     }
 }

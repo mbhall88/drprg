@@ -116,8 +116,8 @@ vartype,gene,start,end,drug
     * [`missense`][missense] - A DNA change that results in a different amino acid
     * [`nonsense`][nonsense] - A DNA change that results in a stop codon instead of an amino acid
 2. `gene`: the name of the gene the rule applies to
-3. `start`: An optional start position for the rule to apply from. The position is in codon coordinates and is 1-based inclusive. If not provided, the start of the gene is inferred.
-4. `end`: An optional end position for the rule to apply to. The position is in codon coordinates and is 1-based inclusive. If not provided, the end of the gene is inferred.
+3. `start`: An optional start position for the rule to apply from. The position is in codon coordinates where the rule applies to amino acid changes and is 1-based inclusive. If not provided, the start of the gene is inferred. If you want to include the upstream (promoter) region of the gene, use negative coordinates.
+4. `end`: An optional end position for the rule to apply to. The position is in codon coordinates where the rule applies to amino acid changes and is 1-based inclusive. If not provided, the end of the gene is inferred.
 5. `drug`: A semi-colon-delimited (';') list of drugs the rule impacts. If the rule confers susceptibility, use `NONE` for this column.
 
 [frameshift]: https://www.genome.gov/genetics-glossary/Frameshift-Mutation
