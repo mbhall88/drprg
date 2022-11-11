@@ -106,13 +106,31 @@ rule add_non_resistance_mutations:
     script:
         str(SCRIPTS / "add_non_resistance_mutations.py")
 
+rule filter_panel_for_expert_rules:
+    input:
+        panel=rules.add_non_resistance_mutations.output.panel,
+        rules=RESOURCES / "rules.csv",
+    output:
+        panel=RESOURCES / "panel.filtered.tsv",
+        rules=RESOURCES / "rules.extra.csv",
+    log:
+        LOGS / "filter_panel_for_expert_rules.log"
+    container:
+        CONTAINERS["python"]
+    params:
+        script=SCRIPTS / "filter_panel_for_expert_rules.py"
+    shell:
+        """
+        python {params.script} {input.panel} {input.rules} {output.panel} {output.rules} 2> {log}
+        """
 
 rule drprg_build:
     input:
-        panel=rules.add_non_resistance_mutations.output.panel,
+        panel=rules.filter_panel_for_expert_rules.output.panel,
         ref=rules.add_non_resistance_mutations.input.reference,
         annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
         vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
+        rules=rules.filter_panel_for_expert_rules.output.rules
     output:
         outdir=directory(RESULTS / "drprg/index/w{w}/k{k}"),
         prg=RESULTS / "drprg/index/w{w}/k{k}/dr.prg",
@@ -134,7 +152,7 @@ rule drprg_build:
         """
         drprg build {params.options} -l {params.match_len} -P {params.padding} \
             -a {input.annotation} -o {output.outdir} -i {input.panel} \
-            -f {input.ref} -t {threads} -b {input.vcf} 2> {log}
+            -f {input.ref} -t {threads} -b {input.vcf} -r {input.rules} 2> {log}
         """
 
 

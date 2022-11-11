@@ -463,18 +463,6 @@ impl Predict {
                 record.id().to_str_lossy()
             ))?;
             let csqs = ev.atomise();
-            for csq in &csqs {
-                let var_str = csq.to_variant_string();
-                let mut pred = Prediction::Susceptible;
-                for rule in expert_rules.matches(csq) {
-                    if !rule.drugs.contains(NONE_DRUG) {
-                        pred = Prediction::Resistant;
-                        break;
-                    }
-                }
-                record_mutations.push(var_str);
-                record_predictions.push(pred);
-            }
 
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
@@ -518,8 +506,30 @@ impl Predict {
                 record_predictions.push(prediction);
                 record_mutations.push(vid_str.to_string());
             }
+            for csq in &csqs {
+                let var_str = csq.to_variant_string();
+                let mut pred = Prediction::Susceptible;
+                let rule_matches = expert_rules.matches(csq);
+                if rule_matches.is_empty() {
+                    continue;
+                }
+                for rule in rule_matches {
+                    if !rule.drugs.contains(NONE_DRUG) {
+                        match record.called_allele() {
+                            -1 if !self.no_require_genotype => {
+                                pred = Prediction::Failed
+                            }
+                            i if i > 0 => pred = Prediction::Resistant,
+                            _ => pred = Prediction::None,
+                        }
+                        break;
+                    }
+                }
+                record_mutations.push(var_str);
+                record_predictions.push(pred);
+            }
             match record_predictions.iter().max() {
-                Some(Prediction::None) | None => {
+                Some(Prediction::None) | None if record.called_allele() > 0 => {
                     for csq in csqs {
                         record_mutations.push(csq.to_variant_string());
                         if (csq.is_synonymous() && self.ignore_synonymous)
@@ -625,6 +635,7 @@ impl Predict {
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
                 .context(format!("Failed to read record {} in predict VCF", i))?;
+            let is_alt = record.called_allele() > 0;
             let preds = match record
                 .info(InfoField::Prediction.id().as_bytes())
                 .string()
@@ -638,7 +649,7 @@ impl Predict {
                     .collect::<Vec<Prediction>>(),
                 None => vec![],
             };
-            if preds.is_empty() {
+            if preds.is_empty() && is_alt {
                 return Err(anyhow!(
                     "{} tag is unexpectedly empty in VCF",
                     InfoField::Prediction.id()
@@ -656,7 +667,7 @@ impl Predict {
                     .collect::<Vec<String>>(),
                 None => vec![],
             };
-            if varids.is_empty() {
+            if varids.is_empty() && is_alt {
                 return Err(anyhow!(
                     "{} tag is unexpectedly empty in VCF",
                     InfoField::VarId.id()
@@ -664,7 +675,7 @@ impl Predict {
             }
 
             // safe to unwrap as we know preds i not empty
-            let max_pred = preds.iter().max().unwrap();
+            let max_pred = preds.iter().max().unwrap_or(&Prediction::None);
 
             // we basically ignore the FILTER column if the variant failed genotyping as we want to
             // output this because it could indicate a deletion or some other event
@@ -685,7 +696,7 @@ impl Predict {
                 let (drugs, residue) = match var2drugs.get(varid) {
                     Some((d, r)) => (d.clone(), r.clone()),
                     None => {
-                        // variant must be in expert rules - find the drug(s) for the rule(s)
+                        // check if in expert rules - find the drug(s) for the rule(s)
                         let ev = self.consequence(&record).context(format!(
                             "Failed to find the consequence of novel variant {}",
                             record.id().to_str_lossy()
@@ -705,6 +716,16 @@ impl Predict {
                                 break;
                             }
                         }
+
+                        if drugs.is_empty() {
+                            // check if in gene2drugs
+                            if let Some(d) = gene2drugs.get(chrom) {
+                                for s in d {
+                                    drugs.insert(s.to_owned());
+                                }
+                            };
+                        }
+
                         if residue.is_none() {
                             return Err(anyhow!(
                                 "Could not find variant {} in panel or expert rules",

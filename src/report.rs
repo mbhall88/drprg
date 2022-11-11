@@ -5,11 +5,22 @@ use std::str::FromStr;
 
 const STOP: &str = "*";
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Susceptibility {
     pub(crate) predict: Prediction,
     pub(crate) evidence: Vec<Evidence>,
 }
+
+impl Default for Susceptibility {
+    fn default() -> Self {
+        let predict = Prediction::Susceptible;
+        Self {
+            predict,
+            evidence: vec![],
+        }
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Evidence {
     pub(crate) variant: Variant,
