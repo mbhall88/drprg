@@ -1,0 +1,204 @@
+{
+  "sample": "test",
+  "susceptibility": {
+    "Amikacin": {
+      "evidence": [
+        {
+          "gene": "rrs",
+          "residue": "DNA",
+          "variant": "A1401X",
+          "vcfid": "d7b55751"
+        }
+      ],
+      "predict": "R"
+    },
+    "Capreomycin": {
+      "evidence": [
+        {
+          "gene": "rrs",
+          "residue": "DNA",
+          "variant": "A1401X",
+          "vcfid": "d7b55751"
+        }
+      ],
+      "predict": "R"
+    },
+    "Ciprofloxacin": {
+      "evidence": [
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "L105R",
+          "vcfid": "26586c74"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "V742L",
+          "vcfid": "d79c35a3"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "DNA",
+          "variant": "C2540T",
+          "vcfid": "9a68cf6b"
+        }
+      ],
+      "predict": "U"
+    },
+    "Delamanid": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ethambutol": {
+      "evidence": [
+        {
+          "gene": "embB",
+          "residue": "PROT",
+          "variant": "Q497R",
+          "vcfid": "a11d55fb"
+        }
+      ],
+      "predict": "R"
+    },
+    "Ethionamide": {
+      "evidence": [
+        {
+          "gene": "ethA",
+          "residue": "PROT",
+          "variant": "S390F",
+          "vcfid": "1420f624"
+        }
+      ],
+      "predict": "F"
+    },
+    "Isoniazid": {
+      "evidence": [
+        {
+          "gene": "katG",
+          "residue": "PROT",
+          "variant": "S315T",
+          "vcfid": "8118e3ec"
+        }
+      ],
+      "predict": "R"
+    },
+    "Kanamycin": {
+      "evidence": [
+        {
+          "gene": "rrs",
+          "residue": "DNA",
+          "variant": "A1401X",
+          "vcfid": "d7b55751"
+        }
+      ],
+      "predict": "R"
+    },
+    "Levofloxacin": {
+      "evidence": [
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "L105R",
+          "vcfid": "26586c74"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "V742L",
+          "vcfid": "d79c35a3"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "DNA",
+          "variant": "C2540T",
+          "vcfid": "9a68cf6b"
+        }
+      ],
+      "predict": "U"
+    },
+    "Linezolid": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Moxifloxacin": {
+      "evidence": [
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "L105R",
+          "vcfid": "26586c74"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "V742L",
+          "vcfid": "d79c35a3"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "DNA",
+          "variant": "C2540T",
+          "vcfid": "9a68cf6b"
+        }
+      ],
+      "predict": "U"
+    },
+    "Ofloxacin": {
+      "evidence": [
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "L105R",
+          "vcfid": "26586c74"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "PROT",
+          "variant": "V742L",
+          "vcfid": "d79c35a3"
+        },
+        {
+          "gene": "gyrA",
+          "residue": "DNA",
+          "variant": "C2540T",
+          "vcfid": "9a68cf6b"
+        }
+      ],
+      "predict": "U"
+    },
+    "Pyrazinamide": {
+      "evidence": [
+        {
+          "gene": "pncA",
+          "residue": "PROT",
+          "variant": "G24D",
+          "vcfid": "35faad76"
+        }
+      ],
+      "predict": "R"
+    },
+    "Rifampicin": {
+      "evidence": [
+        {
+          "gene": "rpoB",
+          "residue": "PROT",
+          "variant": "S450W",
+          "vcfid": "0e1c5bc8"
+        }
+      ],
+      "predict": "R"
+    },
+    "Streptomycin": {
+      "evidence": [
+        {
+          "gene": "rpsL",
+          "residue": "PROT",
+          "variant": "K43R",
+          "vcfid": "5ce2e9da"
+        }
+      ],
+      "predict": "R"
+    }
+  }
+}

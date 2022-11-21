@@ -1,0 +1,15 @@
+missense,rpoB,426,452,Rifampicin
+nonsense,rpoB,426,452,Rifampicin
+frameshift,rpoB,1276,1356,Rifampicin
+nonsense,katG,,,Isoniazid
+frameshift,katG,,,Isoniazid
+nonsense,ethA,,,Ethionamide
+frameshift,ethA,,,Ethionamide
+nonsense,gid,,,Streptomycin
+frameshift,gid,,,Streptomycin
+nonsense,pncA,,,Pyrazinamide
+frameshift,pncA,,,Pyrazinamide
+missense,katG,315,315,Isoniazid
+missense,gid,125,125,Streptomycin
+missense,rpoB,425,425,Rifampicin
+missense,gid,136,136,Streptomycin

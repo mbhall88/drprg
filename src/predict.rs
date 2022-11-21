@@ -166,18 +166,6 @@ pub struct Predict {
     /// If not provided, this will be set to the input reads file path prefix
     #[clap(short, long)]
     sample: Option<String>,
-    /// Do not output unknown (off-catalogue) variants
-    ///
-    /// If a novel variant is discovered, a prediction of "unknown" ('U') is returned for the drug(s)
-    /// associated with that gene. Using this flag will turn this off an ignore those variants.
-    #[clap(short = 'U', long)]
-    no_unknown: bool,
-    /// Do not require all resistance-associated sites to be genotyped
-    ///
-    /// By default, if a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
-    /// "failed" ('F') is returned for the drug(s) associated with that site.
-    #[clap(short = 'F', long = "no-failed")]
-    no_require_genotype: bool,
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
@@ -470,11 +458,11 @@ impl Predict {
                 let vid_str = vid.to_str_lossy();
                 let (drugs, _) = &panel.get(&*vid_str).unwrap();
                 let mut prediction = Prediction::None;
-                if record.called_allele() == -1 && !self.no_require_genotype {
+                if record.called_allele() == -1 {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
-                        None if !self.no_unknown => {
+                        None => {
                             for csq in &csqs {
                                 let is_x_mutation = vid_str.ends_with('X');
                                 let csq_str = csq.to_variant_string();
@@ -516,9 +504,7 @@ impl Predict {
                 for rule in rule_matches {
                     if !rule.drugs.contains(NONE_DRUG) {
                         match record.called_allele() {
-                            -1 if !self.no_require_genotype => {
-                                pred = Prediction::Failed
-                            }
+                            -1 => pred = Prediction::Failed,
                             i if i > 0 => pred = Prediction::Resistant,
                             _ => pred = Prediction::None,
                         }
@@ -532,9 +518,7 @@ impl Predict {
                 Some(Prediction::None) | None if record.called_allele() > 0 => {
                     for csq in csqs {
                         record_mutations.push(csq.to_variant_string());
-                        if (csq.is_synonymous() && self.ignore_synonymous)
-                            || self.no_unknown
-                        {
+                        if csq.is_synonymous() && self.ignore_synonymous {
                             record_predictions.push(Prediction::None);
                         } else {
                             record_predictions.push(Prediction::Unknown);
@@ -944,8 +928,6 @@ mod tests {
             pandora_exec: None,
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: None,
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -962,8 +944,6 @@ mod tests {
             pandora_exec: None,
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: Some("sample2".to_string()),
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -980,8 +960,6 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             sample: None,
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -998,8 +976,6 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             sample: None,
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -1012,8 +988,6 @@ mod tests {
     fn index_prg_update_path() {
         let predictor = Predict {
             index: PathBuf::from("foo"),
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -1305,11 +1279,16 @@ mod tests {
     }
 
     #[test]
-    fn predict_from_pandora_vcf_no_unknown_or_failed() {
+    #[allow(clippy::assertions_on_constants)]
+    fn test_predict_from_pandora_vcf() {
         let tmp = TempDir::new().unwrap();
         let tmpoutdir = tmp.path();
         let filt = Filterer {
-            min_frs: 0.7,
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
             ..Default::default()
         };
         let pred = Predict {
@@ -1317,9 +1296,8 @@ mod tests {
             index: PathBuf::from("tests/cases/predict"),
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
+            ignore_synonymous: true,
             filterer: filt,
-            no_unknown: true,
-            no_require_genotype: true,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
@@ -1336,119 +1314,45 @@ mod tests {
             let expected_record = r.unwrap();
             let actual_record = actual_records.next().unwrap().unwrap();
             assert_eq!(expected_record.pos(), actual_record.pos());
-            assert_eq!(
-                expected_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert_eq!(
-                expected_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert!(expected_record
-                .filters()
-                .zip(actual_record.filters())
-                .all(|(a, b)| expected_record.header().id_to_name(a)
-                    == actual_record.header().id_to_name(b)));
+            let expected_varid = expected_record.info(b"VARID").string().unwrap();
+            let actual_varid = actual_record.info(b"VARID").string().unwrap();
+            match (expected_varid, actual_varid) {
+                (Some(bb1), Some(bb2)) => assert_eq!(bb1.as_slice(), bb2.as_slice()),
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => assert_eq!(
+                    bb1.as_slice(),
+                    bb2.as_slice(),
+                    "{}:{} {}:{}",
+                    actual_record.contig(),
+                    actual_record.pos(),
+                    expected_record.contig(),
+                    expected_record.pos()
+                ),
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
         }
     }
 
     #[test]
-    fn predict_from_pandora_vcf_with_unknown_and_failed() {
-        let tmp = TempDir::new().unwrap();
-        let tmpoutdir = tmp.path();
-        let filt = Filterer {
-            min_frs: 0.7,
-            ..Default::default()
-        };
-        let pred = Predict {
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            index: PathBuf::from("tests/cases/predict"),
-            outdir: PathBuf::from(tmpoutdir),
-            sample: Some("test".to_string()),
-            filterer: filt,
-            no_unknown: false,
-            no_require_genotype: false,
-            ..Default::default()
-        };
-        let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
-
-        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
-        assert!(result.is_ok());
-
-        let mut expected_rdr =
-            bcf::Reader::from_path(Path::new("tests/cases/predict/out2.vcf")).unwrap();
-        let mut actual_rdr =
-            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
-        let mut actual_records = actual_rdr.records();
-        for r in expected_rdr.records() {
-            let expected_record = r.unwrap();
-            let actual_record = actual_records.next().unwrap().unwrap();
-            assert_eq!(expected_record.pos(), actual_record.pos());
-            assert_eq!(
-                expected_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert_eq!(
-                expected_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert!(expected_record
-                .filters()
-                .zip(actual_record.filters())
-                .all(|(a, b)| expected_record.header().id_to_name(a)
-                    == actual_record.header().id_to_name(b)));
-        }
-    }
-
-    #[test]
-    fn vcf_to_json_no_unknown_or_failed() {
+    fn test_vcf_to_json() {
         use std::io::Read;
         use std::iter::Iterator;
 
         let tmp = TempDir::new().unwrap();
         let tmpoutdir = tmp.path();
         let filt = Filterer {
-            min_frs: 0.7,
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
             ..Default::default()
         };
         let pred = Predict {
@@ -1456,6 +1360,7 @@ mod tests {
             index: PathBuf::from("tests/cases/predict"),
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
+            ignore_synonymous: true,
             filterer: filt,
             ..Default::default()
         };
@@ -1472,267 +1377,15 @@ mod tests {
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
-        let expected = r#"
-        {
-          "sample": "test",
-          "susceptibility": {
-            "Isoniazid": {
-              "evidence": [
-                {
-                  "gene": "fabG1",
-                  "residue": "DNA",
-                  "variant": "CTG607TTA",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "katG",
-                  "residue": "DNA",
-                  "variant": "G2097GT",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "R"
-            },
-            "Ofloxacin": {
-              "evidence": [],
-              "predict": "S"
-            },
-            "Rifampicin": {
-              "evidence": [],
-              "predict": "S"
-            },
-            "Streptomycin": {
-              "evidence": [
-                {
-                  "gene": "gid",
-                  "residue": "PROT",
-                  "variant": "R47W",
-                  "vcfid": "."
-                }
-               ],
-              "predict": "R"
-            }
-          }
-        }
-        "#
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
 
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    fn vcf_to_json_with_unknown_and_failed() {
-        use std::io::Read;
-        use std::iter::Iterator;
-
-        let tmp = TempDir::new().unwrap();
-        let tmpoutdir = tmp.path();
-        let filt = Filterer {
-            min_frs: 0.7,
-            ..Default::default()
-        };
-        let pred = Predict {
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            index: PathBuf::from("tests/cases/predict"),
-            outdir: PathBuf::from(tmpoutdir),
-            sample: Some("test".to_string()),
-            filterer: filt,
-            no_unknown: false,
-            no_require_genotype: false,
-            ..Default::default()
-        };
-        let vcf_path = Path::new("tests/cases/predict/out2.vcf");
-        let result = pred.vcf_to_json(vcf_path);
-        assert!(result.is_ok());
-
-        let json_path = result.unwrap();
-        let file = File::open(json_path).unwrap();
+        buffer.clear();
+        let file = File::open("tests/cases/predict/expected.json").unwrap();
         let mut reader = BufReader::new(file);
-        let mut buffer = String::new();
         reader.read_to_string(&mut buffer).unwrap();
-        let actual = buffer
+        let expected = buffer
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
-        let expected = r#"
-        {
-          "sample": "test",
-          "susceptibility": {
-            "Isoniazid": {
-              "evidence": [
-                {
-                  "gene": "fabG1",
-                  "residue": "DNA",
-                  "variant": "CTG607TTA",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "katG",
-                  "residue": "DNA",
-                  "variant": "G2097GT",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "R"
-            },
-            "Ofloxacin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Rifampicin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Streptomycin": {
-              "evidence": [
-                {
-                  "gene": "gid",
-                  "residue": "PROT",
-                  "variant": "R47W",
-                  "vcfid": "."
-                }
-               ],
-              "predict": "R"
-            }
-          }
-        }
-        "#
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
-
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    /// Also, there is a mutation that doesn't overlap the panel that gets added as unknown
-    fn vcf_to_json_strep_has_resistant_and_unknown_only_evidence_for_resistant() {
-        use std::io::Read;
-        use std::iter::Iterator;
-
-        let tmp = TempDir::new().unwrap();
-        let tmpoutdir = tmp.path();
-        let filt = Filterer {
-            min_frs: 0.7,
-            ..Default::default()
-        };
-        let pred = Predict {
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            index: PathBuf::from("tests/cases/predict"),
-            outdir: PathBuf::from(tmpoutdir),
-            sample: Some("test".to_string()),
-            filterer: filt,
-            no_unknown: false,
-            no_require_genotype: false,
-            ..Default::default()
-        };
-        let vcf_path = Path::new("tests/cases/predict/out3.vcf");
-        let result = pred.vcf_to_json(vcf_path);
-        assert!(result.is_ok());
-
-        let json_path = result.unwrap();
-        let file = File::open(json_path).unwrap();
-        let mut reader = BufReader::new(file);
-        let mut buffer = String::new();
-        reader.read_to_string(&mut buffer).unwrap();
-        let actual = buffer
-            .chars()
-            .filter(|c| !c.is_whitespace())
-            .collect::<String>();
-        let expected = r#"
-        {
-          "sample": "test",
-          "susceptibility": {
-            "Isoniazid": {
-              "evidence": [
-                {
-                  "gene": "fabG1",
-                  "residue": "DNA",
-                  "variant": "CTG607TTA",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "katG",
-                  "residue": "DNA",
-                  "variant": "G2097GT",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "R"
-            },
-            "Ofloxacin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "PI227HF",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Rifampicin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "PI227HF",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Streptomycin": {
-              "evidence": [
-                {
-                  "gene": "gid",
-                  "residue": "PROT",
-                  "variant": "R47W",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "rpsL",
-                  "residue": "PROT",
-                  "variant": "K43R",
-                  "vcfid": "."
-                }
-               ],
-              "predict": "R"
-            }
-          }
-        }
-        "#
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
 
         assert_eq!(actual, expected)
     }
