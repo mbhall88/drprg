@@ -60,6 +60,7 @@ rule drprg_predict:
     output:
         report=RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}/{run}.drprg.json",
         vcf=RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}/{run}.drprg.bcf",
+        outdir=directory(RESULTS / "amr_predictions/drprg/{tech}/{proj}/{sample}/{run}/")
     shadow:
         "shallow"
     resources:
@@ -80,12 +81,11 @@ rule drprg_predict:
         ),
         tech_opts=infer_drprg_tech_opts,
         filters=drprg_filter_args,
-        outdir=lambda wildcards, output: Path(output.report).parent,
     threads: 2
     shell:
         """
         drprg predict {params.opts} {params.tech_opts} {params.filters} \
-            -i {input.reads} -o {params.outdir} -x {input.index} -t {threads} 2> {log}
+            -i {input.reads} -o {output.outdir} -x {input.index} -t {threads} 2> {log}
         """
 
 
