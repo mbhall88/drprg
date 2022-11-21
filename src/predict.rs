@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::string::ToString;
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{AppSettings, Parser};
 use log::{debug, info};
 use rust_htslib::bcf;
@@ -32,6 +32,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::config::Config;
 use crate::consequence::consequence_of_variant;
+use crate::expert::{ExpertRules, RuleExt};
 use noodles::fasta;
 use regex::Regex;
 use std::fs::File;
@@ -68,6 +69,9 @@ pub enum PredictError {
     Ord,
 )]
 pub enum Prediction {
+    #[strum(to_string = ".")]
+    #[serde(alias = ".", rename(serialize = "."))]
+    None,
     #[strum(to_string = "S")]
     #[serde(alias = "S", rename(serialize = "S"))]
     Susceptible,
@@ -94,13 +98,14 @@ impl<'de> Deserialize<'de> for Prediction {
 
 impl Default for Prediction {
     fn default() -> Self {
-        Self::Susceptible
+        Self::None
     }
 }
 
 impl Prediction {
     fn to_bytes(self) -> &'static [u8] {
         match self {
+            Self::None => b".",
             Self::Susceptible => b"S",
             Self::Resistant => b"R",
             Self::Failed => b"F",
@@ -161,18 +166,6 @@ pub struct Predict {
     /// If not provided, this will be set to the input reads file path prefix
     #[clap(short, long)]
     sample: Option<String>,
-    /// Do not output unknown (off-catalogue) variants
-    ///
-    /// If a novel variant is discovered, a prediction of "unknown" ('U') is returned for the drug(s)
-    /// associated with that gene. Using this flag will turn this off an ignore those variants.
-    #[clap(short = 'U', long)]
-    no_unknown: bool,
-    /// Do not require all resistance-associated sites to be genotyped
-    ///
-    /// By default, if a genotype cannot be assigned for a site (i.e. a null call), then a prediction of
-    /// "failed" ('F') is returned for the drug(s) associated with that site.
-    #[clap(short = 'F', long = "no-failed")]
-    no_require_genotype: bool,
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
@@ -331,6 +324,15 @@ impl Predict {
         })
     }
 
+    fn load_rules(&self) -> Result<ExpertRules, anyhow::Error> {
+        let p = self.index.join("rules.csv");
+        if p.exists() {
+            ExpertRules::from_csv(&p)
+        } else {
+            Ok(ExpertRules::new())
+        }
+    }
+
     fn index_kmer_prgs_path(&self) -> PathBuf {
         self.index.join("kmer_prgs")
     }
@@ -411,11 +413,17 @@ impl Predict {
             .context("Failed to open panel VCF index")?;
         debug!("Loading the panel...");
         let panel = self.load_var_to_drugs()?;
+        let expert_rules = self
+            .load_rules()
+            .context("Failed to load expert rules in index")?;
         debug!("Loaded panel");
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
                 .context(format!("Failed to read record {} in pandora VCF", i))?;
+
+            let mut record_mutations: Vec<String> = Vec::new();
+            let mut record_predictions: Vec<Prediction> = Vec::new();
 
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
@@ -438,31 +446,26 @@ impl Predict {
                 iv.start as u64,
                 Some((iv.end - 1) as u64)
             ));
-            let mut record_has_match_in_idx = false;
+            let ev = self.consequence(&record).context(format!(
+                "Failed to find the consequence of novel variant {}",
+                record.id().to_str_lossy()
+            ))?;
+            let csqs = ev.atomise();
+
             for idx_res in vcfidx.records() {
                 let idx_record = idx_res.context("Failed to parse index vcf record")?;
                 let vid = idx_record.id();
-                let mut prediction = Prediction::Susceptible;
-                if record.called_allele() == -1 && !self.no_require_genotype {
+                let vid_str = vid.to_str_lossy();
+                let (drugs, _) = &panel.get(&*vid_str).unwrap();
+                let mut prediction = Prediction::None;
+                if record.called_allele() == -1 {
                     prediction = Prediction::Failed;
                 } else {
                     match record.argmatch(&idx_record) {
-                        None if !self.no_unknown => {
-                            if record_has_match_in_idx {
-                                prediction = Prediction::Susceptible
-                            } else {
-                                prediction = Prediction::Unknown
-                            }
-                            let ev = self.consequence(&record).context(format!(
-                                "Failed to find the consequence of novel variant {}",
-                                record.id().to_str_lossy()
-                            ))?;
-                            let vid_str = vid.to_str_lossy();
-                            let (drugs, _) = &panel.get(&*vid_str).unwrap();
-                            let csqs = ev.atomise();
-                            for csq in csqs {
+                        None => {
+                            for csq in &csqs {
                                 let is_x_mutation = vid_str.ends_with('X');
-                                let csq_str = format!("{}_{}", csq.gene, csq.variant);
+                                let csq_str = csq.to_variant_string();
                                 let csq_matches_variant = if is_x_mutation {
                                     csq_str[..csq_str.len() - 1]
                                         == vid_str[..vid_str.len() - 1]
@@ -472,7 +475,6 @@ impl Predict {
                                 if csq_matches_variant {
                                     if !drugs.contains(NONE_DRUG) {
                                         prediction = Prediction::Resistant;
-                                        record_has_match_in_idx = true;
                                         break;
                                     } else {
                                         prediction = Prediction::Susceptible;
@@ -482,10 +484,6 @@ impl Predict {
                             }
                         }
                         Some(i) if i > 0 => {
-                            record_has_match_in_idx = true;
-                            let vid_str = vid.to_str_lossy();
-                            // safe to unwrap here as the var id must be in the panel by definition
-                            let (drugs, _) = &panel.get(&*vid_str).unwrap();
                             if !drugs.contains(NONE_DRUG) {
                                 prediction = Prediction::Resistant
                             }
@@ -493,58 +491,53 @@ impl Predict {
                         _ => (),
                     };
                 }
-                // todo: improve this. need to find a way to push all of these into a vector and just have a single update at the end of the loop
-                // I've tried, but the borrow checker is too smart for me and I can't solve the problem
-                // This works for now, but slows the execution down quite a bit
-                let pred = prediction.to_bytes();
-                let current_varids = record
-                    .info(InfoField::VarId.id().as_bytes())
-                    .string()
-                    .context("Couldn't unwrap VARIDs")?;
-                match current_varids {
-                    Some(v) => {
-                        let mut cur_v = v.clone();
-                        cur_v.push(&vid);
-                        record
-                            .push_info_string(InfoField::VarId.id().as_bytes(), &cur_v)
-                            .context("Failed to push VARID to record")?;
-                    }
-                    None => record
-                        .push_info_string(InfoField::VarId.id().as_bytes(), &[&vid])
-                        .context("Failed to push VARID to record")?,
-                };
-                let current_preds = record
-                    .info(InfoField::Prediction.id().as_bytes())
-                    .string()
-                    .context("Couldn't unwrap PREDICTs")?;
-                match current_preds {
-                    Some(v) => {
-                        let mut cur_v = v.clone();
-                        if record_has_match_in_idx {
-                            // change all unknowns to susceptible
-                            let u = Prediction::Unknown.to_bytes();
-                            for p in &mut cur_v {
-                                if p == &u {
-                                    *p = Prediction::Susceptible.to_bytes();
-                                }
-                            }
-                        }
-                        cur_v.push(pred);
-                        record
-                            .push_info_string(
-                                InfoField::Prediction.id().as_bytes(),
-                                &cur_v,
-                            )
-                            .context("Failed to push PREDICT to record")?;
-                    }
-                    None => record
-                        .push_info_string(
-                            InfoField::Prediction.id().as_bytes(),
-                            &[pred],
-                        )
-                        .context("Failed to push PREDICT to record")?,
-                }
+                record_predictions.push(prediction);
+                record_mutations.push(vid_str.to_string());
             }
+            for csq in &csqs {
+                let var_str = csq.to_variant_string();
+                let mut pred = Prediction::Susceptible;
+                let rule_matches = expert_rules.matches(csq);
+                if rule_matches.is_empty() {
+                    continue;
+                }
+                for rule in rule_matches {
+                    if !rule.drugs.contains(NONE_DRUG) {
+                        match record.called_allele() {
+                            -1 => pred = Prediction::Failed,
+                            i if i > 0 => pred = Prediction::Resistant,
+                            _ => pred = Prediction::None,
+                        }
+                        break;
+                    }
+                }
+                record_mutations.push(var_str);
+                record_predictions.push(pred);
+            }
+            match record_predictions.iter().max() {
+                Some(Prediction::None) | None if record.called_allele() > 0 => {
+                    for csq in csqs {
+                        record_mutations.push(csq.to_variant_string());
+                        if csq.is_synonymous() && self.ignore_synonymous {
+                            record_predictions.push(Prediction::None);
+                        } else {
+                            record_predictions.push(Prediction::Unknown);
+                        }
+                    }
+                }
+                _ => {}
+            }
+            let mut_bytes: Vec<&[u8]> =
+                record_mutations.iter().map(|s| s.as_bytes()).collect();
+            record
+                .push_info_string(InfoField::VarId.id().as_bytes(), &mut_bytes)
+                .context("Failed to push VARIDs to record")?;
+
+            let pred_bytes: Vec<&[u8]> =
+                record_predictions.iter().map(|p| p.to_bytes()).collect();
+            record
+                .push_info_string(InfoField::Prediction.id().as_bytes(), &pred_bytes)
+                .context("Failed to push PREDs to record")?;
 
             writer
                 .write(&record)
@@ -592,7 +585,7 @@ impl Predict {
         let json_path = self.outdir.join(self.json_filename());
 
         debug!("Loading the panel...");
-        let mut var2drugs = self.load_var_to_drugs()?;
+        let var2drugs = self.load_var_to_drugs()?;
         let mut gene2drugs: HashMap<String, HashSet<String>> = HashMap::new();
         for (var, (drugs, _)) in &var2drugs {
             let (chrom, _) = var
@@ -605,6 +598,19 @@ impl Predict {
                 entry.insert(d.to_owned());
             });
         }
+        let expert_rules = self
+            .load_rules()
+            .context("Failed to load expert rules in index")?;
+        for (gene, rules) in &expert_rules {
+            let entry = gene2drugs
+                .entry(gene.to_owned())
+                .or_insert_with(HashSet::new);
+            rules.iter().for_each(|r| {
+                for d in &r.drugs {
+                    entry.insert(d.to_owned());
+                }
+            });
+        }
         debug!("Loaded panel");
 
         let mut json: BTreeMap<String, Susceptibility> = BTreeMap::new();
@@ -613,7 +619,8 @@ impl Predict {
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
                 .context(format!("Failed to read record {} in predict VCF", i))?;
-            let mut preds = match record
+            let is_alt = record.called_allele() > 0;
+            let preds = match record
                 .info(InfoField::Prediction.id().as_bytes())
                 .string()
                 .context(format!(
@@ -626,7 +633,14 @@ impl Predict {
                     .collect::<Vec<Prediction>>(),
                 None => vec![],
             };
-            let mut varids = match record
+            if preds.is_empty() && is_alt {
+                return Err(anyhow!(
+                    "{} tag is unexpectedly empty in VCF",
+                    InfoField::Prediction.id()
+                ));
+            }
+
+            let varids = match record
                 .info(InfoField::VarId.id().as_bytes())
                 .string()
                 .context(format!("Failed to get variant ID for record number {}", i))?
@@ -637,108 +651,102 @@ impl Predict {
                     .collect::<Vec<String>>(),
                 None => vec![],
             };
+            if varids.is_empty() && is_alt {
+                return Err(anyhow!(
+                    "{} tag is unexpectedly empty in VCF",
+                    InfoField::VarId.id()
+                ));
+            }
 
-            let max_pred = preds.iter().max();
+            // safe to unwrap as we know preds i not empty
+            let max_pred = preds.iter().max().unwrap_or(&Prediction::None);
 
             // we basically ignore the FILTER column if the variant failed genotyping as we want to
             // output this because it could indicate a deletion or some other event
-            let is_failed = max_pred == Some(&Prediction::Failed);
-            if !record.is_pass() && !is_failed {
+            let is_failed = *max_pred == Prediction::Failed;
+            if (!record.is_pass() && !is_failed) || *max_pred == Prediction::None {
                 continue;
             }
 
-            let has_unknown =
-                preds.is_empty() || max_pred == Some(&Prediction::Unknown);
-
-            if has_unknown && !self.no_unknown && record.called_allele() > 0 {
-                let ev = self.consequence(&record).context(format!(
-                    "Failed to find the consequence of novel variant {}",
-                    record.id().to_str_lossy()
+            for (prediction, varid) in preds
+                .iter()
+                .zip(varids.iter())
+                .filter(|(p, _)| *p == max_pred)
+            {
+                let (chrom, var) = varid.split_once('_').context(format!(
+                    "Couldn't split variant ID {} at underscore",
+                    varid
                 ))?;
-
-                if !preds.is_empty() {
-                    preds.iter_mut().for_each(|p| {
-                        if *p == Prediction::Unknown {
-                            *p = Prediction::Susceptible
-                        } else {
-                        }
-                    });
-                }
-                preds.push(Prediction::Unknown);
-                let var = format!("{}_{}", ev.gene, ev.variant);
-                varids.push(var.to_owned());
-
-                if self.ignore_synonymous && ev.is_synonymous() {
-                    continue;
-                }
-
-                // for novel variants, add 'U' for all drugs this gene is associated with
-                let chrom = record.contig();
-                match gene2drugs.get(&chrom) {
-                    Some(d) => {
-                        if let std::collections::hash_map::Entry::Vacant(e) =
-                            var2drugs.entry(var)
-                        {
-                            e.insert((d.clone(), ev.residue.clone()));
-                        }
-                        for drug in d.iter().filter(|el| *el != NONE_DRUG) {
-                            let entry = json
-                                .entry(drug.to_string())
-                                .or_insert_with(Susceptibility::default);
-                            match entry.predict {
-                                Prediction::Susceptible | Prediction::Failed => {
-                                    entry.evidence = vec![ev.to_owned()];
-                                    entry.predict = Prediction::Unknown;
+                let (drugs, residue) = match var2drugs.get(varid) {
+                    Some((d, r)) => (d.clone(), r.clone()),
+                    None => {
+                        // check if in expert rules - find the drug(s) for the rule(s)
+                        let ev = self.consequence(&record).context(format!(
+                            "Failed to find the consequence of novel variant {}",
+                            record.id().to_str_lossy()
+                        ))?;
+                        let csqs = ev.atomise();
+                        let mut residue = None;
+                        let mut drugs = HashSet::new();
+                        for csq in &csqs {
+                            let var_str = csq.to_variant_string();
+                            if &var_str == varid {
+                                for rule in expert_rules.matches(csq) {
+                                    for d in rule.drugs {
+                                        let _ = drugs.insert(d);
+                                    }
                                 }
-                                Prediction::Unknown => {
-                                    entry.evidence.push(ev.to_owned())
-                                }
-                                Prediction::Resistant => {}
+                                residue = Some(csq.residue.clone());
+                                break;
                             }
                         }
+
+                        if drugs.is_empty() {
+                            // check if in gene2drugs
+                            if let Some(d) = gene2drugs.get(chrom) {
+                                for s in d {
+                                    drugs.insert(s.to_owned());
+                                }
+                            };
+                        }
+
+                        if residue.is_none() {
+                            return Err(anyhow!(
+                                "Could not find variant {} in panel or expert rules",
+                                varid
+                            ));
+                        }
+                        (drugs, residue.unwrap())
                     }
-                    None => continue,
-                }
-                continue;
-            }
-            for (prediction, v) in preds.iter().zip(varids.iter()) {
-                if *prediction != Prediction::Susceptible {
-                    let (drugs, residue) = var2drugs
-                        .get(v)
-                        .context(format!("Variant {} in VCF is not in the panel", v))?;
-                    let (chrom, var) = v.split_once('_').context(format!(
-                        "Couldn't split variant ID {} at underscore",
-                        v
-                    ))?;
-                    let ev = Evidence {
-                        variant: Variant::from_str(var)?,
-                        gene: chrom.to_owned(),
-                        residue: residue.to_owned(),
-                        vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
-                    };
-                    for drug in drugs.iter().filter(|d| *d != NONE_DRUG) {
-                        let entry = json
-                            .entry(drug.to_string())
-                            .or_insert_with(Susceptibility::default);
-                        match (entry.predict, *prediction) {
-                            (p1, p2) if p1 == p2 => entry.evidence.push(ev.to_owned()),
-                            (Prediction::Resistant, _) => {}
-                            (_, Prediction::Resistant) => {
-                                entry.predict = Prediction::Resistant;
-                                entry.evidence = vec![ev.to_owned()];
-                            }
-                            (Prediction::Unknown, _) => {}
-                            (_, Prediction::Unknown) => {
-                                entry.predict = Prediction::Unknown;
-                                entry.evidence = vec![ev.to_owned()];
-                            }
-                            (Prediction::Failed, _) => {}
-                            (_, Prediction::Failed) => {
-                                entry.predict = Prediction::Failed;
-                                entry.evidence = vec![ev.to_owned()];
-                            }
-                            _ => {}
+                };
+                let ev = Evidence {
+                    variant: Variant::from_str(var)?,
+                    gene: chrom.to_owned(),
+                    residue: residue.to_owned(),
+                    vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
+                };
+                for drug in drugs.iter().filter(|d| *d != NONE_DRUG) {
+                    let entry = json
+                        .entry(drug.to_string())
+                        .or_insert_with(Susceptibility::default);
+                    match (entry.predict, *prediction) {
+                        (p1, p2) if p1 == p2 => entry.evidence.push(ev.to_owned()),
+                        (Prediction::Resistant, _) => {}
+                        (_, Prediction::Resistant) => {
+                            entry.predict = Prediction::Resistant;
+                            entry.evidence = vec![ev.to_owned()];
                         }
+                        (Prediction::Unknown, _) => {}
+                        (_, Prediction::Unknown) => {
+                            entry.predict = Prediction::Unknown;
+                            entry.evidence = vec![ev.to_owned()];
+                        }
+                        (Prediction::Failed, _) => {}
+                        (_, Prediction::Failed) => {
+                            entry.predict = Prediction::Failed;
+                            entry.evidence = vec![ev.to_owned()];
+                        }
+                        _ => {}
                     }
                 }
             }
@@ -920,8 +928,6 @@ mod tests {
             pandora_exec: None,
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: None,
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -938,8 +944,6 @@ mod tests {
             pandora_exec: None,
             input: PathBuf::from("foo/sample1.fq.gz"),
             sample: Some("sample2".to_string()),
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -956,8 +960,6 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             sample: None,
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -974,8 +976,6 @@ mod tests {
             pandora_exec: None,
             index: PathBuf::from("foo"),
             sample: None,
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -988,8 +988,6 @@ mod tests {
     fn index_prg_update_path() {
         let predictor = Predict {
             index: PathBuf::from("foo"),
-            no_unknown: false,
-            no_require_genotype: true,
             is_illumina: false,
             ..Default::default()
         };
@@ -1281,11 +1279,16 @@ mod tests {
     }
 
     #[test]
-    fn predict_from_pandora_vcf_no_unknown_or_failed() {
+    #[allow(clippy::assertions_on_constants)]
+    fn test_predict_from_pandora_vcf() {
         let tmp = TempDir::new().unwrap();
         let tmpoutdir = tmp.path();
         let filt = Filterer {
-            min_frs: 0.7,
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
             ..Default::default()
         };
         let pred = Predict {
@@ -1293,9 +1296,8 @@ mod tests {
             index: PathBuf::from("tests/cases/predict"),
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
+            ignore_synonymous: true,
             filterer: filt,
-            no_unknown: true,
-            no_require_genotype: true,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
@@ -1312,119 +1314,45 @@ mod tests {
             let expected_record = r.unwrap();
             let actual_record = actual_records.next().unwrap().unwrap();
             assert_eq!(expected_record.pos(), actual_record.pos());
-            assert_eq!(
-                expected_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert_eq!(
-                expected_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert!(expected_record
-                .filters()
-                .zip(actual_record.filters())
-                .all(|(a, b)| expected_record.header().id_to_name(a)
-                    == actual_record.header().id_to_name(b)));
+            let expected_varid = expected_record.info(b"VARID").string().unwrap();
+            let actual_varid = actual_record.info(b"VARID").string().unwrap();
+            match (expected_varid, actual_varid) {
+                (Some(bb1), Some(bb2)) => assert_eq!(bb1.as_slice(), bb2.as_slice()),
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => assert_eq!(
+                    bb1.as_slice(),
+                    bb2.as_slice(),
+                    "{}:{} {}:{}",
+                    actual_record.contig(),
+                    actual_record.pos(),
+                    expected_record.contig(),
+                    expected_record.pos()
+                ),
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
         }
     }
 
     #[test]
-    fn predict_from_pandora_vcf_with_unknown_and_failed() {
-        let tmp = TempDir::new().unwrap();
-        let tmpoutdir = tmp.path();
-        let filt = Filterer {
-            min_frs: 0.7,
-            ..Default::default()
-        };
-        let pred = Predict {
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            index: PathBuf::from("tests/cases/predict"),
-            outdir: PathBuf::from(tmpoutdir),
-            sample: Some("test".to_string()),
-            filterer: filt,
-            no_unknown: false,
-            no_require_genotype: false,
-            ..Default::default()
-        };
-        let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
-
-        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
-        assert!(result.is_ok());
-
-        let mut expected_rdr =
-            bcf::Reader::from_path(Path::new("tests/cases/predict/out2.vcf")).unwrap();
-        let mut actual_rdr =
-            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
-        let mut actual_records = actual_rdr.records();
-        for r in expected_rdr.records() {
-            let expected_record = r.unwrap();
-            let actual_record = actual_records.next().unwrap().unwrap();
-            assert_eq!(expected_record.pos(), actual_record.pos());
-            assert_eq!(
-                expected_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"VARID")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert_eq!(
-                expected_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice(),
-                actual_record
-                    .info(b"PREDICT")
-                    .string()
-                    .unwrap()
-                    .unwrap()
-                    .as_slice()
-            );
-            assert!(expected_record
-                .filters()
-                .zip(actual_record.filters())
-                .all(|(a, b)| expected_record.header().id_to_name(a)
-                    == actual_record.header().id_to_name(b)));
-        }
-    }
-
-    #[test]
-    fn vcf_to_json_no_unknown_or_failed() {
+    fn test_vcf_to_json() {
         use std::io::Read;
         use std::iter::Iterator;
 
         let tmp = TempDir::new().unwrap();
         let tmpoutdir = tmp.path();
         let filt = Filterer {
-            min_frs: 0.7,
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
             ..Default::default()
         };
         let pred = Predict {
@@ -1432,6 +1360,7 @@ mod tests {
             index: PathBuf::from("tests/cases/predict"),
             outdir: PathBuf::from(tmpoutdir),
             sample: Some("test".to_string()),
+            ignore_synonymous: true,
             filterer: filt,
             ..Default::default()
         };
@@ -1448,267 +1377,15 @@ mod tests {
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
-        let expected = r#"
-        {
-          "sample": "test",
-          "susceptibility": {
-            "Isoniazid": {
-              "evidence": [
-                {
-                  "gene": "fabG1",
-                  "residue": "DNA",
-                  "variant": "CTG607TTA",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "katG",
-                  "residue": "DNA",
-                  "variant": "G2097GT",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "R"
-            },
-            "Ofloxacin": {
-              "evidence": [],
-              "predict": "S"
-            },
-            "Rifampicin": {
-              "evidence": [],
-              "predict": "S"
-            },
-            "Streptomycin": {
-              "evidence": [
-                {
-                  "gene": "gid",
-                  "residue": "PROT",
-                  "variant": "R47W",
-                  "vcfid": "."
-                }
-               ],
-              "predict": "R"
-            }
-          }
-        }
-        "#
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
 
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    fn vcf_to_json_with_unknown_and_failed() {
-        use std::io::Read;
-        use std::iter::Iterator;
-
-        let tmp = TempDir::new().unwrap();
-        let tmpoutdir = tmp.path();
-        let filt = Filterer {
-            min_frs: 0.7,
-            ..Default::default()
-        };
-        let pred = Predict {
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            index: PathBuf::from("tests/cases/predict"),
-            outdir: PathBuf::from(tmpoutdir),
-            sample: Some("test".to_string()),
-            filterer: filt,
-            no_unknown: false,
-            no_require_genotype: false,
-            ..Default::default()
-        };
-        let vcf_path = Path::new("tests/cases/predict/out2.vcf");
-        let result = pred.vcf_to_json(vcf_path);
-        assert!(result.is_ok());
-
-        let json_path = result.unwrap();
-        let file = File::open(json_path).unwrap();
+        buffer.clear();
+        let file = File::open("tests/cases/predict/expected.json").unwrap();
         let mut reader = BufReader::new(file);
-        let mut buffer = String::new();
         reader.read_to_string(&mut buffer).unwrap();
-        let actual = buffer
+        let expected = buffer
             .chars()
             .filter(|c| !c.is_whitespace())
             .collect::<String>();
-        let expected = r#"
-        {
-          "sample": "test",
-          "susceptibility": {
-            "Isoniazid": {
-              "evidence": [
-                {
-                  "gene": "fabG1",
-                  "residue": "DNA",
-                  "variant": "CTG607TTA",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "katG",
-                  "residue": "DNA",
-                  "variant": "G2097GT",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "R"
-            },
-            "Ofloxacin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Rifampicin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Streptomycin": {
-              "evidence": [
-                {
-                  "gene": "gid",
-                  "residue": "PROT",
-                  "variant": "R47W",
-                  "vcfid": "."
-                }
-               ],
-              "predict": "R"
-            }
-          }
-        }
-        "#
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
-
-        assert_eq!(actual, expected)
-    }
-
-    #[test]
-    /// Also, there is a mutation that doesn't overlap the panel that gets added as unknown
-    fn vcf_to_json_strep_has_resistant_and_unknown_only_evidence_for_resistant() {
-        use std::io::Read;
-        use std::iter::Iterator;
-
-        let tmp = TempDir::new().unwrap();
-        let tmpoutdir = tmp.path();
-        let filt = Filterer {
-            min_frs: 0.7,
-            ..Default::default()
-        };
-        let pred = Predict {
-            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
-            index: PathBuf::from("tests/cases/predict"),
-            outdir: PathBuf::from(tmpoutdir),
-            sample: Some("test".to_string()),
-            filterer: filt,
-            no_unknown: false,
-            no_require_genotype: false,
-            ..Default::default()
-        };
-        let vcf_path = Path::new("tests/cases/predict/out3.vcf");
-        let result = pred.vcf_to_json(vcf_path);
-        assert!(result.is_ok());
-
-        let json_path = result.unwrap();
-        let file = File::open(json_path).unwrap();
-        let mut reader = BufReader::new(file);
-        let mut buffer = String::new();
-        reader.read_to_string(&mut buffer).unwrap();
-        let actual = buffer
-            .chars()
-            .filter(|c| !c.is_whitespace())
-            .collect::<String>();
-        let expected = r#"
-        {
-          "sample": "test",
-          "susceptibility": {
-            "Isoniazid": {
-              "evidence": [
-                {
-                  "gene": "fabG1",
-                  "residue": "DNA",
-                  "variant": "CTG607TTA",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "katG",
-                  "residue": "DNA",
-                  "variant": "G2097GT",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "R"
-            },
-            "Ofloxacin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "PI227HF",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Rifampicin": {
-              "evidence": [
-                {
-                  "gene": "inhA",
-                  "residue": "DNA",
-                  "variant": "TC62G",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "inhA",
-                  "residue": "PROT",
-                  "variant": "PI227HF",
-                  "vcfid": "."
-                }
-              ],
-              "predict": "U"
-            },
-            "Streptomycin": {
-              "evidence": [
-                {
-                  "gene": "gid",
-                  "residue": "PROT",
-                  "variant": "R47W",
-                  "vcfid": "."
-                },
-                {
-                  "gene": "rpsL",
-                  "residue": "PROT",
-                  "variant": "K43R",
-                  "vcfid": "."
-                }
-               ],
-              "predict": "R"
-            }
-          }
-        }
-        "#
-        .chars()
-        .filter(|c| !c.is_whitespace())
-        .collect::<String>();
 
         assert_eq!(actual, expected)
     }

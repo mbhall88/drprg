@@ -87,7 +87,9 @@ pub fn consequence_of_variant(
 
     let vcfid = vcf_record.id().to_str_lossy().to_string();
     let mut ref_allele = vcf_record.alleles()[0];
-    let mut alt_allele = vcf_record.alleles()[vcf_record.called_allele() as usize];
+    // take the max incase the genotype is null (-1) which would cause an index error
+    let alt_idx = vcf_record.called_allele().max(0) as usize;
+    let mut alt_allele = vcf_record.alleles()[alt_idx];
     let is_indel = ref_allele.len() != alt_allele.len();
 
     // we can unwrap here as VCF doesn't do negative values for POS

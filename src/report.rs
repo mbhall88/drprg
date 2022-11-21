@@ -3,11 +3,24 @@ use crate::predict::Prediction;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
 
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
+const STOP: &str = "*";
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Susceptibility {
     pub(crate) predict: Prediction,
     pub(crate) evidence: Vec<Evidence>,
 }
+
+impl Default for Susceptibility {
+    fn default() -> Self {
+        let predict = Prediction::Susceptible;
+        Self {
+            predict,
+            evidence: vec![],
+        }
+    }
+}
+
 #[derive(Debug, Default, Serialize, Deserialize, PartialEq, Eq, Clone)]
 pub struct Evidence {
     pub(crate) variant: Variant,
@@ -17,8 +30,25 @@ pub struct Evidence {
 }
 
 impl Evidence {
+    pub fn to_variant_string(&self) -> String {
+        format!("{}_{}", self.gene, self.variant)
+    }
     pub fn is_synonymous(&self) -> bool {
         self.residue == Residue::Amino && self.variant.reference == self.variant.new
+    }
+    pub fn is_missense(&self) -> bool {
+        self.residue == Residue::Amino && !self.is_nonsense() && !self.is_synonymous()
+    }
+    pub fn is_nonsense(&self) -> bool {
+        self.variant.new == STOP && self.residue == Residue::Amino
+    }
+    pub fn is_frameshift(&self) -> bool {
+        let len_diff = self
+            .variant
+            .reference
+            .len()
+            .abs_diff(self.variant.new.len());
+        self.residue == Residue::Nucleic && len_diff % 3 != 0
     }
     pub fn atomise(&self) -> Vec<Self> {
         if self.variant.is_snp() || self.variant.is_indel() {
@@ -203,6 +233,138 @@ mod tests {
     }
 
     #[test]
+    fn evidence_is_missense_nucleic_acid() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_missense())
+    }
+
+    #[test]
+    fn evidence_is_missense() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_missense())
+    }
+
+    #[test]
+    fn evidence_is_missense_is_nonsense() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4*").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_missense())
+    }
+
+    #[test]
+    fn evidence_is_nonsense() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4*").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_nonsense())
+    }
+
+    #[test]
+    fn evidence_is_nonsense_is_nonsense() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_nonsense())
+    }
+
+    #[test]
+    fn evidence_is_nonsense_is_synonymous() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4A").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_nonsense())
+    }
+
+    #[test]
+    fn evidence_is_nonsense_is_nucleic() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4*").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_nonsense())
+    }
+
+    #[test]
+    fn evidence_is_frameshift_is_snp() {
+        let ev = Evidence {
+            variant: Variant::from_str("A4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_frameshift())
+    }
+
+    #[test]
+    fn evidence_is_frameshift_is_1bp_frameshift() {
+        let ev = Evidence {
+            variant: Variant::from_str("AA4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_frameshift())
+    }
+
+    #[test]
+    fn evidence_is_frameshift_is_2bp_frameshift() {
+        let ev = Evidence {
+            variant: Variant::from_str("AAA4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_frameshift())
+    }
+
+    #[test]
+    fn evidence_is_frameshift_is_3bp_indel() {
+        let ev = Evidence {
+            variant: Variant::from_str("AAAA4T").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(!ev.is_frameshift())
+    }
+
+    #[test]
+    fn evidence_is_frameshift_is_4bp_indel() {
+        let ev = Evidence {
+            variant: Variant::from_str("AAAA4TAAAAAAA").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Nucleic,
+            vcfid: "abcd1234".to_string(),
+        };
+        assert!(ev.is_frameshift())
+    }
+
+    #[test]
     fn evidence_is_synonymous_amino_is_not_multi_base() {
         let ev = Evidence {
             variant: Variant::from_str("AT4AC").unwrap(),
@@ -271,5 +433,20 @@ mod tests {
         assert_eq!("R", Prediction::Resistant.to_string());
         assert_eq!(actual_data, expected_data);
         assert_eq!(actual_struct, expected_struct)
+    }
+
+    #[test]
+    fn evidence_to_variant_str() {
+        let ev = Evidence {
+            variant: Variant::from_str("K4S").unwrap(),
+            gene: "inhA".to_string(),
+            residue: Residue::Amino,
+            vcfid: "abcd1234".to_string(),
+        };
+
+        let actual = ev.to_variant_string();
+        let expected = String::from("inhA_K4S");
+
+        assert_eq!(actual, expected)
     }
 }
