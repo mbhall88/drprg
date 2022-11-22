@@ -1,10 +1,4 @@
 rule plot_phenotype_availability:
-    input:
-        samplesheet=(
-            lambda wildcards: config["illumina_samplesheet"]
-            if wildcards.tech == "illumina"
-            else config["nanopore_samplesheet"]
-        ),
     output:
         upset_plots=report(
             multiext(str(PLOTS / "dst_availability/upset.{tech}"), ".png", ".svg"),
@@ -25,8 +19,8 @@ rule plot_phenotype_availability:
     conda:
         ENVS / "plot_phenotype_availability.yaml"
     params:
-        query_expression=(
-            lambda wildcards: illumina_query if wildcards.tech == "illumina" else ""
+        samplesheet=(
+            lambda wildcards: illumina_df if wildcards.tech == "illumina" else ont_df
         ),
     script:
         SCRIPTS / "plot_susceptibility_availability.py"

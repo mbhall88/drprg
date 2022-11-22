@@ -11,11 +11,7 @@ plt.style.use("ggplot")
 
 
 def main():
-    samplesheet = pd.read_csv(
-        snakemake.input.samplesheet, index_col="run", low_memory=False
-    )
-    if snakemake.params.query_expression:
-        samplesheet.query(snakemake.params.query_expression, inplace=True)
+    samplesheet = snakemake.params.samplesheet
 
     drop_cols = {"biosample", "bioproject"}
     DRUGS = set(samplesheet.drop(columns=drop_cols).columns)
