@@ -4,24 +4,12 @@ sys.stderr = open(snakemake.log[0], "w")
 
 from pathlib import Path
 import pandas as pd
+from multiprocessing import Pool
 
-stats_paths = list(map(Path, sorted(snakemake.input.stats)))
-keep_ids_paths = list(map(Path, sorted(snakemake.input.keep_ids)))
-contam_ids_paths = list(map(Path, sorted(snakemake.input.contam_ids)))
-unmapped_ids_paths = list(map(Path, sorted(snakemake.input.unmapped_ids)))
+N = 100  # number of files to process in a single process (chunks)
 
-assert (
-    len(stats_paths)
-    == len(keep_ids_paths)
-    == len(contam_ids_paths)
-    == len(unmapped_ids_paths)
-)
 
-it = zip(stats_paths, keep_ids_paths, contam_ids_paths, unmapped_ids_paths)
-
-data = [["run", "coverage", "f_keep", "f_contam", "f_unmapped"]]
-
-for s, k, c, u in it:
+def extract_stats(s, k, c, u):
     r1 = s.parts[-2]
     r2 = k.parts[-2]
     r3 = c.parts[-2]
@@ -55,8 +43,35 @@ for s, k, c, u in it:
         f_contam = n_contam_ids / N
         f_unmapped = n_unmapped_ids / N
 
-    data.append([run, cov, f_keep, f_contam, f_unmapped])
+    return [run, cov, f_keep, f_contam, f_unmapped]
 
-with open(snakemake.output.summary, "w") as fp:
-    for row in data:
-        print(",".join(map(str, row)), file=fp)
+
+def main():
+    stats_paths = list(map(Path, sorted(snakemake.input.stats)))
+    keep_ids_paths = list(map(Path, sorted(snakemake.input.keep_ids)))
+    contam_ids_paths = list(map(Path, sorted(snakemake.input.contam_ids)))
+    unmapped_ids_paths = list(map(Path, sorted(snakemake.input.unmapped_ids)))
+
+    assert (
+        len(stats_paths)
+        == len(keep_ids_paths)
+        == len(contam_ids_paths)
+        == len(unmapped_ids_paths)
+    )
+
+    it = list(zip(stats_paths, keep_ids_paths, contam_ids_paths, unmapped_ids_paths))
+
+    data = [["run", "coverage", "f_keep", "f_contam", "f_unmapped"]]
+
+    with Pool(snakemake.threads) as pool:
+        rows = pool.starmap(extract_stats, it, chunksize=N)
+
+    data.extend(rows)
+
+    with open(snakemake.output.summary, "w") as fp:
+        for row in data:
+            print(",".join(map(str, row)), file=fp)
+
+
+if __name__ == "__main__":
+    main()
