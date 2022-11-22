@@ -44,8 +44,9 @@ rule combine_mykrobe_reports:
         report=RESULTS / "amr_predictions/mykrobe/{tech}/summary.csv",
     log:
         LOGS / "combine_mykrobe_reports/{tech}.log",
+    threads: 8
     resources:
-        mem_mb=GB,
+        mem_mb=int(8*GB),
     container:
         CONTAINERS["python"]
     script:
