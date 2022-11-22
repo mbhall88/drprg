@@ -32,13 +32,18 @@ def main():
     upset_data = upsetplot.from_contents(d)
 
     fig, ax = plt.subplots(figsize=(13, 8), dpi=300)
+    if snakemake.wildcards.tech == "illumina":
+        min_subset_size = 300
+    else:
+        min_subset_size = 1
+
     p = upsetplot.plot(
         upset_data,
         fig=fig,
         sort_by="cardinality",
         orientation="horizontal",
         show_counts=True,
-        #     min_subset_size=300
+        min_subset_size=min_subset_size
     )
     p["intersections"].set_ylabel("")
     p["intersections"].set_yticks([])
