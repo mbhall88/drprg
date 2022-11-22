@@ -1,3 +1,30 @@
+rule plot_phenotype_availability:
+    input:
+        samplesheet=lambda wildcards: config["illumina_samplesheet"] if wildcards.tech == "illumina" else config["nanopore_samplesheet"]
+    output:
+        upset_plots=report(
+            multiext(str(PLOTS / "dst_availability/upset.{tech}"), ".png", ".svg"),
+            category="DST availability",
+            subcategory="Upset Plot",
+            labels={"Technology": "{tech}"},
+        ),
+        barplots=report(
+            multiext(str(PLOTS / "dst_availability/bar.{tech}"), ".png", ".svg"),
+            category="DST availability",
+            subcategory="Barplot",
+            labels={"Technology": "{tech}"},
+        ),
+    log:
+        LOGS / "plot_phenotype_availability/{tech}.log"
+    resources:
+        mem_mb=GB,
+    conda:
+        ENVS / "plot_phenotype_availability.yaml"
+    params:
+        query_expression=lambda wildcards: illumina_query if wildcards.tech == "illumina" else ""
+    script:
+        SCRIPTS / "plot_susceptibility_availability.py"
+
 rule compare_sn_and_sp:
     input:
         summary_files=expand(

@@ -50,7 +50,8 @@ illumina_df = pd.read_csv(
     config["illumina_samplesheet"], low_memory=False, index_col="run"
 )
 illumina_df["run"] = illumina_df.index
-illumina_df.query("run in @illumina_subsample_runs or delamanid.notna()", inplace=True)
+illumina_query = "run in @illumina_subsample_runs or delamanid.notna()"
+illumina_df.query(illumina_query, inplace=True)
 ont_df = pd.read_csv(config["nanopore_samplesheet"], index_col="run", low_memory=False)
 
 # =====================================
@@ -76,7 +77,7 @@ for tech in TECHS:
 # target_files.add(RESULTS / f"depth/tbprofiler/{tech}.summary.csv")
 # target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
 # target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
-
+    target_files.add(PLOTS / f"dst_availability/upset.{tech}.png")
 
 # =====================================
 rule all:
