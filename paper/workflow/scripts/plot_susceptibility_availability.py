@@ -56,7 +56,7 @@ def main():
     yticks = [
         int(i)
         for i in np.logspace(
-            np.log10(max(1, data["run"].min())), np.log10(data["run"].max()), num=8
+            np.log10(max(1, counts["run"].min())), np.log10(counts["run"].max()), num=8
         )
     ]
     ax.set_yscale("log")
