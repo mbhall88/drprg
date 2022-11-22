@@ -160,6 +160,8 @@ rule qc_summary:
         unmapped_ids=infer_unmapped_files,
     output:
         summary=RESULTS / "QC/{tech}.qc.csv",
+    resources:
+        mem_mb=GB,
     log:
         LOGS / "qc_summary/{tech}.log",
     params:
