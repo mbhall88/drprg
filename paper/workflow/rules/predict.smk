@@ -44,6 +44,8 @@ rule combine_mykrobe_reports:
         report=RESULTS / "amr_predictions/mykrobe/{tech}/summary.csv",
     log:
         LOGS / "combine_mykrobe_reports/{tech}.log",
+    resources:
+        mem_mb=GB,
     container:
         CONTAINERS["python"]
     script:
@@ -96,6 +98,8 @@ rule combine_drprg_reports:
         report=RESULTS / "amr_predictions/drprg/{tech}/summary.csv",
     log:
         LOGS / "combine_drprg_reports/{tech}.log",
+    resources:
+        mem_mb=GB,
     container:
         CONTAINERS["python"]
     script:
@@ -162,6 +166,8 @@ rule combine_tbprofiler_reports:
         report=RESULTS / "amr_predictions/tbprofiler/{tech}/summary.csv",
     log:
         LOGS / "combine_tbprofiler_reports/{tech}.log",
+    resources:
+        mem_mb=GB,
     container:
         CONTAINERS["python"]
     script:

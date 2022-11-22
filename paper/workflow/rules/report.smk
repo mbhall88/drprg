@@ -26,6 +26,8 @@ rule compare_sn_and_sp:
         ),
     log:
         LOGS / "compare_sn_and_sp/{tech}.log",
+    resources:
+        mem_mb=GB,
     params:
         minor_is_susceptible=False,
         unknown_is_resistant=False,
@@ -51,6 +53,8 @@ rule aggregate_predict_benchmarks:
         summary=BENCH / "predict/{tech}.summary.csv",
     log:
         LOGS / "aggregate_predict_benchmarks/{tech}.log",
+    resources:
+        mem_mb=GB,
     container:
         CONTAINERS["python"]
     params:
@@ -75,6 +79,8 @@ rule plot_predict_benchmark:
         ),
     log:
         LOGS / "plot_predict_benchmark/{tech}.log",
+    resources:
+        mem_mb=GB,
     conda:
         str(ENVS / "plot_predict_benchmark.yaml")
     params:
