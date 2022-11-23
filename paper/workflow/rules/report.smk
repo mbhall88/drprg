@@ -15,7 +15,7 @@ rule plot_phenotype_availability:
     log:
         LOGS / "plot_phenotype_availability/{tech}.log",
     resources:
-        mem_mb=GB,
+        mem_mb=int(8*GB),
     conda:
         ENVS / "plot_phenotype_availability.yaml"
     params:
