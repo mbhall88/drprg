@@ -442,11 +442,11 @@ def main():
     fontsize = 12
     rotate = 0
     dodge = 0.1
-    capsize = 2
-    marker_alpha = 0.8
+    capsize = 1
+    marker_alpha = 1.0
     marker_size = 7
     edge_alpha = 0.7
-    edgecol = to_rgba("black", alpha=edge_alpha)
+    # edgecol = to_rgba("black", alpha=edge_alpha)
     edge_line_width = 1
     sn_marker = snakemake.params.sn_marker
     sp_marker = snakemake.params.sp_marker
@@ -478,7 +478,7 @@ def main():
             color=colour,
             capsize=capsize,
             elinewidth=edge_line_width,
-            mec=edgecol,
+            mec=colour,
             markersize=marker_size,
         )
 
