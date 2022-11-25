@@ -4,7 +4,7 @@ COPY . /drprg
 
 ARG JUST_URL="https://just.systems/install.sh"
 ARG V_JUST="1.2.0"
-ARG MAFFT_URL="https://mafft.cbrc.jp/alignment/software/mafft_7.475-1_amd64.deb"
+ARG MAFFT_URL="https://mafft.cbrc.jp/alignment/software/mafft_7.505-1_amd64.deb"
 ARG DEB="/mafft.deb"
 
 RUN apt update \

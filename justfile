@@ -38,7 +38,7 @@ bcftools: make_extdir
     cd {{ invocation_directory() }}
     ln -sf bcftools-{{ BCFTOOLS_VERSION }}/bin/bcftools {{ BCFTOOLS }}
 
-MAFFT_VERSION := "7.475"
+MAFFT_VERSION := "7.505"
 MAFFT_URL := "https://mafft.cbrc.jp/alignment/software/mafft-" + MAFFT_VERSION + "-without-extensions-src.tgz"
 MAFFT_SRC := join(EXTDIR, "mafft")
 MAFFT_BIN := join(MAFFT_SRC, "bin/mafft")
