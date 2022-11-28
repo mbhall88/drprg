@@ -54,6 +54,9 @@ pub enum PredictError {
     /// Issue with trying to generate consequence
     #[error("Could not determine consequence of variant because: {0:?}")]
     ConsequenceError(String),
+    /// Ran into an error when checking for minor allele
+    #[error("{0}")]
+    MinorAlleleIssue(String),
 }
 
 /// All possible predictions
@@ -79,6 +82,9 @@ pub enum Prediction {
     #[strum(to_string = "F")]
     #[serde(alias = "F", rename(serialize = "F"))]
     Failed,
+    #[strum(to_string = "u")]
+    #[serde(alias = "u", rename(serialize = "u"))]
+    MinorUnknown,
     #[strum(to_string = "U")]
     #[serde(alias = "U", rename(serialize = "U"))]
     Unknown,
@@ -115,6 +121,7 @@ impl Prediction {
             Self::Failed => b"F",
             Self::Unknown => b"U",
             Self::MinorResistant => b"r",
+            Self::MinorUnknown => b"u",
         }
     }
 }
@@ -447,19 +454,32 @@ impl Predict {
 
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
-            // todo check for minor allele
             record
                 .set_id(Uuid::new_v4().to_string()[..8].as_bytes())
                 .context("Duplicate ID found - 1/270,000,000 chance of this happening - buy a lottery ticket!")?;
-            let rid = record.rid().context(format!(
-                "Pandora variant number {} does not have a CHROM",
-                i
-            ))?;
-            let chrom = record
-                .header()
-                .rid2name(rid)
-                .context("Pandora VCF is missing a contig from the header")?;
-            let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(chrom));
+            let chrom = record.contig().into_bytes();
+            let has_minor_allele =
+                match maf_checker.check_for_minor_alternate(&mut record) {
+                    Ok(i) if i > 0 => {
+                        MinorAllele::adjust_genotype(&mut record, i as i32).context(
+                            format!(
+                                "Failed to ajust genotype in record {}:{}",
+                                record.contig(),
+                                record.pos()
+                            ),
+                        )?;
+                        true
+                    }
+                    Ok(_) => false,
+                    Err(_) => {
+                        return Err(anyhow!(
+                            "Failed to check for minor allele in record {}:{}",
+                            record.contig(),
+                            record.pos()
+                        ))
+                    }
+                };
+            let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(&chrom));
             let iv = record.range();
             // fetch start and end are BOTH 0-based INCLUSIVE
             unwrap_or_continue!(vcfidx.fetch(
@@ -511,6 +531,13 @@ impl Predict {
                         }
                         _ => (),
                     };
+                }
+                if has_minor_allele {
+                    prediction = match prediction {
+                        Prediction::Unknown => Prediction::MinorUnknown,
+                        Prediction::Resistant => Prediction::MinorResistant,
+                        p => p,
+                    }
                 }
                 record_predictions.push(prediction);
                 record_mutations.push(vid_str.to_string());

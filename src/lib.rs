@@ -1115,12 +1115,13 @@ impl VcfExt for bcf::Record {
 
     fn depth_proportions(&self) -> Option<Vec<f32>> {
         let (fc, rc) = self.coverage()?;
-        let allelic_depths: Vec<f32> = fc.iter().zip(rc).map(|(f, r)| (f+r) as f32).collect();
+        let allelic_depths: Vec<f32> =
+            fc.iter().zip(rc).map(|(f, r)| (f + r) as f32).collect();
         let total_depth: f32 = allelic_depths.iter().sum();
         if total_depth == 0.0 {
-            return None
+            return None;
         }
-        Some(allelic_depths.iter().map(|d| d/total_depth).collect())
+        Some(allelic_depths.iter().map(|d| d / total_depth).collect())
     }
 }
 
@@ -1497,7 +1498,7 @@ mod tests {
 
         let actual = record.depth_proportions().unwrap();
         let dp_total = 15.0f32;
-        let expected = vec![11.0/dp_total, 4.0/dp_total];
+        let expected = vec![11.0 / dp_total, 4.0 / dp_total];
 
         assert_eq!(actual, expected)
     }
@@ -1526,7 +1527,7 @@ mod tests {
 
         let actual = record.depth_proportions().unwrap();
         let dp_total = 31.0f32;
-        let expected = vec![1.0/dp_total, 20.0/dp_total, 10.0/dp_total];
+        let expected = vec![1.0 / dp_total, 20.0 / dp_total, 10.0 / dp_total];
 
         assert_eq!(actual, expected)
     }
@@ -1555,7 +1556,7 @@ mod tests {
 
         let actual = record.depth_proportions().unwrap();
         let dp_total = 31.0f32;
-        let expected = vec![1.0/dp_total, 20.0/dp_total, 10.0/dp_total];
+        let expected = vec![1.0 / dp_total, 20.0 / dp_total, 10.0 / dp_total];
 
         assert_eq!(actual, expected)
     }
