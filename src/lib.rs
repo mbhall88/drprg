@@ -897,6 +897,7 @@ pub trait VcfExt {
     fn slice(&self, iv: &Range<i64>, ix: Option<usize>) -> &[u8];
     fn argmatch(&self, other: &Self) -> Option<usize>;
     fn is_indel(&self) -> bool;
+    fn depth_proportions(&self) -> Option<Vec<f32>>;
 }
 
 impl VcfExt for bcf::Record {
@@ -1110,6 +1111,16 @@ impl VcfExt for bcf::Record {
             self.alleles()[0].len()
                 != self.alleles()[self.called_allele() as usize].len()
         }
+    }
+
+    fn depth_proportions(&self) -> Option<Vec<f32>> {
+        let (fc, rc) = self.coverage()?;
+        let allelic_depths: Vec<f32> = fc.iter().zip(rc).map(|(f, r)| (f+r) as f32).collect();
+        let total_depth: f32 = allelic_depths.iter().sum();
+        if total_depth == 0.0 {
+            return None
+        }
+        Some(allelic_depths.iter().map(|d| d/total_depth).collect())
     }
 }
 
@@ -1404,6 +1415,149 @@ mod tests {
 
         let actual = record.coverage();
         assert!(actual.is_none())
+    }
+
+    #[test]
+    fn test_record_depth_proportions_only_ref() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[5])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[6])
+            .expect("Failed to set reverse coverage");
+
+        let actual = record.depth_proportions().unwrap();
+        let expected = vec![1.0];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_depth_proportions_only_ref_no_coverage() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[0])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[0])
+            .expect("Failed to set reverse coverage");
+
+        let actual = record.depth_proportions();
+        let expected = None;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_depth_proportions_one_alt_called_ref() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[5, 1])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[6, 3])
+            .expect("Failed to set reverse coverage");
+
+        let actual = record.depth_proportions().unwrap();
+        let dp_total = 15.0f32;
+        let expected = vec![11.0/dp_total, 4.0/dp_total];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_depth_proportions_two_alt_called_first() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T", b"C"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(1)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[0, 10, 5])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[1, 10, 5])
+            .expect("Failed to set reverse coverage");
+
+        let actual = record.depth_proportions().unwrap();
+        let dp_total = 31.0f32;
+        let expected = vec![1.0/dp_total, 20.0/dp_total, 10.0/dp_total];
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_depth_proportions_two_alt_called_null() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T", b"C"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(-1)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[0, 10, 5])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[1, 10, 5])
+            .expect("Failed to set reverse coverage");
+
+        let actual = record.depth_proportions().unwrap();
+        let dp_total = 31.0f32;
+        let expected = vec![1.0/dp_total, 20.0/dp_total, 10.0/dp_total];
+
+        assert_eq!(actual, expected)
     }
 
     #[test]
