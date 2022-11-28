@@ -15,6 +15,7 @@ mod cli;
 pub mod config;
 mod consequence;
 mod expert;
+mod minor;
 mod panel;
 pub mod predict;
 pub mod report;

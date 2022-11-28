@@ -33,6 +33,7 @@ use std::collections::{HashMap, HashSet};
 use crate::config::Config;
 use crate::consequence::consequence_of_variant;
 use crate::expert::{ExpertRules, RuleExt};
+use crate::minor::MinorAllele;
 use noodles::fasta;
 use regex::Regex;
 use std::fs::File;
@@ -81,6 +82,9 @@ pub enum Prediction {
     #[strum(to_string = "U")]
     #[serde(alias = "U", rename(serialize = "U"))]
     Unknown,
+    #[strum(to_string = "r")]
+    #[serde(alias = "r", rename(serialize = "r"))]
+    MinorResistant,
     #[strum(to_string = "R")]
     #[serde(alias = "R", rename(serialize = "R"))]
     Resistant,
@@ -110,6 +114,7 @@ impl Prediction {
             Self::Resistant => b"R",
             Self::Failed => b"F",
             Self::Unknown => b"U",
+            Self::MinorResistant => b"r",
         }
     }
 }
@@ -169,6 +174,17 @@ pub struct Predict {
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
+    /// Minimum allele frequency to call variants
+    ///
+    /// If an alternate allele has at least this fraction of the depth, a minor resistance
+    /// ("r") prediction is made. Set to 1 to disable
+    #[clap(
+        short = 'f',
+        long = "maf",
+        value_name = "FLOAT[0.0-1.0]",
+        default_value = "1.0"
+    )]
+    min_allele_freq: f32,
     /// Ignore unknown (off-catalogue) variants that cause a synonymous substitution
     #[clap(short = 'S', long)]
     ignore_synonymous: bool,
@@ -417,6 +433,10 @@ impl Predict {
             .load_rules()
             .context("Failed to load expert rules in index")?;
         debug!("Loaded panel");
+        let maf_checker = MinorAllele::new(self.min_allele_freq);
+        if self.min_allele_freq < 1.0 {
+            maf_checker.add_vcf_headers(&mut vcf_header);
+        }
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
@@ -427,6 +447,7 @@ impl Predict {
 
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
+            // todo check for minor allele
             record
                 .set_id(Uuid::new_v4().to_string()[..8].as_bytes())
                 .context("Duplicate ID found - 1/270,000,000 chance of this happening - buy a lottery ticket!")?;
