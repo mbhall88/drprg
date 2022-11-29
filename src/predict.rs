@@ -429,6 +429,10 @@ impl Predict {
         let mut vcf_header = bcf::Header::from_template(reader.header());
         self.filterer.add_filter_headers(&mut vcf_header);
         self.add_predict_info_to_header(&mut vcf_header);
+        let maf_checker = MinorAllele::new(self.min_allele_freq);
+        if self.min_allele_freq < 1.0 {
+            maf_checker.add_vcf_headers(&mut vcf_header);
+        }
         let mut writer =
             bcf::Writer::from_path(&predict_vcf_path, &vcf_header, false, Format::Bcf)
                 .context("Failed to create filtered VCF")?;
@@ -440,10 +444,6 @@ impl Predict {
             .load_rules()
             .context("Failed to load expert rules in index")?;
         debug!("Loaded panel");
-        let maf_checker = MinorAllele::new(self.min_allele_freq);
-        if self.min_allele_freq < 1.0 {
-            maf_checker.add_vcf_headers(&mut vcf_header);
-        }
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
@@ -532,13 +532,6 @@ impl Predict {
                         _ => (),
                     };
                 }
-                if has_minor_allele {
-                    prediction = match prediction {
-                        Prediction::Unknown => Prediction::MinorUnknown,
-                        Prediction::Resistant => Prediction::MinorResistant,
-                        p => p,
-                    }
-                }
                 record_predictions.push(prediction);
                 record_mutations.push(vid_str.to_string());
             }
@@ -574,6 +567,15 @@ impl Predict {
                     }
                 }
                 _ => {}
+            }
+            if has_minor_allele {
+                for i in 0..record_predictions.len() {
+                    match record_predictions[i] {
+                        Prediction::Unknown => record_predictions[i] = Prediction::MinorUnknown,
+                        Prediction::Resistant => record_predictions[i] = Prediction::MinorResistant,
+                        _ => {},
+                    }
+                }
             }
             let mut_bytes: Vec<&[u8]> =
                 record_mutations.iter().map(|s| s.as_bytes()).collect();
@@ -1346,6 +1348,7 @@ mod tests {
             sample: Some("test".to_string()),
             ignore_synonymous: true,
             filterer: filt,
+            min_allele_freq: 0.25,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
