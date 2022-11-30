@@ -21,9 +21,7 @@ def infer_h2h_reads(wildcards, tech=None):
 
 
 def infer_mykrobe_tech_opts(wildcards):
-    return {"illumina": "--ploidy haploid", "nanopore": "--ont"}[
-        wildcards.tech
-    ]
+    return {"illumina": "", "nanopore": "--ont"}[wildcards.tech]
 
 
 def infer_mykrobe_reports(wildcards):
@@ -66,7 +64,10 @@ def infer_mykrobe_depth_reports(wildcards):
 
 
 def infer_drprg_tech_opts(wildcards) -> str:
-    return {"illumina": "-I -C 4"}.get(wildcards.tech, "")
+    return {
+        "illumina": f"-I -f {config['minor']['frac']} --max-gaps {config['minor']['gaps']}",
+        "nanopore": "-f 1.0",
+    }.get(wildcards.tech, "")
 
 
 def infer_preprocessing_tech_opts(wildcards) -> str:
@@ -170,7 +171,7 @@ def infer_unmapped_files(wildcards):
     return files
 
 
-def drprg_filter_args(wildcards, override_depth: int=None) -> str:
+def drprg_filter_args(wildcards, override_depth: int = None) -> str:
     """Generate CLI args for drprg filters"""
     filters = config.get("filters", {})
 
