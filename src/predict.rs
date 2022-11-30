@@ -569,14 +569,16 @@ impl Predict {
                 _ => {}
             }
             if has_minor_allele {
-                for i in 0..record_predictions.len() {
-                    match record_predictions[i] {
-                        Prediction::Unknown => record_predictions[i] = Prediction::MinorUnknown,
-                        Prediction::Resistant => record_predictions[i] = Prediction::MinorResistant,
-                        _ => {},
+                for p in &mut record_predictions {
+                    match p {
+                        Prediction::Unknown => *p = Prediction::MinorUnknown,
+                        Prediction::Resistant => *p = Prediction::MinorResistant,
+                        _ => {}
                     }
                 }
             }
+            (record_mutations, record_predictions) =
+                deduplicate_predictions(record_mutations, record_predictions);
             let mut_bytes: Vec<&[u8]> =
                 record_mutations.iter().map(|s| s.as_bytes()).collect();
             record
@@ -708,7 +710,7 @@ impl Predict {
                 ));
             }
 
-            // safe to unwrap as we know preds i not empty
+            // safe to unwrap as we know preds is not empty
             let max_pred = preds.iter().max().unwrap_or(&Prediction::None);
 
             // we basically ignore the FILTER column if the variant failed genotyping as we want to
@@ -780,21 +782,16 @@ impl Predict {
                         .entry(drug.to_string())
                         .or_insert_with(Susceptibility::default);
                     match (entry.predict, *prediction) {
-                        (p1, p2) if p1 == p2 => entry.evidence.push(ev.to_owned()),
-                        (Prediction::Resistant, _) => {}
-                        (_, Prediction::Resistant) => {
-                            entry.predict = Prediction::Resistant;
+                        (existing_pred, current_pred)
+                            if existing_pred < current_pred =>
+                        {
+                            entry.predict = *prediction;
                             entry.evidence = vec![ev.to_owned()];
                         }
-                        (Prediction::Unknown, _) => {}
-                        (_, Prediction::Unknown) => {
-                            entry.predict = Prediction::Unknown;
-                            entry.evidence = vec![ev.to_owned()];
-                        }
-                        (Prediction::Failed, _) => {}
-                        (_, Prediction::Failed) => {
-                            entry.predict = Prediction::Failed;
-                            entry.evidence = vec![ev.to_owned()];
+                        (existing_pred, current_pred)
+                            if existing_pred == current_pred =>
+                        {
+                            entry.evidence.push(ev.to_owned());
                         }
                         _ => {}
                     }
@@ -875,6 +872,24 @@ impl Predict {
             gene_name
         )))
     }
+}
+
+/// Remove duplicate mutations and keep the corresponding highest prediction for the mutation
+fn deduplicate_predictions(
+    mutations: Vec<String>,
+    predictions: Vec<Prediction>,
+) -> (Vec<String>, Vec<Prediction>) {
+    let mut lookup: HashMap<String, Prediction> = HashMap::new();
+    for (var, pred) in mutations.iter().zip(predictions) {
+        lookup
+            .entry(var.to_string())
+            .and_modify(|e| *e = pred.max(*e))
+            .or_insert(pred);
+    }
+    let out_mutations: Vec<String> = lookup.keys().map(|m| m.to_owned()).collect();
+    let out_predictions: Vec<Prediction> =
+        lookup.values().map(|p| p.to_owned()).collect();
+    (out_mutations, out_predictions)
 }
 
 enum InfoField {
@@ -1368,23 +1383,50 @@ mod tests {
             let expected_varid = expected_record.info(b"VARID").string().unwrap();
             let actual_varid = actual_record.info(b"VARID").string().unwrap();
             match (expected_varid, actual_varid) {
-                (Some(bb1), Some(bb2)) => assert_eq!(bb1.as_slice(), bb2.as_slice()),
-                (None, Some(_)) | (Some(_), None) => assert!(false),
-                (None, None) => assert!(true),
-            }
-
-            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
-            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
-            match (expected_pred, actual_pred) {
-                (Some(bb1), Some(bb2)) => assert_eq!(
-                    bb1.as_slice(),
-                    bb2.as_slice(),
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(
+                    false,
                     "{}:{} {}:{}",
                     actual_record.contig(),
                     actual_record.pos(),
                     expected_record.contig(),
                     expected_record.pos()
                 ),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
                 (None, Some(_)) | (Some(_), None) => assert!(false),
                 (None, None) => assert!(true),
             }
@@ -1439,5 +1481,46 @@ mod tests {
             .collect::<String>();
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_deduplicate_predictions() {
+        let mutations = vec![
+            "embA_V206M".to_string(),
+            "embA_V206M".to_string(),
+            "embA_V206N".to_string(),
+        ];
+        let predictions = vec![
+            Prediction::Susceptible,
+            Prediction::MinorResistant,
+            Prediction::Unknown,
+        ];
+
+        let (mut actual_mutations, mut actual_predictions) =
+            deduplicate_predictions(mutations, predictions);
+        let mut expected_mutations =
+            vec!["embA_V206M".to_string(), "embA_V206N".to_string()];
+        let mut expected_predictions =
+            vec![Prediction::MinorResistant, Prediction::Unknown];
+
+        actual_predictions.sort_unstable();
+        actual_mutations.sort_unstable();
+        expected_mutations.sort_unstable();
+        expected_predictions.sort_unstable();
+
+        assert_eq!(actual_predictions, expected_predictions);
+        assert_eq!(actual_mutations, expected_mutations)
+    }
+
+    #[test]
+    fn test_deduplicate_predictions_empty_in_empty_out() {
+        let mutations = vec![];
+        let predictions = vec![];
+
+        let (actual_mutations, actual_predictions) =
+            deduplicate_predictions(mutations, predictions);
+
+        assert!(actual_mutations.is_empty());
+        assert!(actual_predictions.is_empty())
     }
 }

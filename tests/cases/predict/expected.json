@@ -47,8 +47,15 @@
       "predict": "U"
     },
     "Delamanid": {
-      "evidence": [],
-      "predict": "S"
+      "evidence": [
+        {
+          "gene": "ddn",
+          "residue": "DNA",
+          "variant": "CG527C",
+          "vcfid": "b1dde0cf"
+        }
+      ],
+      "predict": "u"
     },
     "Ethambutol": {
       "evidence": [
