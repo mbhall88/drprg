@@ -192,6 +192,9 @@ pub struct Predict {
         default_value = "1.0"
     )]
     min_allele_freq: f32,
+    /// Maximum value for the GAPS tag when calling a minor allele
+    #[clap(long, default_value = "0.4", hide = true)]
+    max_gaps: f32,
     /// Ignore unknown (off-catalogue) variants that cause a synonymous substitution
     #[clap(short = 'S', long)]
     ignore_synonymous: bool,
@@ -429,7 +432,7 @@ impl Predict {
         let mut vcf_header = bcf::Header::from_template(reader.header());
         self.filterer.add_filter_headers(&mut vcf_header);
         self.add_predict_info_to_header(&mut vcf_header);
-        let maf_checker = MinorAllele::new(self.min_allele_freq);
+        let maf_checker = MinorAllele::new(self.min_allele_freq, self.max_gaps);
         if self.min_allele_freq < 1.0 {
             maf_checker.add_vcf_headers(&mut vcf_header);
         }
@@ -1364,6 +1367,7 @@ mod tests {
             ignore_synonymous: true,
             filterer: filt,
             min_allele_freq: 0.25,
+            max_gaps: 0.5,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");

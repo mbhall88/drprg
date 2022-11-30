@@ -7,12 +7,14 @@ const PDP_TAG: &str = "PDP";
 
 pub struct MinorAllele {
     min_allele_freq: f32,
+    max_gap: f32,
 }
 
 impl MinorAllele {
-    pub fn new(maf: f32) -> Self {
+    pub fn new(maf: f32, max_gap: f32) -> Self {
         MinorAllele {
             min_allele_freq: maf,
+            max_gap,
         }
     }
     pub fn add_vcf_headers(&self, header: &mut bcf::Header) {
@@ -58,7 +60,14 @@ impl MinorAllele {
             }
         }
         match largest_non_ref {
-            Some((i, d)) if d >= self.min_allele_freq => Ok(i),
+            Some((i, d)) if d >= self.min_allele_freq => {
+                let gaps = record.format(b"GAPS").float()?[0][i];
+                if gaps < self.max_gap {
+                    Ok(i)
+                } else {
+                    Ok(0)
+                }
+            }
             _ => Ok(0),
         }
     }
@@ -85,7 +94,7 @@ mod tests {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
-        let ma = MinorAllele::new(1.0);
+        let ma = MinorAllele::new(1.0, 0.5);
         ma.add_vcf_headers(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
@@ -97,7 +106,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_null_call() {
-        let ma = MinorAllele::new(0.5);
+        let ma = MinorAllele::new(0.5, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -127,7 +136,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_alt_call() {
-        let ma = MinorAllele::new(0.5);
+        let ma = MinorAllele::new(0.5, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -157,7 +166,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_alt_has_most_depth() {
-        let ma = MinorAllele::new(0.5);
+        let ma = MinorAllele::new(0.5, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -188,7 +197,7 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_below_threshold()
     {
-        let ma = MinorAllele::new(0.5);
+        let ma = MinorAllele::new(0.5, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -218,7 +227,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_eq_threshold() {
-        let ma = MinorAllele::new(50.0 / 160.0);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -249,7 +258,7 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_above_threshold()
     {
-        let ma = MinorAllele::new(50.0 / 160.0);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -279,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_no_depth() {
-        let ma = MinorAllele::new(0.1);
+        let ma = MinorAllele::new(0.1, 0.5);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
