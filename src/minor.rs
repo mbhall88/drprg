@@ -171,7 +171,7 @@ mod tests {
         let path = tmp.path();
         let mut header = bcf::Header::new();
 
-        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
         ma.add_vcf_headers(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
@@ -187,6 +187,9 @@ mod tests {
         record
             .push_format_integer(b"MEAN_REV_COVG", &[6, 30])
             .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.0, 0.0])
+            .expect("Failed to set gaps");
 
         let actual = ma.check_for_minor_alternate(&mut record).unwrap();
         let expected = 1;
@@ -232,7 +235,7 @@ mod tests {
         let path = tmp.path();
         let mut header = bcf::Header::new();
 
-        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
         ma.add_vcf_headers(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
@@ -248,6 +251,9 @@ mod tests {
         record
             .push_format_integer(b"MEAN_REV_COVG", &[60, 30])
             .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.0, 0.0])
+            .expect("Failed to set gaps");
 
         let actual = ma.check_for_minor_alternate(&mut record).unwrap();
         let expected = 1;
@@ -263,7 +269,7 @@ mod tests {
         let path = tmp.path();
         let mut header = bcf::Header::new();
 
-        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#);
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
         ma.add_vcf_headers(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
@@ -279,9 +285,46 @@ mod tests {
         record
             .push_format_integer(b"MEAN_REV_COVG", &[60, 30])
             .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.0, 0.0])
+            .expect("Failed to set gaps");
 
         let actual = ma.check_for_minor_alternate(&mut record).unwrap();
         let expected = 1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_below_gaps_threshold(
+    ) {
+        let ma = MinorAllele::new(50.0 / 160.0, 0.4);
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = bcf::Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
+        ma.add_vcf_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[50, 21])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[60, 30])
+            .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.0, 0.45])
+            .expect("Failed to set gaps");
+
+        let actual = ma.check_for_minor_alternate(&mut record).unwrap();
+        let expected = 0;
 
         assert_eq!(actual, expected)
     }
