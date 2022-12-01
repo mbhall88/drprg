@@ -433,9 +433,8 @@ impl Predict {
         self.filterer.add_filter_headers(&mut vcf_header);
         self.add_predict_info_to_header(&mut vcf_header);
         let maf_checker = MinorAllele::new(self.min_allele_freq, self.max_gaps);
-        if self.min_allele_freq < 1.0 {
-            maf_checker.add_vcf_headers(&mut vcf_header);
-        }
+        maf_checker.add_vcf_headers(&mut vcf_header);
+        
         let mut writer =
             bcf::Writer::from_path(&predict_vcf_path, &vcf_header, false, Format::Bcf)
                 .context("Failed to create filtered VCF")?;
