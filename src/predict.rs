@@ -1437,6 +1437,98 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
+    /// described in https://github.com/mbhall88/drprg/issues/19#issuecomment-1336088173
+    fn test_predict_from_pandora_vcf_alt_that_is_susceptible_with_minor_resistance() {
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            min_allele_freq: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
+        let pandora_vcf_path = Path::new("tests/cases/predict/in2.vcf");
+
+        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
+        assert!(result.is_ok());
+
+        let mut expected_rdr =
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out2.vcf")).unwrap();
+        let mut actual_rdr =
+            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
+        let mut actual_records = actual_rdr.records();
+        for r in expected_rdr.records() {
+            let expected_record = r.unwrap();
+            let actual_record = actual_records.next().unwrap().unwrap();
+            assert_eq!(expected_record.pos(), actual_record.pos());
+            let expected_varid = expected_record.info(b"VARID").string().unwrap();
+            let actual_varid = actual_record.info(b"VARID").string().unwrap();
+            match (expected_varid, actual_varid) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(
+                    false,
+                    "{}:{} {}:{}",
+                    actual_record.contig(),
+                    actual_record.pos(),
+                    expected_record.contig(),
+                    expected_record.pos()
+                ),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
+        }
+    }
+
+    #[test]
     fn test_vcf_to_json() {
         use std::io::Read;
         use std::iter::Iterator;
