@@ -529,6 +529,8 @@ impl Predict {
                         Some(i) if i > 0 => {
                             if !drugs.contains(NONE_DRUG) {
                                 prediction = Prediction::Resistant
+                            } else {
+                                prediction = Prediction::Susceptible
                             }
                         }
                         _ => (),
