@@ -440,19 +440,10 @@ impl Predict {
                 .context("Failed to create filtered VCF")?;
         let mut vcfidx = bcf::IndexedReader::from_path(self.index_vcf_path())
             .context("Failed to open panel VCF index")?;
-        debug!("Loading the panel...");
-        let panel = self.load_var_to_drugs()?;
-        let expert_rules = self
-            .load_rules()
-            .context("Failed to load expert rules in index")?;
-        debug!("Loaded panel");
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
                 .context(format!("Failed to read record {} in pandora VCF", i))?;
-
-            let mut record_mutations: Vec<String> = Vec::new();
-            let mut record_predictions: Vec<Prediction> = Vec::new();
 
             writer.translate(&mut record);
             self.filterer.filter(&mut record)?;
@@ -495,83 +486,12 @@ impl Predict {
             ))?;
             let csqs = ev.atomise();
 
-            for idx_res in vcfidx.records() {
-                let idx_record = idx_res.context("Failed to parse index vcf record")?;
-                let vid = idx_record.id();
-                let vid_str = vid.to_str_lossy();
-                let (drugs, _) = &panel.get(&*vid_str).unwrap();
-                let mut prediction = Prediction::None;
-                if record.called_allele() == -1 {
-                    prediction = Prediction::Failed;
-                } else {
-                    match record.argmatch(&idx_record) {
-                        None => {
-                            for csq in &csqs {
-                                let is_x_mutation = vid_str.ends_with('X');
-                                let csq_str = csq.to_variant_string();
-                                let csq_matches_variant = if is_x_mutation {
-                                    csq_str[..csq_str.len() - 1]
-                                        == vid_str[..vid_str.len() - 1]
-                                } else {
-                                    csq_str == vid_str
-                                };
-                                if csq_matches_variant {
-                                    if !drugs.contains(NONE_DRUG) {
-                                        prediction = Prediction::Resistant;
-                                        break;
-                                    } else {
-                                        prediction = Prediction::Susceptible;
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        Some(i) if i > 0 => {
-                            if !drugs.contains(NONE_DRUG) {
-                                prediction = Prediction::Resistant
-                            } else {
-                                prediction = Prediction::Susceptible
-                            }
-                        }
-                        _ => (),
-                    };
-                }
-                record_predictions.push(prediction);
-                record_mutations.push(vid_str.to_string());
-            }
-            for csq in &csqs {
-                let var_str = csq.to_variant_string();
-                let mut pred = Prediction::Susceptible;
-                let rule_matches = expert_rules.matches(csq);
-                if rule_matches.is_empty() {
-                    continue;
-                }
-                for rule in rule_matches {
-                    if !rule.drugs.contains(NONE_DRUG) {
-                        match record.called_allele() {
-                            -1 => pred = Prediction::Failed,
-                            i if i > 0 => pred = Prediction::Resistant,
-                            _ => pred = Prediction::None,
-                        }
-                        break;
-                    }
-                }
-                record_mutations.push(var_str);
-                record_predictions.push(pred);
-            }
-            match record_predictions.iter().max() {
-                Some(Prediction::None) | None if record.called_allele() > 0 => {
-                    for csq in csqs {
-                        record_mutations.push(csq.to_variant_string());
-                        if csq.is_synonymous() && self.ignore_synonymous {
-                            record_predictions.push(Prediction::None);
-                        } else {
-                            record_predictions.push(Prediction::Unknown);
-                        }
-                    }
-                }
-                _ => {}
-            }
+            let (mut record_mutations, mut record_predictions) = self
+                .get_record_predictions(&mut record, &csqs, &mut vcfidx)
+                .context("Failed to get prediction for record")?;
+
+            // todo move check for minor allele here if the max. prediction is no resistant
+
             if has_minor_allele {
                 for p in &mut record_predictions {
                     match p {
@@ -600,6 +520,128 @@ impl Predict {
                 .context("Failed to write filtered VCF record")?;
         }
         Ok(predict_vcf_path)
+    }
+
+    fn get_record_predictions(
+        &self,
+        record: &mut bcf::Record,
+        csqs: &Vec<Evidence>,
+        vcfidx: &mut bcf::IndexedReader,
+    ) -> Result<(Vec<String>, Vec<Prediction>)> {
+        let (mut record_mutations, mut record_predictions) = self
+            .check_record_against_index(record, vcfidx, csqs)
+            .context("Failed to check record against panel")?;
+        match self.check_record_against_expert_rules(record, csqs) {
+            Ok((ms, ps)) => {
+                record_mutations.extend(ms);
+                record_predictions.extend(ps);
+            }
+            Err(e) => return Err(e),
+        }
+        match record_predictions.iter().max() {
+            Some(Prediction::None) | None if record.called_allele() > 0 => {
+                for csq in csqs {
+                    record_mutations.push(csq.to_variant_string());
+                    if csq.is_synonymous() && self.ignore_synonymous {
+                        record_predictions.push(Prediction::None);
+                    } else {
+                        record_predictions.push(Prediction::Unknown);
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok((record_mutations, record_predictions))
+    }
+
+    fn check_record_against_expert_rules(
+        &self,
+        record: &bcf::Record,
+        csqs: &Vec<Evidence>,
+    ) -> Result<(Vec<String>, Vec<Prediction>)> {
+        let mut record_mutations: Vec<String> = Vec::new();
+        let mut record_predictions: Vec<Prediction> = Vec::new();
+        let expert_rules = self
+            .load_rules()
+            .context("Failed to load expert rules in index")?;
+
+        for csq in csqs {
+            let var_str = csq.to_variant_string();
+            let mut pred = Prediction::Susceptible;
+            let rule_matches = expert_rules.matches(csq);
+            if rule_matches.is_empty() {
+                continue;
+            }
+            for rule in rule_matches {
+                if !rule.drugs.contains(NONE_DRUG) {
+                    match record.called_allele() {
+                        -1 => pred = Prediction::Failed,
+                        i if i > 0 => pred = Prediction::Resistant,
+                        _ => pred = Prediction::None,
+                    }
+                    break;
+                }
+            }
+            record_mutations.push(var_str);
+            record_predictions.push(pred);
+        }
+        Ok((record_mutations, record_predictions))
+    }
+
+    fn check_record_against_index(
+        &self,
+        record: &mut bcf::Record,
+        vcfidx: &mut bcf::IndexedReader,
+        csqs: &Vec<Evidence>,
+    ) -> Result<(Vec<String>, Vec<Prediction>)> {
+        let mut record_mutations: Vec<String> = Vec::new();
+        let mut record_predictions: Vec<Prediction> = Vec::new();
+        let panel = self.load_var_to_drugs()?;
+        for idx_res in vcfidx.records() {
+            let idx_record = idx_res.context("Failed to parse index vcf record")?;
+            let vid = idx_record.id();
+            let vid_str = vid.to_str_lossy();
+            let (drugs, _) = &panel.get(&*vid_str).unwrap();
+            let mut prediction = Prediction::None;
+            if record.called_allele() == -1 {
+                prediction = Prediction::Failed;
+            } else {
+                match record.argmatch(&idx_record) {
+                    None => {
+                        for csq in csqs {
+                            let is_x_mutation = vid_str.ends_with('X');
+                            let csq_str = csq.to_variant_string();
+                            let csq_matches_variant = if is_x_mutation {
+                                csq_str[..csq_str.len() - 1]
+                                    == vid_str[..vid_str.len() - 1]
+                            } else {
+                                csq_str == vid_str
+                            };
+                            if csq_matches_variant {
+                                if !drugs.contains(NONE_DRUG) {
+                                    prediction = Prediction::Resistant;
+                                    break;
+                                } else {
+                                    prediction = Prediction::Susceptible;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    Some(i) if i > 0 => {
+                        if !drugs.contains(NONE_DRUG) {
+                            prediction = Prediction::Resistant
+                        } else {
+                            prediction = Prediction::Susceptible
+                        }
+                    }
+                    _ => (),
+                };
+            }
+            record_predictions.push(prediction);
+            record_mutations.push(vid_str.to_string());
+        }
+        Ok((record_mutations, record_predictions))
     }
 
     fn load_var_to_drugs(&self) -> Result<HashMap<String, (HashSet<String>, Residue)>> {

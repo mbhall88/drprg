@@ -32,7 +32,7 @@ impl MinorAllele {
         }
     }
     /// Check if any non-called allele has more than the min_allele_freq and return the index of the
-    /// allele. Only applicable if record is called ref.
+    /// allele.
     /// Note: if multiple alleles over the min. then will return the one with the highest proportion
     /// Returns the index of the minor allele (if there is one) or 0 otherwise
     pub fn check_for_minor_alternate(
@@ -42,8 +42,9 @@ impl MinorAllele {
         Self::add_proportions_tag(record)?;
         let dp_props = record.depth_proportions();
         let gt = record.called_allele();
-        if gt != 0 || record.allele_count() < 2 || dp_props.is_none() {
-            return Ok(0);
+        // todo adjust function to not assume reference gentype
+        if record.allele_count() < 2 || dp_props.is_none() {
+            return Ok(-1);
         }
         // we know this is a ref position with at least one alt
         let dp_props = dp_props.unwrap();
