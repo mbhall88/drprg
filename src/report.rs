@@ -3,7 +3,7 @@ use crate::predict::Prediction;
 use serde_derive::{Deserialize, Serialize};
 use std::str::FromStr;
 
-const STOP: &str = "*";
+pub const STOP: &str = "*";
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Susceptibility {

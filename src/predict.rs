@@ -24,7 +24,7 @@ use drprg::{
 
 use crate::cli::check_path_exists;
 use crate::panel::{Residue, Variant};
-use crate::report::{Evidence, Susceptibility};
+use crate::report::{Evidence, Susceptibility, STOP};
 use crate::Runner;
 use bstr::ByteSlice;
 
@@ -451,27 +451,6 @@ impl Predict {
                 .set_id(Uuid::new_v4().to_string()[..8].as_bytes())
                 .context("Duplicate ID found - 1/270,000,000 chance of this happening - buy a lottery ticket!")?;
             let chrom = record.contig().into_bytes();
-            let has_minor_allele =
-                match maf_checker.check_for_minor_alternate(&mut record) {
-                    Ok(i) if i > 0 => {
-                        MinorAllele::adjust_genotype(&mut record, i as i32).context(
-                            format!(
-                                "Failed to ajust genotype in record {}:{}",
-                                record.contig(),
-                                record.pos()
-                            ),
-                        )?;
-                        true
-                    }
-                    Ok(_) => false,
-                    Err(_) => {
-                        return Err(anyhow!(
-                            "Failed to check for minor allele in record {}:{}",
-                            record.contig(),
-                            record.pos()
-                        ))
-                    }
-                };
             let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(&chrom));
             let iv = record.range();
             // fetch start and end are BOTH 0-based INCLUSIVE
@@ -490,7 +469,45 @@ impl Predict {
                 .get_record_predictions(&mut record, &csqs, &mut vcfidx)
                 .context("Failed to get prediction for record")?;
 
-            // todo move check for minor allele here if the max. prediction is no resistant
+            let max_pred = record_predictions.iter().max().unwrap_or(&Prediction::None);
+
+            let has_minor_allele =
+                match maf_checker.check_for_minor_alternate(&mut record) {
+                    Ok(i) if i > 0 && max_pred < &Prediction::Resistant => {
+                        MinorAllele::adjust_genotype(&mut record, i as i32).context(
+                            format!(
+                                "Failed to ajust genotype in record {}:{}",
+                                record.contig(),
+                                record.pos()
+                            ),
+                        )?;
+                        unwrap_or_continue!(vcfidx.fetch(
+                            idx_rid,
+                            iv.start as u64,
+                            Some((iv.end - 1) as u64)
+                        ));
+                        let ev = self.consequence(&record).context(format!(
+                            "Failed to find the consequence of novel variant {}",
+                            record.id().to_str_lossy()
+                        ))?;
+                        let csqs = ev.atomise();
+                        let (muts, preds) = self
+                            .get_record_predictions(&mut record, &csqs, &mut vcfidx)
+                            .context("Failed to get prediction for record")?;
+
+                        record_mutations.extend(muts);
+                        record_predictions.extend(preds);
+                        true
+                    }
+                    Ok(_) => false,
+                    Err(_) => {
+                        return Err(anyhow!(
+                            "Failed to check for minor allele in record {}:{}",
+                            record.contig(),
+                            record.pos()
+                        ))
+                    }
+                };
 
             if has_minor_allele {
                 for p in &mut record_predictions {
@@ -501,6 +518,7 @@ impl Predict {
                     }
                 }
             }
+
             (record_mutations, record_predictions) =
                 deduplicate_predictions(record_mutations, record_predictions);
             let mut_bytes: Vec<&[u8]> =
@@ -606,37 +624,42 @@ impl Predict {
             if record.called_allele() == -1 {
                 prediction = Prediction::Failed;
             } else {
-                match record.argmatch(&idx_record) {
-                    None => {
-                        for csq in csqs {
-                            let is_x_mutation = vid_str.ends_with('X');
-                            let csq_str = csq.to_variant_string();
-                            let csq_matches_variant = if is_x_mutation {
-                                csq_str[..csq_str.len() - 1]
-                                    == vid_str[..vid_str.len() - 1]
+                for csq in csqs {
+                    let is_x_mutation = vid_str.ends_with('X');
+                    let csq_str = csq.to_variant_string();
+                    let csq_matches_variant = if is_x_mutation {
+                        let ref_allele = &csq.variant.reference;
+                        let alt_allele = &csq.variant.new;
+                        if csq.residue == Residue::Nucleic {
+                            ref_allele != alt_allele
+                        } else {
+                            ref_allele != alt_allele && alt_allele != STOP
+                        }
+                    } else {
+                        csq_str == vid_str
+                    };
+                    if csq_matches_variant {
+                        if !drugs.contains(NONE_DRUG) {
+                            prediction = Prediction::Resistant;
+                            break;
+                        } else {
+                            prediction = Prediction::Susceptible;
+                            break;
+                        }
+                    }
+                }
+                if prediction < Prediction::Resistant {
+                    match record.argmatch(&idx_record) {
+                        Some(i) if i > 0 => {
+                            if !drugs.contains(NONE_DRUG) {
+                                prediction = Prediction::Resistant
                             } else {
-                                csq_str == vid_str
-                            };
-                            if csq_matches_variant {
-                                if !drugs.contains(NONE_DRUG) {
-                                    prediction = Prediction::Resistant;
-                                    break;
-                                } else {
-                                    prediction = Prediction::Susceptible;
-                                    break;
-                                }
+                                prediction = Prediction::Susceptible
                             }
                         }
-                    }
-                    Some(i) if i > 0 => {
-                        if !drugs.contains(NONE_DRUG) {
-                            prediction = Prediction::Resistant
-                        } else {
-                            prediction = Prediction::Susceptible
-                        }
-                    }
-                    _ => (),
-                };
+                        _ => (),
+                    };
+                }
             }
             record_predictions.push(prediction);
             record_mutations.push(vid_str.to_string());
