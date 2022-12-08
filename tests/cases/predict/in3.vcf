@@ -1,0 +1,27 @@
+##fileformat=VCFv4.3
+##fileDate==07/12/22
+##ALT=<ID=SNP,Description="SNP">
+##ALT=<ID=PH_SNPs,Description="Phased SNPs">
+##ALT=<ID=INDEL,Description="Insertion-deletion">
+##ALT=<ID=COMPLEX,Description="Complex variant, collection of SNPs and indels">
+##INFO=<ID=VC,Number=1,Type=String,Description="Type (class) of variant">
+##ALT=<ID=SIMPLE,Description="Graph bubble is simple">
+##ALT=<ID=NESTED,Description="Variation site was a nested feature in the graph">
+##ALT=<ID=TOO_MANY_ALTS,Description="Variation site was a multinested feature with too many alts to include all in the VCF">
+##INFO=<ID=GRAPHTYPE,Number=1,Type=String,Description="Type of graph feature">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Mean forward coverage">
+##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Mean reverse coverage">
+##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">
+##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">
+##FORMAT=<ID=SUM_FWD_COVG,Number=R,Type=Integer,Description="Sum forward coverage">
+##FORMAT=<ID=SUM_REV_COVG,Number=R,Type=Integer,Description="Sum reverse coverage">
+##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Number of gap bases">
+##FORMAT=<ID=LIKELIHOOD,Number=R,Type=Float,Description="Likelihood">
+##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">
+##contig=<ID=ahpC>
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample
+ahpC	11	.	GTG	ATG,GTA	.	.	VC=PH_SNPs;GRAPHTYPE=SIMPLE	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:44,0,0:50,0,0:44,0,0:50,0,0:44,0,0:50,0,0:0,1,1:-61.6903,-914.886,-914.886:853.196
+ahpC	19	.	TCACCTTTGCC	TCACCTTGCC,TCACCTTTGCT,TCC	.	.	VC=COMPLEX;GRAPHTYPE=SIMPLE	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:41,0,14,0:43,0,16,0:44,0,0,0:50,0,0,0:207,0,44,0:219,0,50,0:0.2,1,0.666667,1:-257.956,-1006.99,-698.615,-1006.99:440.659
+ahpC	49	.	CG	CA,TG	.	.	VC=PH_SNPs;GRAPHTYPE=SIMPLE	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	2:3,18,63:6,18,58:3,18,63:6,18,58:3,36,63:6,37,58:1,0,0:-1168.45,-737.939,-247.18:490.759
+ahpC	326	.	G	A	.	.	VC=SNP;GRAPHTYPE=SIMPLE	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:74,0:86,1:109,0:124,0:223,2:258,4:0.333333,1:-103.856,-1213.34:1109.49

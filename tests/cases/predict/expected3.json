@@ -1,0 +1,72 @@
+{
+  "sample": "test",
+  "susceptibility": {
+    "Amikacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Capreomycin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ciprofloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Delamanid": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ethambutol": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ethionamide": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Isoniazid": {
+      "evidence": [
+        {
+          "gene": "ahpC",
+          "residue": "DNA",
+          "variant": "C-52T",
+          "vcfid": "1684c937"
+        }
+      ],
+      "predict": "U"
+    },
+    "Kanamycin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Levofloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Linezolid": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Moxifloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ofloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Pyrazinamide": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Rifampicin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Streptomycin": {
+      "evidence": [],
+      "predict": "S"
+    }
+  }
+}

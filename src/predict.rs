@@ -471,53 +471,59 @@ impl Predict {
 
             let max_pred = record_predictions.iter().max().unwrap_or(&Prediction::None);
 
-            let has_minor_allele =
-                match maf_checker.check_for_minor_alternate(&mut record) {
-                    Ok(i) if i > 0 && max_pred < &Prediction::Resistant => {
-                        MinorAllele::adjust_genotype(&mut record, i as i32).context(
-                            format!(
-                                "Failed to ajust genotype in record {}:{}",
-                                record.contig(),
-                                record.pos()
-                            ),
-                        )?;
-                        unwrap_or_continue!(vcfidx.fetch(
-                            idx_rid,
-                            iv.start as u64,
-                            Some((iv.end - 1) as u64)
-                        ));
-                        let ev = self.consequence(&record).context(format!(
-                            "Failed to find the consequence of novel variant {}",
-                            record.id().to_str_lossy()
-                        ))?;
-                        let csqs = ev.atomise();
-                        let (muts, preds) = self
-                            .get_record_predictions(&mut record, &csqs, &mut vcfidx)
-                            .context("Failed to get prediction for record")?;
-
-                        record_mutations.extend(muts);
-                        record_predictions.extend(preds);
-                        true
-                    }
-                    Ok(_) => false,
-                    Err(_) => {
-                        return Err(anyhow!(
-                            "Failed to check for minor allele in record {}:{}",
+            let _has_minor_allele = match maf_checker
+                .check_for_minor_alternate(&mut record)
+            {
+                Ok(i) if i > 0 && max_pred < &Prediction::Resistant => {
+                    MinorAllele::adjust_genotype(&mut record, i as i32).context(
+                        format!(
+                            "Failed to ajust genotype in record {}:{}",
                             record.contig(),
                             record.pos()
-                        ))
+                        ),
+                    )?;
+                    unwrap_or_continue!(vcfidx.fetch(
+                        idx_rid,
+                        iv.start as u64,
+                        Some((iv.end - 1) as u64)
+                    ));
+                    let ev = self.consequence(&record).context(format!(
+                        "Failed to find the consequence of novel variant {}",
+                        record.id().to_str_lossy()
+                    ))?;
+                    let csqs = ev.atomise();
+                    let (muts, mut preds) = self
+                        .get_record_predictions(&mut record, &csqs, &mut vcfidx)
+                        .context("Failed to get prediction for record")?;
+                    for p in &mut preds {
+                        match p {
+                            Prediction::Unknown => *p = Prediction::MinorUnknown,
+                            Prediction::Resistant => *p = Prediction::MinorResistant,
+                            _ => {}
+                        }
                     }
-                };
 
-            if has_minor_allele {
-                for p in &mut record_predictions {
-                    match p {
-                        Prediction::Unknown => *p = Prediction::MinorUnknown,
-                        Prediction::Resistant => *p = Prediction::MinorResistant,
-                        _ => {}
+                    let max_minor_call =
+                        preds.iter().max().unwrap_or(&Prediction::None);
+
+                    if max_minor_call < max_pred {
+                        MinorAllele::undo_genotype_adjustment(&mut record)
+                            .context("Failed to undo minor allele genotype")?;
                     }
+
+                    record_mutations.extend(muts);
+                    record_predictions.extend(preds);
+                    true
                 }
-            }
+                Ok(_) => false,
+                Err(_) => {
+                    return Err(anyhow!(
+                        "Failed to check for minor allele in record {}:{}",
+                        record.contig(),
+                        record.pos()
+                    ))
+                }
+            };
 
             (record_mutations, record_predictions) =
                 deduplicate_predictions(record_mutations, record_predictions);
@@ -1596,6 +1602,112 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
+    /// the issue here was that we were originally turning all U and R into u and r
+    /// if there was a minor allele. But in this case the major had a U, which shouldn't
+    /// be turned into a minor U
+    fn test_predict_from_pandora_vcf_alt_major_and_minor_with_unknowns() {
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            min_allele_freq: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
+        let pandora_vcf_path = Path::new("tests/cases/predict/in3.vcf");
+
+        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
+        assert!(result.is_ok());
+
+        let mut expected_rdr =
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out3.vcf")).unwrap();
+        let mut actual_rdr =
+            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
+        let mut actual_records = actual_rdr.records();
+        for r in expected_rdr.records() {
+            let expected_record = r.unwrap();
+            let actual_record = actual_records.next().unwrap().unwrap();
+            assert_eq!(expected_record.pos(), actual_record.pos());
+            let expected_varid = expected_record.info(b"VARID").string().unwrap();
+            let actual_varid = actual_record.info(b"VARID").string().unwrap();
+            match (expected_varid, actual_varid) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(
+                    false,
+                    "{}:{} {}:{}",
+                    actual_record.contig(),
+                    actual_record.pos(),
+                    expected_record.contig(),
+                    expected_record.pos()
+                ),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
+
+            let expected_gt = expected_record.called_allele();
+            let actual_gt = actual_record.called_allele();
+            assert_eq!(
+                expected_gt,
+                actual_gt,
+                "{}:{} {}:{}",
+                actual_record.contig(),
+                actual_record.pos(),
+                expected_record.contig(),
+                expected_record.pos()
+            )
+        }
+    }
+
+    #[test]
     fn test_vcf_to_json() {
         use std::io::Read;
         use std::iter::Iterator;
@@ -1635,6 +1747,56 @@ mod tests {
 
         buffer.clear();
         let file = File::open("tests/cases/predict/expected.json").unwrap();
+        let mut reader = BufReader::new(file);
+        reader.read_to_string(&mut buffer).unwrap();
+        let expected = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_vcf_to_json_unknown_not_in_panel() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/out3.vcf");
+        let result = pred.vcf_to_json(vcf_path);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        buffer.clear();
+        let file = File::open("tests/cases/predict/expected3.json").unwrap();
         let mut reader = BufReader::new(file);
         reader.read_to_string(&mut buffer).unwrap();
         let expected = buffer

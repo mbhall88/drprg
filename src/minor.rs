@@ -1,3 +1,4 @@
+use bstr::ByteSlice;
 use drprg::VcfExt;
 use rust_htslib::bcf;
 use rust_htslib::bcf::record::GenotypeAllele;
@@ -75,6 +76,18 @@ impl MinorAllele {
         let og_gt = record.called_allele().to_string();
         record.push_info_string(OGT_TAG.as_bytes(), &[og_gt.as_bytes()])?;
         record.push_genotypes(&[GenotypeAllele::Unphased(new_gt)])
+    }
+    pub fn undo_genotype_adjustment(
+        record: &mut bcf::Record,
+    ) -> Result<(), rust_htslib::errors::Error> {
+        let ogt = record.info(OGT_TAG.as_bytes()).string()?;
+        if let Some(bb) = ogt {
+            let original_gt_s = bb[0].to_str_lossy().to_string();
+            let original_gt = original_gt_s.parse::<i32>().unwrap();
+            record.push_genotypes(&[GenotypeAllele::Unphased(original_gt)])?;
+            record.clear_info_string(OGT_TAG.as_bytes())?;
+        }
+        Ok(())
     }
 }
 
