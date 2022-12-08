@@ -1,0 +1,39 @@
+##fileformat=VCFv4.3
+##FILTER=<ID=PASS,Description="All filters passed">
+##fileDate==08/12/22
+##ALT=<ID=SNP,Description="SNP">
+##ALT=<ID=PH_SNPs,Description="Phased SNPs">
+##ALT=<ID=INDEL,Description="Insertion-deletion">
+##ALT=<ID=COMPLEX,Description="Complex variant, collection of SNPs and indels">
+##INFO=<ID=VC,Number=1,Type=String,Description="Type (class) of variant">
+##ALT=<ID=SIMPLE,Description="Graph bubble is simple">
+##ALT=<ID=NESTED,Description="Variation site was a nested feature in the graph">
+##ALT=<ID=TOO_MANY_ALTS,Description="Variation site was a multinested feature with too many alts to include all in the VCF">
+##INFO=<ID=GRAPHTYPE,Number=1,Type=String,Description="Type of graph feature">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Mean forward coverage">
+##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Mean reverse coverage">
+##FORMAT=<ID=MED_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">
+##FORMAT=<ID=MED_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">
+##FORMAT=<ID=SUM_FWD_COVG,Number=R,Type=Integer,Description="Sum forward coverage">
+##FORMAT=<ID=SUM_REV_COVG,Number=R,Type=Integer,Description="Sum reverse coverage">
+##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Number of gap bases">
+##FORMAT=<ID=LIKELIHOOD,Number=R,Type=Float,Description="Likelihood">
+##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">
+##contig=<ID=fabG1>
+##FILTER=<ID=ld,Description="Kmer coverage on called allele less than 3">
+##FILTER=<ID=sb,Description="A strand on the called allele has less than 1.00% of the coverage for that allele">
+##FILTER=<ID=lgc,Description="Genotype confidence score less than 5.0">
+##FILTER=<ID=frs,Description="Fraction of read support on called allele is less than 0.51">
+##INFO=<ID=VARID,Number=.,Type=String,Description="The identifier for the panel variant(s) the record overlaps with">
+##INFO=<ID=PREDICT,Number=.,Type=String,Description="The drug resistance prediction(s) for the corresponding VARID(s), where 'R' = resistant, 'S' = susceptible, 'F' = failed, and 'U' = unknown">
+##INFO=<ID=OGT,Number=1,Type=String,Description="Original genotype after adjusting for minor allele depth proportions of 0.2">
+##INFO=<ID=PDP,Number=R,Type=Float,Description="Proportion of the total position depth found on this allele">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	sample
+fabG1	54	8648118a	G	C	.	PASS	VC=SNP;GRAPHTYPE=SIMPLE;PDP=1,0	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:29,0:32,0:29,0:32,0:29,0:32,0:0,1:-4.02102,-426.915:422.894
+fabG1	81	954daa2b	CGAGAC	CGAGAT,CGATAC,TGAGAC	.	PASS	VC=PH_SNPs;GRAPHTYPE=SIMPLE;PDP=0.146341,0.146341,0.707317,0;VARID=fabG1_A-16X,fabG1_G-17T,fabG1_C-15X;PREDICT=.,R,.	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	2:6,6,29,0:6,6,29,0:0,0,36,0:0,0,36,0:38,38,147,0:36,36,148,0:0.833333,0.833333,0.2,1:-424.697,-424.697,-129.734,-523.624:294.963
+fabG1	93	00ec0353	T	C	.	ld;lgc	VC=SNP;GRAPHTYPE=SIMPLE;VARID=fabG1_T-8X;PREDICT=F	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	.:0,0:0,0:0,0:0,0:0,0:0,0:1,1:-146,-146:0
+fabG1	316	adad6ac3	C	T	.	PASS	VC=SNP;GRAPHTYPE=SIMPLE;PDP=0.664063,0.335938	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:39,19:46,24:39,19:45,24:117,39:139,49:0,0.5:-202.1,-437.983:235.883
+fabG1	427	4b354786	C	T	.	PASS	VC=SNP;GRAPHTYPE=SIMPLE;PDP=1,0	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:50,0:38,0:50,0:38,0:100,0:76,0:0,1:-4.60376,-551.255:546.651
+fabG1	709	f1811875	G	A	.	PASS	VC=SNP;GRAPHTYPE=SIMPLE;PDP=1,0;VARID=fabG1_CTG607CTT,fabG1_CTG607CTC,fabG1_CTG607CTA,fabG1_CTG607TTA,fabG1_CTG607TTG;PREDICT=.,.,.,.,.	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:29,0:42,0:29,0:42,0:88,0:126,0:0,1:-3.0791,-472.967:469.888
+fabG1	823	d27e2199	C	T	.	PASS	VC=SNP;GRAPHTYPE=SIMPLE;PDP=1,0	GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF	0:17,0:30,0:22,0:39,0:69,0:121,0:0.25,1:-26.4011,-362.443:336.042

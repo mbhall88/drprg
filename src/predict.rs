@@ -625,12 +625,21 @@ impl Predict {
             let idx_record = idx_res.context("Failed to parse index vcf record")?;
             let vid = idx_record.id();
             let vid_str = vid.to_str_lossy();
+            // we unwrap here as we can't have an invalid variant id string
+            let (_, var_str) = vid_str.split_once('_').context(format!(
+                "Couldn't split variant ID {} at underscore",
+                vid_str
+            ))?;
+            let vid_var = Variant::from_str(var_str).unwrap();
             let (drugs, _) = &panel.get(&*vid_str).unwrap();
             let mut prediction = Prediction::None;
             if record.called_allele() == -1 {
                 prediction = Prediction::Failed;
             } else {
                 for csq in csqs {
+                    if csq.variant.pos != vid_var.pos {
+                        continue;
+                    }
                     let is_x_mutation = vid_str.ends_with('X');
                     let csq_str = csq.to_variant_string();
                     let csq_matches_variant = if is_x_mutation {
@@ -1635,6 +1644,113 @@ mod tests {
 
         let mut expected_rdr =
             bcf::Reader::from_path(Path::new("tests/cases/predict/out3.vcf")).unwrap();
+        let mut actual_rdr =
+            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
+        let mut actual_records = actual_rdr.records();
+        for r in expected_rdr.records() {
+            let expected_record = r.unwrap();
+            let actual_record = actual_records.next().unwrap().unwrap();
+            assert_eq!(expected_record.pos(), actual_record.pos());
+            let expected_varid = expected_record.info(b"VARID").string().unwrap();
+            let actual_varid = actual_record.info(b"VARID").string().unwrap();
+            match (expected_varid, actual_varid) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(
+                    false,
+                    "{}:{} {}:{}",
+                    actual_record.contig(),
+                    actual_record.pos(),
+                    expected_record.contig(),
+                    expected_record.pos()
+                ),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
+
+            let expected_gt = expected_record.called_allele();
+            let actual_gt = actual_record.called_allele();
+            assert_eq!(
+                expected_gt,
+                actual_gt,
+                "{}:{} {}:{}",
+                actual_record.contig(),
+                actual_record.pos(),
+                expected_record.contig(),
+                expected_record.pos()
+            )
+        }
+    }
+
+    #[test]
+    #[allow(clippy::assertions_on_constants)]
+    /// This tests for an example of a variant which covers three mutations in fabG1
+    /// The three mutations are fabG1_A-16X,fabG1_G-17T,fabG1_C-15X
+    /// The genotype was such that only fabG1_G-17T should have been called, but all
+    /// three got called, so it is likely an X mutation issue
+    fn test_predict_from_pandora_vcf_three_adjacent_mutations_only_one_called() {
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            min_allele_freq: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
+        let pandora_vcf_path = Path::new("tests/cases/predict/in4.vcf");
+
+        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
+        assert!(result.is_ok());
+
+        let mut expected_rdr =
+            bcf::Reader::from_path(Path::new("tests/cases/predict/out4.vcf")).unwrap();
         let mut actual_rdr =
             bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
         let mut actual_records = actual_rdr.records();
