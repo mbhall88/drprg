@@ -50,7 +50,9 @@ minor:
 filters:
   min_covg:        3
   min_strand_bias: 0.01
-  min_frs:         0.51
+  min_frs:
+    nanopore: 0.51
+    illumina: 0.0
   min_gt_conf:
     nanopore: 5
     illumina: 5
