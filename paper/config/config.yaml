@@ -45,14 +45,14 @@ depths:
 
 # filtering used on the pandora VCF in drprg
 minor:
-  frac: 0.2  # minimum fraction of depth to call minor alleles
-  gaps: 0.4  # maximum gaps value to call minor allele
+  frac: 0.1  # minimum fraction of depth to call minor alleles
+  gaps: 0.3  # maximum gaps value to call minor allele
 filters:
   min_covg:        3
   min_strand_bias: 0.01
   min_frs:
     nanopore: 0.51
-    illumina: 0.0
+    illumina: 0.51
   min_gt_conf:
     nanopore: 5
     illumina: 5
@@ -61,7 +61,7 @@ containers:
   base:      "docker://bash:5.1"
   python:    "docker://python:3.10.4-slim-bullseye"
   mafft:     "docker://quay.io/biocontainers/mafft:7.505--hec16e2b_0"
-  drprg:     "docker://quay.io/mbhall88/drprg:e35f703"
+  drprg:     "docker://quay.io/mbhall88/drprg:80eb04e"
   samtools:  "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
   bcftools:  "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
   fastq_dl:  "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
