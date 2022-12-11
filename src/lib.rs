@@ -222,7 +222,7 @@ impl MakePrg {
             .current_dir(&dir)
             .arg("from_msa")
             .args(args)
-            .args(["-v", "-o", prefix, "-i"])
+            .args(["-v", "--force", "-o", prefix, "-i"])
             .arg(input)
             .stdout(Stdio::null())
             .stderr(logstream);
@@ -386,7 +386,7 @@ impl MakePrg {
         let logstream = File::create(update_prgs_dir.join("update_prgs.log"))
             .map_err(|source| DependencyError::FileError { source })?;
 
-        let fixed_args = vec!["-v", "-o", prefix, "-i"];
+        let fixed_args = vec!["-v", "--force", "-o", prefix, "-i"];
 
         let mut binding = Command::new(&self.executable);
         let cmd = binding

@@ -4,7 +4,8 @@ EXTDIR := absolute_path("src/ext")
 make_extdir:
     mkdir -p {{ EXTDIR }}
 
-MAKEPRG_URL := "https://github.com/leoisl/make_prg/releases/download/v0.3.0/make_prg_0.3.0"
+MAKE_PRG_VERSION := "0.4.0"
+MAKEPRG_URL := "https://github.com/iqbal-lab-org/make_prg/releases/download/" + MAKE_PRG_VERSION + "/make_prg_" + MAKE_PRG_VERSION
 MAKEPRG := join(EXTDIR, "make_prg")
 
 # download make_prg binary
