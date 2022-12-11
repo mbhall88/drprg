@@ -205,7 +205,6 @@ impl MakePrg {
         &self,
         input: &Path,
         output_prg: &Path,
-        output_update_prgs: &Path,
         args: I,
     ) -> Result<(), DependencyError>
     where
@@ -254,28 +253,12 @@ impl MakePrg {
                 debug!("make_prg successfully ran. Cleaning up temporary files...");
                 let tmp_prefix = &dir.path().join(prefix);
                 let tmp_prg = tmp_prefix.with_extension("prg.fa");
-                let tmp_update_prgs = &dir.path().join(format!("{}_prgs", prefix));
 
                 // have to use fs::copy here as fs::rename fails inside a container as the tempdir is
                 // not on the same "mount" as the local filesystem see more info at
                 // https://doc.rust-lang.org/std/fs/fn.rename.html#platform-specific-behavior
                 fs::copy(tmp_prg, output_prg)
                     .map_err(|source| DependencyError::FileError { source })?;
-                let copyopts = fs_extra::dir::CopyOptions {
-                    overwrite: true,
-                    skip_exist: false,
-                    buffer_size: 64000,
-                    copy_inside: true,
-                    content_only: false,
-                    depth: 0,
-                };
-                fs_extra::dir::move_dir(tmp_update_prgs, output_update_prgs, &copyopts)
-                    .map_err(|source| DependencyError::FileError {
-                        source: std::io::Error::new(
-                            std::io::ErrorKind::Other,
-                            source.to_string(),
-                        ),
-                    })?;
 
                 let _ = fs::remove_dir_all(dir.path());
                 Ok(())

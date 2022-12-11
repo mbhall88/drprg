@@ -110,8 +110,7 @@ pub struct Build {
     ///
     /// Only build the panel VCF and reference sequences - not the PRG. This directory MUST
     /// contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an
-    /// MSA fasta file for each gene `<gene>.fa`, and with the PRG directory output by `make_prg`,
-    /// which should be called `dr_prgs/`. There can optionally also be a pandora index file, but
+    /// MSA fasta file for each gene `<gene>.fa`. There can optionally also be a pandora index file, but
     /// if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the
     /// reference sequence for each gene according to the annotation and reference genome given
     /// (along with padding) and must be in the forward strand orientation.
@@ -249,9 +248,6 @@ impl Build {
     fn prg_path(&self) -> PathBuf {
         self.outdir.join("dr.prg")
     }
-    fn update_prgs_path(&self) -> PathBuf {
-        self.outdir.join("dr_prgs")
-    }
     fn msa_dir(&self) -> PathBuf {
         self.outdir.join("msas")
     }
@@ -278,11 +274,6 @@ impl Build {
         if !msa_dir.exists() {
             return Err(BuildError::MissingFile(msa_dir));
         }
-        let update_prgs =
-            prebuilt_dir.join(self.update_prgs_path().file_name().unwrap());
-        if !update_prgs.exists() {
-            return Err(BuildError::MissingFile(update_prgs));
-        }
         let prg_index = find_prg_index_in(&prebuilt_dir).ok_or_else(|| {
             BuildError::MissingFile(prebuilt_dir.join("dr.prg.kX.wY.idx"))
         })?;
@@ -301,7 +292,7 @@ impl Build {
                 content_only: false,
                 depth: 0,
             };
-            let mut to_copy = vec![prg, update_prgs, msa_dir];
+            let mut to_copy = vec![prg, msa_dir];
             if index_exists {
                 to_copy.push(prg_index);
                 to_copy.push(prg_index_kmer_prgs);
@@ -630,12 +621,7 @@ impl Runner for Build {
                 "-N",
                 &self.max_nesting.to_string(),
             ];
-            makeprg.from_msas_with(
-                &msa_dir,
-                &self.prg_path(),
-                &self.update_prgs_path(),
-                make_prg_args,
-            )?;
+            makeprg.from_msas_with(&msa_dir, &self.prg_path(), make_prg_args)?;
             info!("Successfully created panel reference graph");
         }
         info!("Indexing reference graph with pandora...");
