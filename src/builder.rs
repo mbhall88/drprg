@@ -625,9 +625,9 @@ impl Runner for Build {
             let make_prg_args = &[
                 "-t",
                 &rayon::current_num_threads().to_string(),
-                "--min_match_length",
+                "-L",
                 &self.match_len.to_string(),
-                "--max_nesting",
+                "-N",
                 &self.max_nesting.to_string(),
             ];
             makeprg.from_msas_with(

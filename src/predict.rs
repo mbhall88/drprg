@@ -270,9 +270,9 @@ impl Runner for Predict {
         let update_args = &[
             "-t",
             threads,
-            "--min_match_len",
+            "-L",
             &config.min_match_len.to_string(),
-            "--max_nesting",
+            "-N",
             &config.max_nesting.to_string(),
         ];
         let prg_path = makeprg
