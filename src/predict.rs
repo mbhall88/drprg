@@ -286,10 +286,10 @@ impl Runner for Predict {
             )
             .context("Failed to update discover PRG")?;
         // ==============================================================================================
-
-        debug!("Indexing updated PRG with pandora index...");
-        pandora.index_with(&prg_path, ["-t", threads, "-w", &w, "-k", &k])?;
-
+        if prg_path != self.index_prg_path().canonicalize()? {
+            debug!("Indexing updated PRG with pandora index...");
+            pandora.index_with(&prg_path, ["-t", threads, "-w", &w, "-k", &k])?;
+        }
         let pandora_vcf_path = self.outdir.join(Pandora::vcf_filename());
         info!("Genotyping reads against the panel with pandora");
         // safe to unwrap as we have already validated the index, which checks this

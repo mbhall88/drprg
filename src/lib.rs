@@ -285,16 +285,23 @@ impl MakePrg {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
-        let dir = outdir.join("tmp_msas");
-        if !dir.exists() {
-            fs::create_dir(&dir)?;
-        }
         let genes_to_update = Pandora::list_prgs_with_novel_variants(denovo_paths)?;
         debug!(
             "{} genes to update with novel variants: {:?}",
             genes_to_update.len(),
             genes_to_update
         );
+
+        if genes_to_update.is_empty() {
+            return Ok(PathBuf::from(index_prg));
+        }
+
+        let dir = outdir.join("tmp_msas");
+        if !dir.exists() {
+            fs::create_dir(&dir)?;
+        }
+        let output_prg = outdir.join("updated.dr.prg");
+
         let update_msa_dir = outdir.join("update_msas");
         if !update_msa_dir.exists() {
             fs::create_dir(&update_msa_dir)?;
@@ -428,7 +435,6 @@ impl MakePrg {
                         }
                     }
                 }
-                let output_prg = outdir.join("updated.dr.prg");
                 fs::copy(&updated_prgs, &output_prg)
                     .map_err(|source| DependencyError::FileError { source })?;
                 let _ = fs::remove_dir_all(&dir);
