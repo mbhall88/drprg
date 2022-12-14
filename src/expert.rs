@@ -17,10 +17,11 @@ pub enum ExpertError {
 }
 
 #[derive(Eq, PartialEq, Debug, Hash, Copy, Clone)]
-enum VariantType {
+pub enum VariantType {
     Frameshift,
     Nonsense,
     Missense,
+    Absence,
 }
 
 impl fmt::Display for VariantType {
@@ -29,6 +30,7 @@ impl fmt::Display for VariantType {
             VariantType::Frameshift => "frameshift",
             VariantType::Missense => "missense",
             VariantType::Nonsense => "nonsense",
+            VariantType::Absence => "absence",
         };
         write!(f, "{}", s)
     }
@@ -54,6 +56,7 @@ impl FromStr for VariantType {
             "frameshift" => Ok(VariantType::Frameshift),
             "nonsense" => Ok(VariantType::Nonsense),
             "missense" => Ok(VariantType::Missense),
+            "absence" => Ok(VariantType::Absence),
             unknown => Err(ExpertError::UnknownVariantType(unknown.to_string())),
         }
     }
@@ -73,7 +76,7 @@ impl<'de> Deserialize<'de> for VariantType {
 #[derive(Debug, Deserialize, Eq, PartialEq, Hash, Clone)]
 pub struct Rule {
     /// The variant type the rule describes
-    variant_type: VariantType,
+    pub(crate) variant_type: VariantType,
     /// The gene the rule applies to
     gene: String,
     /// An optional codon start coordinate in the gene to apply rule from (1-based inclusive).
@@ -180,12 +183,14 @@ mod tests {
         assert_eq!(VariantType::Frameshift.to_string(), "frameshift");
         assert_eq!(VariantType::Missense.to_string(), "missense");
         assert_eq!(VariantType::Nonsense.to_string(), "nonsense");
+        assert_eq!(VariantType::Absence.to_string(), "absence");
     }
 
     #[test]
     fn variant_type_from_str() {
         assert_eq!(VariantType::from_str("missense"), Ok(VariantType::Missense));
         assert_eq!(VariantType::from_str("nonsense"), Ok(VariantType::Nonsense));
+        assert_eq!(VariantType::from_str("ABSENCE"), Ok(VariantType::Absence));
         assert_eq!(
             VariantType::from_str("frameshift"),
             Ok(VariantType::Frameshift)

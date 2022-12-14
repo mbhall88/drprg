@@ -7,7 +7,7 @@ use clap::{AppSettings, Parser};
 use log::{debug, info};
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
-use rust_htslib::bcf::{Format, Read};
+use rust_htslib::bcf::{Format, HeaderRecord, Read};
 use serde::{de, Deserialize, Deserializer};
 use serde_derive::Serialize;
 use serde_json::json;
@@ -32,7 +32,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::config::Config;
 use crate::consequence::consequence_of_variant;
-use crate::expert::{ExpertRules, RuleExt};
+use crate::expert::{ExpertRules, RuleExt, VariantType};
 use crate::minor::MinorAllele;
 use noodles::fasta;
 use regex::Regex;
@@ -884,7 +884,59 @@ impl Predict {
                 }
             }
         }
-        let data = json!({"sample": self.sample_name(), "susceptibility": json});
+
+        let expected_genes: HashSet<String> = gene2drugs.keys().cloned().collect();
+        let mut present_genes: HashSet<String> = HashSet::new();
+        for hrec in reader.header().header_records() {
+            if let HeaderRecord::Contig { key: gene, .. } = hrec {
+                present_genes.insert(gene);
+            }
+        }
+        let absent_genes: HashSet<_> =
+            expected_genes.difference(&present_genes).cloned().collect();
+
+        if !absent_genes.is_empty() {
+            for (gene, rules) in expert_rules {
+                if !absent_genes.contains(&gene) {
+                    continue;
+                }
+                for rule in rules {
+                    if rule.variant_type == VariantType::Absence {
+                        for drug in rule.drugs {
+                            if drug == NONE_DRUG {
+                                continue;
+                            }
+                            let evidence = Evidence {
+                                variant: Variant::gene_deletion(),
+                                gene: gene.to_owned(),
+                                residue: Residue::Nucleic,
+                                vcfid: "".to_string(),
+                            };
+                            let entry = json
+                                .entry(drug.to_string())
+                                .or_insert_with(Susceptibility::default);
+                            if entry.predict == Prediction::Resistant {
+                                entry.evidence.push(evidence);
+                            } else {
+                                entry.predict = Prediction::Resistant;
+                                entry.evidence = vec![evidence];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let mut genes_json: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut present_genes = Vec::from_iter(present_genes);
+        present_genes.sort_unstable();
+        let mut absent_genes = Vec::from_iter(absent_genes);
+        absent_genes.sort_unstable();
+
+        genes_json.insert("present".to_string(), Vec::from_iter(present_genes));
+        genes_json.insert("absent".to_string(), Vec::from_iter(absent_genes));
+
+        let data = json!({"sample": self.sample_name(), "genes": genes_json, "susceptibility": json});
         {
             let mut file =
                 File::create(&json_path).context("Failed to create JSON file")?;
