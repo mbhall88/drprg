@@ -38,6 +38,7 @@ class RuleType(Enum):
     Missense = "missense"
     Frameshift = "frameshift"
     Nonsense = "nonsense"
+    Absence = "absence"
 
 
 @dataclass(frozen=True)
@@ -63,8 +64,8 @@ class Rule:
             case RuleType.Frameshift:
                 len_diff = abs(len(item.ref) - len(item.alt))
                 return item.residue == DNA and len_diff % 3 != 0
-
-        raise NotImplementedError("Don't know how I got here")
+            case _:
+                return False
 
     @staticmethod
     def from_row(row: str, delim: str = ",") -> "Rule":
