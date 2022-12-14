@@ -11,7 +11,7 @@ fi
 
 MEMORY=4000
 THREADS=2
-PROFILE="lsf-dev"
+PROFILE="lsf"
 BINDS="/tmp,$HOME"
 BINDS+=",/hps/scratch,/hps/nobackup/iqbal,/nfs/research/zi,$FASTSW_DIR --scratch /hps/scratch"
 
