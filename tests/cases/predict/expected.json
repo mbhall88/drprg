@@ -1,4 +1,29 @@
 {
+  "genes": {
+    "absent": [
+      "ahpC",
+      "ddn",
+      "eis",
+      "embA",
+      "embB",
+      "ethA",
+      "fabG1",
+      "gid",
+      "gyrA",
+      "gyrB",
+      "inhA",
+      "katG",
+      "pncA",
+      "rplC",
+      "rpoB",
+      "rpsL",
+      "rrs",
+      "tlyA"
+    ],
+    "present": [
+      "contig"
+    ]
+  },
   "sample": "test",
   "susceptibility": {
     "Amikacin": {
@@ -181,6 +206,12 @@
           "residue": "PROT",
           "variant": "G24D",
           "vcfid": "35faad76"
+        },
+        {
+          "gene": "pncA",
+          "residue": "DNA",
+          "variant": "gene_absent",
+          "vcfid": ""
         }
       ],
       "predict": "R"

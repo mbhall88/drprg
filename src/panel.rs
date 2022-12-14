@@ -189,11 +189,26 @@ impl Variant {
     pub fn is_snp(&self) -> bool {
         self.reference.len() == 1 && self.new.len() == 1
     }
+    pub fn gene_deletion() -> Self {
+        Self {
+            reference: "".to_string(),
+            pos: 0,
+            new: "-".to_string(),
+        }
+    }
+    pub fn is_gene_deletion(&self) -> bool {
+        self.reference.is_empty() && self.pos == 0 && self.new == "-"
+    }
 }
 
 impl fmt::Display for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}{}{}", &self.reference, self.pos, &self.new)
+        let to_write = if self.is_gene_deletion() {
+            "gene_absent".to_string()
+        } else {
+            format!("{}{}{}", &self.reference, self.pos, &self.new)
+        };
+        write!(f, "{}", to_write)
     }
 }
 
@@ -1363,6 +1378,16 @@ mod tests {
 
         let actual = v.simplify();
         let expected = Variant::from_str("AT3T").unwrap();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_gene_deletion_fmt() {
+        let v = Variant::gene_deletion();
+
+        let actual = v.to_string();
+        let expected = "gene_absent".to_string();
 
         assert_eq!(actual, expected)
     }

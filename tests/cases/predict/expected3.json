@@ -1,4 +1,29 @@
 {
+  "genes": {
+    "absent": [
+      "ahpC",
+      "ddn",
+      "eis",
+      "embA",
+      "embB",
+      "ethA",
+      "fabG1",
+      "gid",
+      "gyrA",
+      "gyrB",
+      "inhA",
+      "katG",
+      "pncA",
+      "rplC",
+      "rpoB",
+      "rpsL",
+      "rrs",
+      "tlyA"
+    ],
+    "present": [
+      "contig"
+    ]
+  },
   "sample": "test",
   "susceptibility": {
     "Amikacin": {
@@ -57,8 +82,15 @@
       "predict": "S"
     },
     "Pyrazinamide": {
-      "evidence": [],
-      "predict": "S"
+      "evidence": [
+        {
+          "gene": "pncA",
+          "residue": "DNA",
+          "variant": "gene_absent",
+          "vcfid": ""
+        }
+      ],
+      "predict": "R"
     },
     "Rifampicin": {
       "evidence": [],
