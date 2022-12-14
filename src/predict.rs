@@ -888,8 +888,8 @@ impl Predict {
         let expected_genes: HashSet<String> = gene2drugs.keys().cloned().collect();
         let mut present_genes: HashSet<String> = HashSet::new();
         for hrec in reader.header().header_records() {
-            if let HeaderRecord::Contig { key: gene, .. } = hrec {
-                present_genes.insert(gene);
+            if let HeaderRecord::Contig { values: vals, .. } = hrec {
+                present_genes.insert(vals.get("ID").unwrap().to_string());
             }
         }
         let absent_genes: HashSet<_> =

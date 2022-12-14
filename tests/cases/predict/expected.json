@@ -1,6 +1,7 @@
 {
   "genes": {
-    "absent": [
+    "absent": [],
+    "present": [
       "ahpC",
       "ddn",
       "eis",
@@ -19,9 +20,6 @@
       "rpsL",
       "rrs",
       "tlyA"
-    ],
-    "present": [
-      "contig"
     ]
   },
   "sample": "test",
@@ -206,12 +204,6 @@
           "residue": "PROT",
           "variant": "G24D",
           "vcfid": "35faad76"
-        },
-        {
-          "gene": "pncA",
-          "residue": "DNA",
-          "variant": "gene_absent",
-          "vcfid": ""
         }
       ],
       "predict": "R"
