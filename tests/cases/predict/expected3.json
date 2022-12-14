@@ -1,7 +1,6 @@
 {
   "genes": {
     "absent": [
-      "ahpC",
       "ddn",
       "eis",
       "embA",
@@ -21,7 +20,7 @@
       "tlyA"
     ],
     "present": [
-      "contig"
+      "ahpC"
     ]
   },
   "sample": "test",
