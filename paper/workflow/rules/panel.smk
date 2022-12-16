@@ -53,15 +53,38 @@ rule convert_mutations:
     script:
         str(SCRIPTS / "convert_mutations.py")
 
+rule extract_samples_with_common_mutations:
+    input:
+        mutations=RESOURCES / "mutations_in_genes_of_interest.csv",
+        popn_samples=RESOURCES / "popn.samples.txt",
+        cryptic_samples=RESOURCES / "cryptic.samples.txt",
+    output:
+        samples=RESULTS / "drprg/popn_prg/common_mutation.samples.txt"
+
+rule extract_common_mutations_from_cryptic:
+    input:
+        cryptic_vcf=config["cryptic_vcf"],
+        samples=rules.extract_samples_with_common_mutations.output.samples,
+    output:
+        vcf=RESULTS / "drprg/popn_prg/common_mutations.bcf",
+        vcfidx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi"
+
+rule merge_reference_vcfs:
+    input:
+        popn_vcf=config["population_vcf"],
+        mutations_vcf=rules.extract_common_mutations_from_cryptic.output.vcf,
+    output:
+        vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
+        vcfidx=RESULTS / "drprg/popn_prg/ref.bcfcsi",
 
 rule extract_panel_genes_from_popn_vcf:
     input:
         annotation=RESOURCES / "NC_000962.3.gff3",
-        vcf=config["population_vcf"],
-        index=config["population_vcf"] + ".csi",
+        vcf=rules.merge_reference_vcfs.output.vcf,
+        index=rules.merge_reference_vcfs.output.vcfidx,
         panel=rules.convert_mutations.output.panel,
     output:
-        vcf=RESULTS / "drprg/popn_prg/popn.bcf",
+        vcf=RESULTS / "drprg/popn_prg/final.bcf",
     log:
         LOGS / "extract_panel_genes_from_popn_vcf.log",
     params:
