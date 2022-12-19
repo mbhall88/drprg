@@ -11,6 +11,7 @@ genome_size:          4411532
 QC_dir:               "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
 expert_rules:         "resources/expert_rules.csv"
 who_panel_url:        "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"
+min_occurence:        15  # minimum number of R samples a mutation must occur in to be defined as common
 panel:
   url: "https://figshare.com/ndownloader/files/35965220"
   md5: "4f276071d45bb3ade8d3af1b073ba8df"

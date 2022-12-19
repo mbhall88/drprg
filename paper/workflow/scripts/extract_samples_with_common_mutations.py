@@ -1,12 +1,18 @@
 import sys
-from collections import defaultdict, Counter
+from itertools import chain
+
+sys.stderr = open(snakemake.log[0], "w")
+
+from collections import defaultdict
 
 import pandas as pd
+
 
 def eprint(msg: str):
     print(msg, file=sys.stderr)
 
-def load_uids(file: str) -> dict[str, list[str]]:
+
+def load_uids(file: str) -> dict[tuple[str, str], list[str]]:
     d = defaultdict(list)
 
     seen = set()
@@ -28,46 +34,119 @@ def load_uids(file: str) -> dict[str, list[str]]:
     return d
 
 
+def flatten(xs):
+    """Flatten one level of nesting"""
+    return chain.from_iterable(xs)
+
+
 def main():
-    cryptic_samples_file = sys.argv[1]
+    min_occurence = snakemake.params.min_occurence
+    df = pd.read_csv(snakemake.params.who_mutations, sep="\t", low_memory=False)
+    common_df = df.sort_values(by=["drug", "Present_R"], ascending=[True, False]).query(
+        "Present_R>=@min_occurence"
+    )
+    common_df.to_csv(snakemake.output.common_mutations)
+
+    vs = []
+    for v in common_df["variant"]:
+        if "(" in v:
+            v = v.split("(")[1].split(")")[0]
+        vs.append(v)
+
+    common_df["variant"] = vs
+
+    cryptic_samples_file = snakemake.input.cryptic_samples
 
     cryptic_samples = load_uids(cryptic_samples_file)
-    stop = False
-    for k, v in cryptic_samples.items():
-        if len(v) > 1:
-            eprint(f"{k} has {len(v)} uids")
-            stop = True
 
-    if stop:
-        sys.exit(1)
-
-    popn_samples_file = sys.argv[2]
+    popn_samples_file = snakemake.input.popn_samples
     popn_samples = load_uids(popn_samples_file)
-    for k, v in popn_samples.items():
-        if len(v) > 1:
-            eprint(f"{k} has {len(v)} uids")
-            stop = True
 
-    if stop:
-        sys.exit(1)
-
-    mutations_file = sys.argv[3]
+    mutations_file = snakemake.input.mutations
 
     mutations_df = pd.read_csv(mutations_file, low_memory=False)
-    mut2id = defaultdict(list)
-    counts = Counter()
+    muts = set(mutations_df["MUTATION"])
+    c = 0
+    mut2ids = defaultdict(set)
 
-    for _, row in mutations_df.iterrows():
-        mut = row["MUTATION"]
-        gene = row["GENE"]
-        uid = row["UNIQUEID"]
-        mut2id[(gene, mut)].append(uid)
-        counts[(gene, mut)] += 1
+    for v in common_df["variant"]:
+        gene = v.split("_")[0]
+        assert "(" not in v, v
 
-    min_count = int(sys.argv[4])
-    for (gene, mut), count in counts.items():
-        if count >= min_count:
-            print(gene, mut)
+        vnt = v.split("_", maxsplit=1)[1]
+        if vnt in muts:
+            c += 1
+            frame = mutations_df.query("MUTATION==@vnt and GENE==@gene")
+            mut2ids[v].update(set(frame["UNIQUEID"]))
+            continue
+        x_vnt = vnt[:-1] + "X"
+        if x_vnt in muts:
+            c += 1
+            frame = mutations_df.query("MUTATION==@x_vnt and GENE==@gene")
+            mut2ids[v].update(set(frame["UNIQUEID"]))
+            continue
+        o_vnt = vnt[:-1] + "O"
+        if o_vnt in muts:
+            c += 1
+            frame = mutations_df.query("MUTATION==@o_vnt and GENE==@gene")
+            mut2ids[v].update(set(frame["UNIQUEID"]))
+            continue
+        if "del" in vnt or "ins" in vnt:
+            pos = vnt.split("_")[0]
+            indel_v = f"{pos}_indel"
+            if indel_v in muts:
+                c += 1
+                frame = mutations_df.query("MUTATION==@indel_v and GENE==@gene")
+                mut2ids[v].update(set(frame["UNIQUEID"]))
+                continue
+        mut2ids[v].update([])
+
+    eprint(f"{c}/{len(common_df)} WHO mutations are in the CRyPTIC mutations")
+
+    sample2muts = defaultdict(list)
+    no_sample = set()
+    for v, ids in mut2ids.items():
+        for uid in ids:
+            key = (uid.split(".")[3], uid.split(".")[5])
+            cryptic = cryptic_samples.get(key, cryptic_samples.get((key[1], key[0])))
+            if cryptic is None:
+                no_sample.add(uid)
+                continue
+            sample2muts[cryptic[0]].append(v)
+
+    muts_covered = set(flatten(sample2muts.values()))
+    n_muts_covered = len(muts_covered)
+    eprint(
+        f"{n_muts_covered}/{len(common_df)} common mutations covered by {len(sample2muts)} samples"
+    )
+
+    samples_to_use = set()
+    muts_seen = set()
+    for sample in sorted(sample2muts, key=lambda k: len(sample2muts[k]), reverse=True):
+        for v in sample2muts[sample]:
+            if v in muts_seen:
+                continue
+            muts_seen.add(v)
+            samples_to_use.add(sample)
+            if len(muts_seen) == len(muts_covered):
+                break
+
+    samples_already_used_in_popn_vcf = set(flatten(popn_samples.values()))
+    samples_to_use -= samples_already_used_in_popn_vcf
+    eprint(f"{len(samples_to_use)} additional samples to be used with common variants")
+
+    with open(snakemake.output.samples, "w") as fp:
+        for s in samples_to_use:
+            print(s, file=fp)
+
+    mutations_with_no_cyptic_sample = set(common_df["variant"]) - muts_covered
+
+    eprint(f"{len(mutations_with_no_cyptic_sample)} mutations with no cryptic sample")
+
+    with open(snakemake.output.orphan_mutations, "w") as fp:
+        for m in mutations_with_no_cyptic_sample:
+            print(m, file=fp)
+
 
 if __name__ == "__main__":
     main()

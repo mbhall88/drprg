@@ -53,29 +53,70 @@ rule convert_mutations:
     script:
         str(SCRIPTS / "convert_mutations.py")
 
+
 rule extract_samples_with_common_mutations:
     input:
         mutations=RESOURCES / "mutations_in_genes_of_interest.csv",
         popn_samples=RESOURCES / "popn.samples.txt",
         cryptic_samples=RESOURCES / "cryptic.samples.txt",
+        who_mutations=RESOURCES / "who-catalogue-grade1-2.tsv",
     output:
-        samples=RESULTS / "drprg/popn_prg/common_mutation.samples.txt"
+        samples=RESULTS / "drprg/popn_prg/common_mutation.samples.txt",
+        orphan_mutations=RESULTS / "drprg/popn_prg/orphan_mutation.txt",
+        common_mutations=RESULTS / "drprg/popn_prg/common_mutations.csv",
+    log:
+        LOGS / "extract_samples_with_common_mutations.log",
+    params:
+        min_occurence=config["min_occurence"],
+    resources:
+        mem_mb=int(0.5 * GB),
+    conda:
+        ENVS / "extract_samples_with_common_mutations.yaml"
+    script:
+        SCRIPTS / "extract_samples_with_common_mutations.py"
+
 
 rule extract_common_mutations_from_cryptic:
     input:
         cryptic_vcf=config["cryptic_vcf"],
         samples=rules.extract_samples_with_common_mutations.output.samples,
     output:
+        vcf=temp(RESULTS / "drprg/popn_prg/common_cryptic_mutations.vcf"),
+    log:
+        LOGS / "extract_common_mutations_from_cryptic.log",
+    resources:
+        mem_mb=int(0.5 * GB),
+    container:
+        CONTAINERS["bcftools"]
+    params:
+        opts="--trim-alt-alleles",
+    shell:
+        "bcftools view {params.opts} -o {output.vcf} -S {input.samples} {input.cryptic_vcf} 2> {log}"
+
+
+rule add_orphan_mutations_to_vcf:
+    input:
+        vcf=rules.extract_common_mutations_from_cryptic.output.vcf,
+    output:
         vcf=RESULTS / "drprg/popn_prg/common_mutations.bcf",
-        vcfidx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi"
+
+
+rule index_orphan_vcf:
+    input:
+        vcf=rules.add_orphan_mutations_to_vcf.output.vcf,
+    output:
+        idx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi",
+
 
 rule merge_reference_vcfs:
     input:
         popn_vcf=config["population_vcf"],
-        mutations_vcf=rules.extract_common_mutations_from_cryptic.output.vcf,
+        mutations_vcf=rules.add_orphan_mutations_to_vcf.output.vcf,
+        idx=rules.index_orphan_vcf.output.idx,
     output:
         vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
         vcfidx=RESULTS / "drprg/popn_prg/ref.bcfcsi",
+
 
 rule extract_panel_genes_from_popn_vcf:
     input:
@@ -129,6 +170,7 @@ rule add_non_resistance_mutations:
     script:
         str(SCRIPTS / "add_non_resistance_mutations.py")
 
+
 rule filter_panel_for_expert_rules:
     input:
         panel=rules.add_non_resistance_mutations.output.panel,
@@ -137,15 +179,16 @@ rule filter_panel_for_expert_rules:
         panel=RESOURCES / "panel.filtered.tsv",
         rules=RESOURCES / "rules.extra.csv",
     log:
-        LOGS / "filter_panel_for_expert_rules.log"
+        LOGS / "filter_panel_for_expert_rules.log",
     container:
         CONTAINERS["python"]
     params:
-        script=SCRIPTS / "filter_panel_for_expert_rules.py"
+        script=SCRIPTS / "filter_panel_for_expert_rules.py",
     shell:
         """
         python {params.script} {input.panel} {input.rules} {output.panel} {output.rules} 2> {log}
         """
+
 
 rule drprg_build:
     input:
@@ -153,7 +196,7 @@ rule drprg_build:
         ref=rules.add_non_resistance_mutations.input.reference,
         annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
         vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
-        rules=rules.filter_panel_for_expert_rules.output.rules
+        rules=rules.filter_panel_for_expert_rules.output.rules,
     output:
         outdir=directory(RESULTS / "drprg/index/w{w}/k{k}"),
         prg=RESULTS / "drprg/index/w{w}/k{k}/dr.prg",
