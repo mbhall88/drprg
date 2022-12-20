@@ -41,7 +41,7 @@ def flatten(xs):
 
 def main():
     min_occurence = snakemake.params.min_occurence
-    df = pd.read_csv(snakemake.params.who_mutations, sep="\t", low_memory=False)
+    df = pd.read_csv(snakemake.input.who_mutations, sep="\t", low_memory=False)
     common_df = df.sort_values(by=["drug", "Present_R"], ascending=[True, False]).query(
         "Present_R>=@min_occurence"
     )

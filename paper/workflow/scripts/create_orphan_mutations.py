@@ -222,7 +222,7 @@ def main():
             reference += line
 
     features = dict()
-    with open(snakemake.input.features) as fp:
+    with open(snakemake.input.annotation) as fp:
         for line in map(str.rstrip, fp):
             if not line or line.startswith("#"):
                 continue
