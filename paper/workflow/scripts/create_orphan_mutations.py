@@ -332,6 +332,7 @@ def main():
             if cp.returncode != 0:
                 eprint(f"[ERR]: Failed to run bcftools norm for {line}")
                 eprint(cp.stderr)
+                sys.exit(1)
 
             cmd = f"bcftools index {norm_vcf}"
             args = shlex.split(cmd)
@@ -339,6 +340,7 @@ def main():
             if cp.returncode != 0:
                 eprint(f"[ERR]: Failed to run bcftools index for {line}")
                 eprint(cp.stderr)
+                sys.exit(1)
 
             vcfs_to_merge.append(norm_vcf)
 
@@ -356,6 +358,7 @@ def main():
     if cp.returncode != 0:
         eprint("[ERR]: Failed to run bcftools merge for orphan VCF")
         eprint(cp.stderr)
+        sys.exit(1)
 
     cmd = f"bcftools index {merged_orphan_vcf}"
     args = shlex.split(cmd)
@@ -363,6 +366,7 @@ def main():
     if cp.returncode != 0:
         eprint("[ERR]: Failed to run bcftools index on merged orphan VCF")
         eprint(cp.stderr)
+        sys.exit(1)
 
     eprint("[INFO]: Merging orphan VCF with CRyPTIC VCF...")
     cryptic_vcf_file = snakemake.input.cryptic_common_vcf
@@ -373,6 +377,7 @@ def main():
     if cp.returncode != 0:
         eprint("[ERR]: Failed to run bcftools merge")
         eprint(cp.stderr)
+        sys.exit(1)
 
     cmd = f"bcftools index {merged_orphan_vcf}"
     args = shlex.split(cmd)
@@ -380,6 +385,7 @@ def main():
     if cp.returncode != 0:
         eprint("[ERR]: Failed to run bcftools index on merged VCF")
         eprint(cp.stderr)
+        sys.exit(1)
 
     eprint("[INFO]: Normalising merged VCF...")
     out_vcf = snakemake.output.vcf
@@ -389,6 +395,7 @@ def main():
     if cp.returncode != 0:
         eprint(f"[ERR]: Failed to run bcftools norm for merged VCF")
         eprint(cp.stderr)
+        sys.exit(1)
 
     cmd = f"bcftools index {out_vcf}"
     args = shlex.split(cmd)
@@ -396,6 +403,7 @@ def main():
     if cp.returncode != 0:
         eprint(f"[ERR]: Failed to run bcftools index for output VCF")
         eprint(cp.stderr)
+        sys.exit(1)
 
     tmpdir.cleanup()
 
