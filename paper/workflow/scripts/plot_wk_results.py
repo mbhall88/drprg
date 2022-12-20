@@ -54,8 +54,10 @@ class Classifier:
 
         if self.unknown_is_resistant:
             self.resistant.add(Prediction.Unknown)
+            self.resistant.add(Prediction.MinorUnknown)
         else:
             self.susceptible.add(Prediction.Unknown)
+            self.susceptible.add(Prediction.MinorUnknown)
 
         if self.failed_is_resistant:
             self.resistant.add(Prediction.Failed)
