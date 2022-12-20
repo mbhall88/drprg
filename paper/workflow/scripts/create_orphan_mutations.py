@@ -325,7 +325,7 @@ def main():
                     file=f_out,
                 )
 
-            norm_vcf = tmpdirname.with_suffix(".norm.bcf")
+            norm_vcf = tmpvcf.with_suffix(".norm.bcf")
             cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {norm_vcf} {tmpvcf}"
             args = shlex.split(cmd)
             cp = subprocess.run(args, capture_output=True, text=True)
