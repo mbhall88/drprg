@@ -18,6 +18,7 @@ class Prediction(Enum):
     Susceptible = "S"
     MinorResistance = "r"
     Unknown = "U"
+    MinorUnknown = "u"
     Failed = "F"
 
     def __str__(self) -> str:
@@ -167,9 +168,11 @@ def main():
     pheno_clf = []
     unknown_is_resistant = snakemake.params.unknown_is_resistant
     failed_is_resistant = snakemake.params.failed_is_resistant
+    minor_is_susceptible = snakemake.params.minor_is_susceptible
     classifier = Classifier(
         unknown_is_resistant=unknown_is_resistant,
         failed_is_resistant=failed_is_resistant,
+        minor_is_susceptible=minor_is_susceptible
     )
 
     for _, row in df.iterrows():

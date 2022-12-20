@@ -97,6 +97,7 @@ rule plot_wk_results:
     params:
         unknown_is_resistant=False,
         failed_is_resistant=False,
+        minor_is_susceptible=False,
         style="ggplot",
         figsize=(13, 8),
         dpi=300,
