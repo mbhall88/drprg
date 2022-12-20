@@ -137,7 +137,7 @@ rule merge_reference_vcfs:
         CONTAINERS["bcftools"]
     shell:
         """
-        (bcftools merge {input.mutations_vcf} {input.popn_vcf} -o tmp.bcf \
+        (bcftools merge {input.mutations_vcf} {input.popn_vcf} \
             | bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
         bcftools index {output.vcf} 2>> {log}
         """
