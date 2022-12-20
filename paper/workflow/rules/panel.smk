@@ -126,7 +126,7 @@ rule merge_reference_vcfs:
         reference=RESOURCES / "NC_000962.3.fa",
     output:
         vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
-        vcfidx=RESULTS / "drprg/popn_prg/ref.bcf.csi",
+        vcfidx=RESULTS / "drprg/popn_prg/full.merged.bcf.csi",
     log:
         LOGS / "merge_reference_vcfs.log",
     shadow:
