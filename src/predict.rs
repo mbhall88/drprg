@@ -298,7 +298,7 @@ impl Runner for Predict {
             gt_args.push("-I");
         }
         if self.debug {
-            args.push("-K");
+            gt_args.push("-K");
         }
 
         pandora.genotype_with(
