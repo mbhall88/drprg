@@ -1,4 +1,5 @@
 population_vcf:       "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
+cryptic_vcf:          "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/original/cryptic_release.2020-04.GPI.bcf.gz"
 padding:              100  # number of bases to add to the end and start of each gene/PRG
 match_len:            5  # minimum match length parameter to use in make_prg
 illumina_samplesheet: "config/illumina.samplesheet.csv"
