@@ -379,7 +379,7 @@ def main():
         eprint(cp.stderr)
         sys.exit(1)
 
-    cmd = f"bcftools index {merged_orphan_vcf}"
+    cmd = f"bcftools index {merged_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:
