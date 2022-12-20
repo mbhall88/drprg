@@ -81,7 +81,8 @@ rule extract_common_mutations_from_cryptic:
         cryptic_vcf=config["cryptic_vcf"],
         samples=rules.extract_samples_with_common_mutations.output.samples,
     output:
-        vcf=temp(RESULTS / "drprg/popn_prg/common_cryptic_mutations.vcf"),
+        vcf=RESULTS / "drprg/popn_prg/common_cryptic_mutations.bcf",
+        vcfidx=RESULTS / "drprg/popn_prg/common_cryptic_mutations.bcf.csi",
     log:
         LOGS / "extract_common_mutations_from_cryptic.log",
     resources:
@@ -91,31 +92,55 @@ rule extract_common_mutations_from_cryptic:
     params:
         opts="--trim-alt-alleles",
     shell:
-        "bcftools view {params.opts} -o {output.vcf} -S {input.samples} {input.cryptic_vcf} 2> {log}"
+        """
+        bcftools view {params.opts} -o {output.vcf} -S {input.samples} {input.cryptic_vcf} 2> {log}
+        bcftools index {output.vcf} 2>> {log}
+        """
 
 
-rule add_orphan_mutations_to_vcf:
+rule create_orphan_mutations:
     input:
-        vcf=rules.extract_common_mutations_from_cryptic.output.vcf,
+        mutations=rules.extract_samples_with_common_mutations.output.orphan_mutations,
+        reference=RESOURCES / "NC_000962.3.fa",
+        annotation=RESOURCES / "NC_000962.3.gff3",
+        cryptic_common_vcf=rules.extract_common_mutations_from_cryptic.output.vcf,
     output:
         vcf=RESULTS / "drprg/popn_prg/common_mutations.bcf",
-
-
-rule index_orphan_vcf:
-    input:
-        vcf=rules.add_orphan_mutations_to_vcf.output.vcf,
-    output:
-        idx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi",
+        vcfidx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi",
+    log:
+        LOGS / "create_orphan_mutations.log",
+    resources:
+        mem_mb=int(0.5 * GB),
+    shadow:
+        "shallow"
+    conda:
+        ENVS / "create_orphan_mutations.yaml"
+    script:
+        SCRIPTS / "create_orphan_mutations.py"
 
 
 rule merge_reference_vcfs:
     input:
         popn_vcf=config["population_vcf"],
-        mutations_vcf=rules.add_orphan_mutations_to_vcf.output.vcf,
-        idx=rules.index_orphan_vcf.output.idx,
+        mutations_vcf=rules.create_orphan_mutations.output.vcf,
+        reference=RESOURCES / "NC_000962.3.fa",
     output:
         vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
-        vcfidx=RESULTS / "drprg/popn_prg/ref.bcfcsi",
+        vcfidx=RESULTS / "drprg/popn_prg/ref.bcf.csi",
+    log:
+        LOGS / "merge_reference_vcfs.log",
+    shadow:
+        "shallow"
+    resources:
+        mem_mb=int(0.5 * GB),
+    container:
+        CONTAINERS["bcftools"]
+    shell:
+        """
+        (bcftools merge {input.mutations_vcf} {input.popn_vcf} -o tmp.bcf \
+            | bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
+        bcftools index {output.vcf} 2>> {log}
+        """
 
 
 rule extract_panel_genes_from_popn_vcf:
