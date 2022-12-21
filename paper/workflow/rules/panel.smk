@@ -57,14 +57,13 @@ rule convert_mutations:
 
 rule extract_samples_with_common_mutations:
     input:
-        mutations=RESOURCES / "mutations_in_genes_of_interest.csv",
+        mutations2samples=RESOURCES / "mutations_in_genes_of_interest.csv",
         popn_samples=RESOURCES / "popn.samples.txt",
         cryptic_samples=RESOURCES / "cryptic.samples.txt",
-        who_mutations=RESOURCES / "who-catalogue-grade1-2.tsv",
+        mutations=RESOURCES / "target.mutations.tsv",
     output:
         samples=RESULTS / "drprg/popn_prg/common_mutation.samples.txt",
         orphan_mutations=RESULTS / "drprg/popn_prg/orphan_mutation.txt",
-        common_mutations=RESULTS / "drprg/popn_prg/common_mutations.csv",
     log:
         LOGS / "extract_samples_with_common_mutations.log",
     params:

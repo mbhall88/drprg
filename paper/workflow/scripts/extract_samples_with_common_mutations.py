@@ -40,20 +40,8 @@ def flatten(xs):
 
 
 def main():
-    min_occurence = snakemake.params.min_occurence
-    df = pd.read_csv(snakemake.input.who_mutations, sep="\t", low_memory=False)
-    common_df = df.sort_values(by=["drug", "Present_R"], ascending=[True, False]).query(
-        "Present_R>=@min_occurence"
-    )
-    common_df.to_csv(snakemake.output.common_mutations)
-
-    vs = []
-    for v in common_df["variant"]:
-        if "(" in v:
-            v = v.split("(")[1].split(")")[0]
-        vs.append(v)
-
-    common_df["variant"] = vs
+    with open(snakemake.input.mutations) as fp:
+        mutations = {m for m in map(str.rstrip, fp) if m}
 
     cryptic_samples_file = snakemake.input.cryptic_samples
 
@@ -62,14 +50,14 @@ def main():
     popn_samples_file = snakemake.input.popn_samples
     popn_samples = load_uids(popn_samples_file)
 
-    mutations_file = snakemake.input.mutations
+    mutations_file = snakemake.input.mutations2samples
 
     mutations_df = pd.read_csv(mutations_file, low_memory=False)
     muts = set(mutations_df["MUTATION"])
     c = 0
     mut2ids = defaultdict(set)
 
-    for v in common_df["variant"]:
+    for v in mutations:
         gene = v.split("_")[0]
         assert "(" not in v, v
 
@@ -79,18 +67,18 @@ def main():
             frame = mutations_df.query("MUTATION==@vnt and GENE==@gene")
             mut2ids[v].update(set(frame["UNIQUEID"]))
             continue
-        x_vnt = vnt[:-1] + "X"
-        if x_vnt in muts:
-            c += 1
-            frame = mutations_df.query("MUTATION==@x_vnt and GENE==@gene")
-            mut2ids[v].update(set(frame["UNIQUEID"]))
-            continue
-        o_vnt = vnt[:-1] + "O"
-        if o_vnt in muts:
-            c += 1
-            frame = mutations_df.query("MUTATION==@o_vnt and GENE==@gene")
-            mut2ids[v].update(set(frame["UNIQUEID"]))
-            continue
+        # x_vnt = vnt[:-1] + "X"
+        # if x_vnt in muts:
+        #     c += 1
+        #     frame = mutations_df.query("MUTATION==@x_vnt and GENE==@gene")
+        #     mut2ids[v].update(set(frame["UNIQUEID"]))
+        #     continue
+        # o_vnt = vnt[:-1] + "O"
+        # if o_vnt in muts:
+        #     c += 1
+        #     frame = mutations_df.query("MUTATION==@o_vnt and GENE==@gene")
+        #     mut2ids[v].update(set(frame["UNIQUEID"]))
+        #     continue
         if "del" in vnt or "ins" in vnt:
             pos = vnt.split("_")[0]
             indel_v = f"{pos}_indel"
@@ -101,7 +89,7 @@ def main():
                 continue
         mut2ids[v].update([])
 
-    eprint(f"{c}/{len(common_df)} WHO mutations are in the CRyPTIC mutations")
+    eprint(f"{c}/{len(mutations)} requested mutations are in the CRyPTIC mutations")
 
     sample2muts = defaultdict(list)
     no_sample = set()
@@ -117,7 +105,7 @@ def main():
     muts_covered = set(flatten(sample2muts.values()))
     n_muts_covered = len(muts_covered)
     eprint(
-        f"{n_muts_covered}/{len(common_df)} common mutations covered by {len(sample2muts)} samples"
+        f"{n_muts_covered}/{len(mutations)} requested mutations covered by {len(sample2muts)} samples"
     )
 
     samples_to_use = set()
@@ -133,13 +121,13 @@ def main():
 
     samples_already_used_in_popn_vcf = set(flatten(popn_samples.values()))
     samples_to_use -= samples_already_used_in_popn_vcf
-    eprint(f"{len(samples_to_use)} additional samples to be used with common variants")
+    eprint(f"{len(samples_to_use)} additional samples to be used with requested variants")
 
     with open(snakemake.output.samples, "w") as fp:
         for s in samples_to_use:
             print(s, file=fp)
 
-    mutations_with_no_cyptic_sample = set(common_df["variant"]) - muts_covered
+    mutations_with_no_cyptic_sample = mutations - muts_covered
 
     eprint(f"{len(mutations_with_no_cyptic_sample)} mutations with no cryptic sample")
 
