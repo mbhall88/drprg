@@ -1931,6 +1931,56 @@ mod tests {
     }
 
     #[test]
+    fn test_vcf_to_json_resistant_synonymous() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/out5.vcf");
+        let result = pred.vcf_to_json(vcf_path);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        buffer.clear();
+        let file = File::open("tests/cases/predict/expected5.json").unwrap();
+        let mut reader = BufReader::new(file);
+        reader.read_to_string(&mut buffer).unwrap();
+        let expected = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
     fn test_deduplicate_predictions() {
         let mutations = vec![
             "embA_V206M".to_string(),
