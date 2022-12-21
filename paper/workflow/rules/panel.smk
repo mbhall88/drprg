@@ -48,8 +48,9 @@ rule convert_mutations:
         mem_mb=int(0.5 * GB),
     params:
         old="inhA_G-154A",  # fabG1_L203L fabG1_ctg607cta fabG1_g609a
-        new="fabG1_CTG607CTA",
+        new=["fabG1_G609X", "fabG1_CTG607TTG", "fabG1_CTG607TTA"],
         new_alphabet="DNA",
+        new_drugs=["Isoniazid", "Ethionamide"]
     script:
         str(SCRIPTS / "convert_mutations.py")
 

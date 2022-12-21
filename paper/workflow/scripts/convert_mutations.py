@@ -19,10 +19,13 @@ def main():
             drugs: list[str] = var2drug[mut]
 
             if mut == snakemake.params["old"]:
-                mut = snakemake.params["new"]
-                gene, var = mut.split("_")
-                alphabet = snakemake.params["new_alphabet"]
-
+                for m in snakemake.params.new:
+                    gene, var = m.split("_")
+                    alphabet = snakemake.params["new_alphabet"]
+                    new_drugs = snakemake.params.new_drugs
+                    print(DELIM.join([gene, var, alphabet, ",".join(new_drugs)]), file=out_fp)
+                continue
+                
             print(DELIM.join([gene, var, alphabet, ",".join(drugs)]), file=out_fp)
 
 
