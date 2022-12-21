@@ -165,6 +165,21 @@ rule extract_panel_genes_from_popn_vcf:
         str(SCRIPTS / "extract_panel_genes_from_vcf.py")
 
 
+rule index_final_vcf:
+    input:
+        vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
+    output:
+        vcfidx=RESULTS / "drprg/popn_prg/final.bcf.csi",
+    resources:
+        mem_mb=int(0.5 * GB),
+    log:
+        LOGS / "index_final_vcf.log",
+    container:
+        CONTAINERS["bcftools"]
+    shell:
+        "bcftools index -f {input.vcf} 2> {log}"
+
+
 rule download_who_panel:
     output:
         panel=RESOURCES / "who.panel.tsv",
@@ -225,6 +240,7 @@ rule drprg_build:
         ref=rules.add_non_resistance_mutations.input.reference,
         annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
         vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
+        vcfidx=rules.index_final_vcf.output.vcfidx,
         rules=rules.filter_panel_for_expert_rules.output.rules,
     output:
         outdir=directory(RESULTS / "drprg/index/w{w}/k{k}"),
