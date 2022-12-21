@@ -18,7 +18,7 @@ def main():
             mut = f"{gene}_{var}"
             drugs: list[str] = var2drug[mut]
 
-            if mut in snakemake.params.remove:
+            if mut in snakemake.params.remove_mutations:
                 continue
 
             if mut in snakemake.params.update_drugs:

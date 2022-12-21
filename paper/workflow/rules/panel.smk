@@ -47,14 +47,14 @@ rule convert_mutations:
     resources:
         mem_mb=int(0.5 * GB),
     params:
-        remove={"inhA_G-154A"},  # is actually fabG1_L203L
+        remove_mutations={"inhA_G-154A"},  # is actually fabG1_L203L
         update_drugs={
             "fabG1_CTG607CTC": ["Isoniazid", "Ethionamide"],
             "fabG1_CTG607CTT": ["Isoniazid", "Ethionamide"],
             "fabG1_CTG607TTA": ["Isoniazid", "Ethionamide"],
             "fabG1_CTG607TTG": ["Isoniazid", "Ethionamide"],
             "fabG1_CTG607CTA": ["Isoniazid", "Ethionamide"],
-        }
+        },
     script:
         str(SCRIPTS / "convert_mutations.py")
 
