@@ -182,8 +182,8 @@ rule drprg_build:
         panel=rules.filter_panel_for_expert_rules.output.panel,
         ref=rules.add_non_resistance_mutations.input.reference,
         annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
-        vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
-        vcfidx=rules.index_final_vcf.output.vcfidx,
+        vcf=rules.merge_reference_vcfs.output.vcf,
+        vcfidx=rules.merge_reference_vcfs.output.vcfidx,
         rules=rules.filter_panel_for_expert_rules.output.rules,
     output:
         outdir=directory(RESULTS / "drprg/index/w{w}/k{k}"),
