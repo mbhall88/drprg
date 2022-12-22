@@ -246,6 +246,7 @@ def main():
             mut = mut.replace("!", STOP)
             ref, pos, alt = split_var_name(mut)
             is_dna = ref.islower()
+            is_promoter_mut = "-" in mut
             ref = ref.upper()
             alt = alt.upper()
             ftr = features[gene]
@@ -281,6 +282,9 @@ def main():
                 print(contig_line, file=f_out)
                 header = "\t".join([VCF_HEADER, line])
                 print(header, file=f_out)
+                if is_dna and is_promoter_mut and ftr.strand == REVERSE:
+                    vcf_ref = revcomp(vcf_ref)
+                    vcf_alt = revcomp(vcf_alt)
                 print(
                     "\t".join(
                         map(
