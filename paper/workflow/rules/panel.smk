@@ -107,7 +107,7 @@ rule extract_panel_genes_from_popn_vcf:
         vcf=rules.merge_reference_vcfs.output.vcf,
         panel=rules.convert_mutations.output.panel,
     output:
-        vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
+        vcf=RESULTS / "drprg/popn_prg/final.bcf",
     log:
         LOGS / "extract_panel_genes_from_popn_vcf.log",
     params:
