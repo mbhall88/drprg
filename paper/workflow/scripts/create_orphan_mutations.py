@@ -325,7 +325,7 @@ def main():
                         map(
                             str,
                             [
-                                gene,
+                                CHROM,
                                 vcf_pos,
                                 MISSING,
                                 vcf_ref,
