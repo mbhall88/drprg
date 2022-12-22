@@ -293,14 +293,14 @@ def main():
                 refseq = reference[ref_start:ref_end]
 
                 if is_rev:
-                    aa = AMINOTAB[revcomp(refseq)]
+                    aa = CODONTAB[revcomp(refseq)]
                     matches = aa == ref
                     if not matches:
                         raise ValueError(
                             f"{line} ref {ref} does not match {refseq} ({aa}). VCF POS {vcf_pos} and refernece slice {ref_start}:{ref_end}"
                         )
                 else:
-                    aa = AMINOTAB[refseq]
+                    aa = CODONTAB[refseq]
                     matches = aa == ref
                     if not matches:
                         raise ValueError(
