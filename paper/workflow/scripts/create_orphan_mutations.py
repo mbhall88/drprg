@@ -9,7 +9,6 @@ from dataclasses import dataclass
 from itertools import repeat
 from pathlib import Path
 from tempfile import TemporaryDirectory
-import difflib
 
 
 REVERSE = "-"
@@ -125,8 +124,16 @@ def translate(seq: str, stop_last=True) -> str:
     return prot
 
 
+def hamming_distance(s1: str, s2: str) -> int:
+    return sum(c1 != c2 for c1, c2 in zip(s1, s2))
+
+
 def get_closest_codon(from_codon: str, to_aa: str) -> str:
-    return difflib.get_close_matches(from_codon, AMINOTAB[to_aa], n=1, cutoff=0)[0]
+    dists = []
+    for to_codon in AMINOTAB[to_aa]:
+        dists.append((hamming_distance(from_codon, to_codon), to_codon))
+
+    return min(dists)[1]
 
 
 @dataclass
@@ -282,7 +289,7 @@ def main():
             else:
                 mut_start = (pos * 3 - 2) - 1
                 if is_rev:
-                    vcf_pos = ftr.end - (mut_start+2)
+                    vcf_pos = ftr.end - (mut_start + 2)
                     ref_start = vcf_pos - 1
                     ref_end = ref_start + 3
                 else:
