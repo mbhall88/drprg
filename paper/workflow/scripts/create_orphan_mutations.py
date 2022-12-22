@@ -16,7 +16,6 @@ REVERSE = "-"
 MISSING = "."
 TRANSLATE = str.maketrans("ATGC", "TACG")
 STOP = "*"
-CHROM = "NC_000962.3"
 CODONTAB = {
     "TCA": "S",
     "TCC": "S",
@@ -86,8 +85,7 @@ CODONTAB = {
 
 VCF_METALINES = """##fileformat=VCFv4.3
 ##FILTER=<ID=PASS,Description="All filters passed">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
-##contig=<ID=NC_000962.3,length=4411532>"""
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"""
 
 VCF_HEADER = "\t".join(
     ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
@@ -214,12 +212,15 @@ def split_var_name(name: str) -> tuple[str, int, str]:
 
 
 def main():
-    reference = ""
+    offset = snakemake.params.offset
+    reference: dict[str, str] = dict()
     with open(snakemake.input.reference) as fp:
         for line in map(str.rstrip, fp):
             if line and line[0] == ">":
+                name = line[1:].split()[0]
+                reference[name] = ""
                 continue
-            reference += line
+            reference[name] += line
 
     features = dict()
     with open(snakemake.input.annotation) as fp:
@@ -248,60 +249,36 @@ def main():
             ref = ref.upper()
             alt = alt.upper()
             ftr = features[gene]
-            is_indel = len(ref) != len(alt)
+            nucseq = ftr.nucleotide_sequence(reference, offset, offset)
+            protseq = ftr.protein_sequence(reference)
 
             if is_dna:
-                mut_gene_pos = pos + 1 if pos < 1 else pos
-            else:
-                mut_gene_pos = pos * 3 - 2
-
-            is_reverse_strand = ftr.strand == REVERSE
-            l = len(ref) if is_dna else 3
-            if is_reverse_strand:
-                _start = ftr.end - mut_gene_pos
-                if is_indel:
-                    _end = _start + l
-                    start = _start
-                    end = _end
-                else:
-                    _end = _start - l
-                    start = _end + 1
-                    end = _start + 1
-            else:
-                start = ftr.start + (mut_gene_pos - 1)
-                start -= 1
-                end = start + l
-
-            refseq = reference[start:end]
-            if is_reverse_strand and not is_indel:
-                refseq = revcomp(refseq)
-            if is_dna:
-                if ref != refseq:
-                    raise ValueError(
-                        f"{line}: ref allele {ref} does not match reference {refseq}"
-                    )
-            else:
-                aa = CODONTAB[refseq]
-                if aa != ref:
-                    raise ValueError(
-                        f"{line}: ref allele {ref} does not match reference amino acid {aa}"
-                    )
-
-            vcf_ref = reference[start:end]
-            pos = start + 1
-            if is_indel:
-                assert vcf_ref == ref
+                mut_start = ((pos + 1 if pos < 1 else pos) - 1) + offset
+                mut_end = mut_start + len(ref)
+                refseq = nucseq[mut_start:mut_end]
+                vcf_ref = refseq
+                vcf_pos = mut_start + 1
                 vcf_alt = alt
-            elif is_dna:
-                vcf_alt = revcomp(alt) if is_reverse_strand else alt
             else:
-                vcf_alt = get_closest_codon(refseq, alt)
-                if is_reverse_strand:
-                    vcf_alt = revcomp(vcf_alt)
+                mut_start = pos - 1
+                refseq = protseq[mut_start]
+                dna_start = ((pos * 3 - 2) - 1) + offset
+                dna_end = dna_start + 3
+                vcf_ref = nucseq[dna_start:dna_end]
+                assert CODONTAB[vcf_ref] == ref, line
+                vcf_pos = dna_start + 1
+                vcf_alt = get_closest_codon(vcf_ref, alt)
+
+            if refseq != ref:
+                raise ValueError(
+                    f"{line}: ref allele {ref} does not match reference {refseq}"
+                )
 
             tmpvcf = tmpdirname / f"{line}.vcf"
             with tmpvcf.open(mode="w") as f_out:
                 print(VCF_METALINES, file=f_out)
+                contig_line = f"##contig=<ID={gene},length={len(nucseq)}>"
+                print(contig_line, file=f_out)
                 header = "\t".join([VCF_HEADER, line])
                 print(header, file=f_out)
                 print(
@@ -309,8 +286,8 @@ def main():
                         map(
                             str,
                             [
-                                CHROM,
-                                pos,
+                                gene,
+                                vcf_pos,
                                 MISSING,
                                 vcf_ref,
                                 vcf_alt,
@@ -318,7 +295,7 @@ def main():
                                 MISSING,
                                 MISSING,
                                 "GT",
-                                1,
+                                "1/1",
                             ],
                         )
                     ),
@@ -326,7 +303,7 @@ def main():
                 )
 
             norm_vcf = tmpvcf.with_suffix(".norm.bcf")
-            cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {norm_vcf} {tmpvcf}"
+            cmd = f"bcftools norm --check-ref e -f {snakemake.input.gene_reference} -o {norm_vcf} {tmpvcf}"
             args = shlex.split(cmd)
             cp = subprocess.run(args, capture_output=True, text=True)
             if cp.returncode != 0:
@@ -334,7 +311,7 @@ def main():
                 eprint(cp.stderr)
                 sys.exit(1)
 
-            cmd = f"bcftools index {norm_vcf}"
+            cmd = f"bcftools index -f {norm_vcf}"
             args = shlex.split(cmd)
             cp = subprocess.run(args, capture_output=True, text=True)
             if cp.returncode != 0:
@@ -360,7 +337,7 @@ def main():
         eprint(cp.stderr)
         sys.exit(1)
 
-    cmd = f"bcftools index {merged_orphan_vcf}"
+    cmd = f"bcftools index -f {merged_orphan_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:
@@ -369,8 +346,8 @@ def main():
         sys.exit(1)
 
     eprint("[INFO]: Normalising merged VCF...")
-    out_vcf = snakemake.output.vcf
-    cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {out_vcf} {merged_orphan_vcf}"
+    norm_vcf = tmpdirname / "norm.bcf"
+    cmd = f"bcftools norm --check-ref e -f {snakemake.input.gene_reference} -o {norm_vcf} {merged_orphan_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:
@@ -378,7 +355,17 @@ def main():
         eprint(cp.stderr)
         sys.exit(1)
 
-    cmd = f"bcftools index {out_vcf}"
+    eprint("[INFO]: Sorting normalised VCF...")
+    out_vcf = snakemake.output.vcf
+    cmd = f"bcftools sort -o {out_vcf} {norm_vcf}"
+    args = shlex.split(cmd)
+    cp = subprocess.run(args, capture_output=True, text=True)
+    if cp.returncode != 0:
+        eprint(f"[ERR]: Failed to run bcftools norm for merged VCF")
+        eprint(cp.stderr)
+        sys.exit(1)
+
+    cmd = f"bcftools index -f {out_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:
