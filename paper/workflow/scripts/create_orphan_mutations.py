@@ -352,7 +352,7 @@ def main():
             print(str(p), file=fp)
 
     merged_orphan_vcf = tmpdirname / "orphan.bcf"
-    cmd = f"bcftools merge --missing-to-ref --file-list {file_list} -o {merged_orphan_vcf}"
+    cmd = f"bcftools merge --file-list {file_list} -o {merged_orphan_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:
@@ -368,28 +368,9 @@ def main():
         eprint(cp.stderr)
         sys.exit(1)
 
-    eprint("[INFO]: Merging orphan VCF with CRyPTIC VCF...")
-    cryptic_vcf_file = snakemake.input.cryptic_common_vcf
-    merged_vcf = tmpdirname / "merged.bcf"
-    cmd = f"bcftools merge --missing-to-ref -o {merged_vcf} {merged_orphan_vcf} {cryptic_vcf_file}"
-    args = shlex.split(cmd)
-    cp = subprocess.run(args, capture_output=True, text=True)
-    if cp.returncode != 0:
-        eprint("[ERR]: Failed to run bcftools merge")
-        eprint(cp.stderr)
-        sys.exit(1)
-
-    cmd = f"bcftools index {merged_vcf}"
-    args = shlex.split(cmd)
-    cp = subprocess.run(args, capture_output=True, text=True)
-    if cp.returncode != 0:
-        eprint("[ERR]: Failed to run bcftools index on merged VCF")
-        eprint(cp.stderr)
-        sys.exit(1)
-
     eprint("[INFO]: Normalising merged VCF...")
     out_vcf = snakemake.output.vcf
-    cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {out_vcf} {merged_vcf}"
+    cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {out_vcf} {merged_orphan_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:

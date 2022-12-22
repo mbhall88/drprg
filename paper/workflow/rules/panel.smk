@@ -59,55 +59,11 @@ rule convert_mutations:
         str(SCRIPTS / "convert_mutations.py")
 
 
-rule extract_samples_with_common_mutations:
-    input:
-        mutations2samples=RESOURCES / "mutations_in_genes_of_interest.csv",
-        popn_samples=RESOURCES / "popn.samples.txt",
-        cryptic_samples=RESOURCES / "cryptic.samples.txt",
-        mutations=RESOURCES / "target.mutations.tsv",
-    output:
-        samples=RESULTS / "drprg/popn_prg/common_mutation.samples.txt",
-        orphan_mutations=RESULTS / "drprg/popn_prg/orphan_mutation.txt",
-    log:
-        LOGS / "extract_samples_with_common_mutations.log",
-    params:
-        min_occurence=config["min_occurence"],
-    resources:
-        mem_mb=int(0.5 * GB),
-    conda:
-        ENVS / "extract_samples_with_common_mutations.yaml"
-    script:
-        SCRIPTS / "extract_samples_with_common_mutations.py"
-
-
-rule extract_common_mutations_from_cryptic:
-    input:
-        cryptic_vcf=config["cryptic_vcf"],
-        samples=rules.extract_samples_with_common_mutations.output.samples,
-    output:
-        vcf=RESULTS / "drprg/popn_prg/common_cryptic_mutations.bcf",
-        vcfidx=RESULTS / "drprg/popn_prg/common_cryptic_mutations.bcf.csi",
-    log:
-        LOGS / "extract_common_mutations_from_cryptic.log",
-    resources:
-        mem_mb=int(0.5 * GB),
-    container:
-        CONTAINERS["bcftools"]
-    params:
-        opts="--trim-alt-alleles",
-    shell:
-        """
-        bcftools view {params.opts} -o {output.vcf} -S {input.samples} {input.cryptic_vcf} 2> {log}
-        bcftools index {output.vcf} 2>> {log}
-        """
-
-
 rule create_orphan_mutations:
     input:
-        mutations=rules.extract_samples_with_common_mutations.output.orphan_mutations,
+        mutations=RESOURCES / "target.mutations.tsv",
         reference=RESOURCES / "NC_000962.3.fa",
         annotation=RESOURCES / "NC_000962.3.gff3",
-        cryptic_common_vcf=rules.extract_common_mutations_from_cryptic.output.vcf,
     output:
         vcf=RESULTS / "drprg/popn_prg/common_mutations.bcf",
         vcfidx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi",
