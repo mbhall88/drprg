@@ -13,6 +13,7 @@ import difflib
 
 
 REVERSE = "-"
+CHROM = "NC_000962.3"
 MISSING = "."
 TRANSLATE = str.maketrans("ATGC", "TACG")
 STOP = "*"
@@ -85,7 +86,8 @@ CODONTAB = {
 
 VCF_METALINES = """##fileformat=VCFv4.3
 ##FILTER=<ID=PASS,Description="All filters passed">
-##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"""
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=NC_000962.3,length=4411532>"""
 
 VCF_HEADER = "\t".join(
     ["#CHROM", "POS", "ID", "REF", "ALT", "QUAL", "FILTER", "INFO", "FORMAT"]
@@ -212,15 +214,12 @@ def split_var_name(name: str) -> tuple[str, int, str]:
 
 
 def main():
-    offset = snakemake.params.offset
-    reference: dict[str, str] = dict()
+    reference = ""
     with open(snakemake.input.reference) as fp:
         for line in map(str.rstrip, fp):
             if line and line[0] == ">":
-                name = line[1:].split()[0]
-                reference[name] = ""
                 continue
-            reference[name] += line
+            reference += line
 
     features = dict()
     with open(snakemake.input.annotation) as fp:
@@ -250,41 +249,77 @@ def main():
             ref = ref.upper()
             alt = alt.upper()
             ftr = features[gene]
-            nucseq = ftr.nucleotide_sequence(reference, offset, offset)
-            protseq = ftr.protein_sequence(reference)
+            is_rev = ftr.strand == REVERSE
 
             if is_dna:
-                mut_start = ((pos + 1 if pos < 1 else pos) - 1) + offset
-                mut_end = mut_start + len(ref)
-                refseq = nucseq[mut_start:mut_end]
-                vcf_ref = refseq
-                vcf_pos = mut_start + 1
-                vcf_alt = alt
-            else:
-                mut_start = pos - 1
-                refseq = protseq[mut_start]
-                dna_start = ((pos * 3 - 2) - 1) + offset
-                dna_end = dna_start + 3
-                vcf_ref = nucseq[dna_start:dna_end]
-                assert CODONTAB[vcf_ref] == ref, line
-                vcf_pos = dna_start + 1
-                vcf_alt = get_closest_codon(vcf_ref, alt)
+                mut_start = pos - 1 if pos > -1 else pos
+                if is_rev:
+                    vcf_pos = ftr.end - mut_start
+                    ref_start = (vcf_pos - 1) - (len(ref) - 1)
+                    ref_end = ref_start + len(ref)
+                else:
+                    vcf_pos = ftr.start + mut_start
+                    ref_start = vcf_pos - 1
+                    ref_end = ref_start + len(ref)
 
-            if refseq != ref:
-                raise ValueError(
-                    f"{line}: ref allele {ref} does not match reference {refseq}"
-                )
+                refseq = reference[ref_start:ref_end]
+
+                if is_rev:
+                    matches = refseq == revcomp(ref)
+                    if not matches:
+                        raise ValueError(
+                            f"{line} ref {revcomp(ref)} does not match {refseq}. VCF POS {vcf_pos} and refernece slice {ref_start}:{ref_end}"
+                        )
+                else:
+                    matches = ref == refseq
+                    if not matches:
+                        raise ValueError(
+                            f"{line} ref {ref} does not match {refseq}. VCF POS {vcf_pos} and refernece slice {ref_start}:{ref_end}"
+                        )
+
+                vcf_ref = refseq
+                vcf_alt = revcomp(alt) if is_rev else alt
+            else:
+                mut_start = (pos * 3 - 2) - 1
+                if is_rev:
+                    vcf_pos = ftr.end - mut_start
+                    ref_start = (vcf_pos - 1) - (3 - 1)
+                    ref_end = ref_start + 3
+                else:
+                    vcf_pos = ftr.start + mut_start
+                    ref_start = vcf_pos - 1
+                    ref_end = ref_start + 3
+
+                refseq = reference[ref_start:ref_end]
+
+                if is_rev:
+                    aa = AMINOTAB[revcomp(refseq)]
+                    matches = aa == ref
+                    if not matches:
+                        raise ValueError(
+                            f"{line} ref {ref} does not match {refseq} ({aa}). VCF POS {vcf_pos} and refernece slice {ref_start}:{ref_end}"
+                        )
+                else:
+                    aa = AMINOTAB[refseq]
+                    matches = aa == ref
+                    if not matches:
+                        raise ValueError(
+                            f"{line} ref {ref} does not match {refseq} ({aa}). VCF POS {vcf_pos} and refernece slice {ref_start}:{ref_end}"
+                        )
+
+                vcf_ref = refseq
+                if is_rev:
+                    from_codon = revcomp(vcf_ref)
+                    alt_codon = get_closest_codon(from_codon, alt)
+                    vcf_alt = revcomp(alt_codon)
+                else:
+                    vcf_alt = get_closest_codon(vcf_ref, alt)
 
             tmpvcf = tmpdirname / f"{line}.vcf"
             with tmpvcf.open(mode="w") as f_out:
                 print(VCF_METALINES, file=f_out)
-                contig_line = f"##contig=<ID={gene},length={len(nucseq)}>"
-                print(contig_line, file=f_out)
                 header = "\t".join([VCF_HEADER, line])
                 print(header, file=f_out)
-                if is_dna and is_promoter_mut and ftr.strand == REVERSE:
-                    vcf_ref = revcomp(vcf_ref)
-                    vcf_alt = revcomp(vcf_alt)
                 print(
                     "\t".join(
                         map(
@@ -307,7 +342,7 @@ def main():
                 )
 
             norm_vcf = tmpvcf.with_suffix(".norm.bcf")
-            cmd = f"bcftools norm --check-ref e -f {snakemake.input.gene_reference} -o {norm_vcf} {tmpvcf}"
+            cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {norm_vcf} {tmpvcf}"
             args = shlex.split(cmd)
             cp = subprocess.run(args, capture_output=True, text=True)
             if cp.returncode != 0:
@@ -351,7 +386,7 @@ def main():
 
     eprint("[INFO]: Normalising merged VCF...")
     norm_vcf = tmpdirname / "norm.bcf"
-    cmd = f"bcftools norm --check-ref e -f {snakemake.input.gene_reference} -o {norm_vcf} {merged_orphan_vcf}"
+    cmd = f"bcftools norm --check-ref e -f {snakemake.input.reference} -o {norm_vcf} {merged_orphan_vcf}"
     args = shlex.split(cmd)
     cp = subprocess.run(args, capture_output=True, text=True)
     if cp.returncode != 0:

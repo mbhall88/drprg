@@ -64,7 +64,6 @@ rule create_orphan_mutations:
         mutations=RESOURCES / "target.mutations.tsv",
         reference=RESOURCES / "NC_000962.3.fa",
         annotation=RESOURCES / "NC_000962.3.gff3",
-        gene_reference=WORKFLOW.parent.parent / "tests/cases/predict/genes.fa",
     output:
         vcf=RESULTS / "drprg/popn_prg/common_mutations.bcf",
         vcfidx=RESULTS / "drprg/popn_prg/common_mutations.bcf.csi",
@@ -74,18 +73,38 @@ rule create_orphan_mutations:
         mem_mb=int(0.5 * GB),
     shadow:
         "shallow"
-    params:
-        offset=config["padding"],
     conda:
         ENVS / "create_orphan_mutations.yaml"
     script:
         SCRIPTS / "create_orphan_mutations.py"
 
+rule merge_reference_vcfs:
+    input:
+        popn_vcf=config["population_vcf"],
+        mutations_vcf=rules.create_orphan_mutations.output.vcf,
+        reference=rules.create_orphan_mutations.input.reference,
+    output:
+        vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
+        vcfidx=RESULTS / "drprg/popn_prg/full.merged.bcf.csi",
+    log:
+        LOGS / "merge_reference_vcfs.log",
+    shadow:
+        "shallow"
+    resources:
+        mem_mb=int(0.5 * GB),
+    container:
+        CONTAINERS["bcftools"]
+    shell:
+        """
+        (bcftools merge {input.popn_vcf} {input.mutations_vcf}  \
+            | bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
+        bcftools index -f {output.vcf} 2>> {log}
+        """
 
 rule extract_panel_genes_from_popn_vcf:
     input:
         annotation=RESOURCES / "NC_000962.3.gff3",
-        vcf=config["population_vcf"],
+        vcf=rules.merge_reference_vcfs.output.vcf,
         panel=rules.convert_mutations.output.panel,
     output:
         vcf=RESULTS / "drprg/popn_prg/full.merged.bcf",
@@ -98,30 +117,19 @@ rule extract_panel_genes_from_popn_vcf:
     script:
         str(SCRIPTS / "extract_panel_genes_from_vcf.py")
 
-
-rule merge_reference_vcfs:
+rule index_final_vcf:
     input:
-        popn_vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
-        mutations_vcf=rules.create_orphan_mutations.output.vcf,
-        reference=rules.create_orphan_mutations.input.gene_reference,
+        vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
     output:
-        vcf=RESULTS / "drprg/popn_prg/final.bcf",
         vcfidx=RESULTS / "drprg/popn_prg/final.bcf.csi",
     log:
-        LOGS / "merge_reference_vcfs.log",
-    shadow:
-        "shallow"
+        LOGS / "index_final_vcf.log",
     resources:
         mem_mb=int(0.5 * GB),
     container:
         CONTAINERS["bcftools"]
     shell:
-        """
-        (bcftools merge {input.mutations_vcf} {input.popn_vcf} \
-            | bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
-        bcftools index -f {output.vcf} 2>> {log}
-        """
-
+        "bcftools index -f {input.vcf} 2> {log}"
 
 rule download_who_panel:
     output:
@@ -182,8 +190,8 @@ rule drprg_build:
         panel=rules.filter_panel_for_expert_rules.output.panel,
         ref=rules.add_non_resistance_mutations.input.reference,
         annotation=rules.extract_panel_genes_from_popn_vcf.input.annotation,
-        vcf=rules.merge_reference_vcfs.output.vcf,
-        vcfidx=rules.merge_reference_vcfs.output.vcfidx,
+        vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
+        vcfidx=rules.index_final_vcf.output.vcfidx,
         rules=rules.filter_panel_for_expert_rules.output.rules,
     output:
         outdir=directory(RESULTS / "drprg/index/w{w}/k{k}"),
