@@ -282,7 +282,7 @@ def main():
             else:
                 mut_start = (pos * 3 - 2) - 1
                 if is_rev:
-                    vcf_pos = ftr.end - mut_start
+                    vcf_pos = ftr.end - (mut_start-2)
                     ref_start = (vcf_pos - 1) - (3 - 1)
                     ref_end = ref_start + 3
                 else:
