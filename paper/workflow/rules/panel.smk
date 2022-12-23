@@ -78,9 +78,29 @@ rule create_orphan_mutations:
     script:
         SCRIPTS / "create_orphan_mutations.py"
 
+
+rule filter_popn_vcf:
+    input:
+        vcf=config["population_vcf"],
+    output:
+        vcf=RESULTS / "drprg/popn_prg/popn.filtered.bcf",
+        vcfidx=RESULTS / "drprg/popn_prg/popn.filtered.bcf.csi",
+    log:
+        LOGS / "filter_popn_vcf.log",
+    container:
+        CONATINERS["bcftools"]
+    params:
+        opts="-t ^NC_000962.3:761094",  # this becomes rpoB:1396 in drprg bcf and is an indel that is causing coverage problems
+    shell:
+        """
+        bcftools view {params.opts} -o {output.vcf} {input.vcf} 2> {log}
+        bcftools index -f {output.vcf} 2>> {log}
+        """
+
+
 rule merge_reference_vcfs:
     input:
-        popn_vcf=config["population_vcf"],
+        popn_vcf=rules.filter_popn_vcf.output.vcf,
         mutations_vcf=rules.create_orphan_mutations.output.vcf,
         reference=rules.create_orphan_mutations.input.reference,
     output:
@@ -94,12 +114,15 @@ rule merge_reference_vcfs:
         mem_mb=int(0.5 * GB),
     container:
         CONTAINERS["bcftools"]
+    params:
+        remove_samples="site.06.iso.1.subject.SGD_0018-14.lab_id.06MIL0142.seq_reps.1",
     shell:
         """
         (bcftools merge {input.popn_vcf} {input.mutations_vcf}  \
-            | bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
+            | bcftools view bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
         bcftools index -f {output.vcf} 2>> {log}
         """
+
 
 rule extract_panel_genes_from_popn_vcf:
     input:
@@ -117,6 +140,7 @@ rule extract_panel_genes_from_popn_vcf:
     script:
         str(SCRIPTS / "extract_panel_genes_from_vcf.py")
 
+
 rule index_final_vcf:
     input:
         vcf=rules.extract_panel_genes_from_popn_vcf.output.vcf,
@@ -130,6 +154,7 @@ rule index_final_vcf:
         CONTAINERS["bcftools"]
     shell:
         "bcftools index -f {input.vcf} 2> {log}"
+
 
 rule download_who_panel:
     output:
