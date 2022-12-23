@@ -114,12 +114,10 @@ rule merge_reference_vcfs:
         mem_mb=int(0.5 * GB),
     container:
         CONTAINERS["bcftools"]
-    params:
-        remove_samples="site.06.iso.1.subject.SGD_0018-14.lab_id.06MIL0142.seq_reps.1",
     shell:
         """
         (bcftools merge {input.popn_vcf} {input.mutations_vcf}  \
-            | bcftools view bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
+            | bcftools norm -f {input.reference} -c e -o {output.vcf} -) 2> {log}
         bcftools index -f {output.vcf} 2>> {log}
         """
 
