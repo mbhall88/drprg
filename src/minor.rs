@@ -60,8 +60,7 @@ impl MinorAllele {
                 continue;
             } else {
                 let gaps = record.format(b"GAPS").float()?[0][*i];
-                let gaps_diff =
-                    (gaps - record.format(b"GAPS").float()?[0][gt as usize]).abs();
+                let gaps_diff = gaps - record.format(b"GAPS").float()?[0][gt as usize];
                 if **d >= self.min_allele_freq
                     && gaps <= self.max_gap
                     && gaps_diff <= self.max_gap_diff
@@ -477,6 +476,39 @@ mod tests {
 
         let actual = ma.check_for_minor_alternate(&mut record).unwrap();
         let expected = -1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_check_for_minor_alternate_alt_has_less_gaps_than_ref() {
+        let ma = MinorAllele::new(0.1, 0.3, 0.1);
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = bcf::Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
+        ma.add_vcf_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[64, 13])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[50, 12])
+            .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.3333, 0.0])
+            .expect("Failed to set gaps");
+
+        let actual = ma.check_for_minor_alternate(&mut record).unwrap();
+        let expected = 1;
 
         assert_eq!(actual, expected)
     }
