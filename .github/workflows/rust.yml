@@ -7,32 +7,29 @@ env:
   V_JUST: '1.2'
 
 jobs:
-  format:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Format
-        run: cargo fmt -- --check
-
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      - name: Lint
-        run: cargo clippy --all-features --all-targets -- -D warnings
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
-
       - uses: extractions/setup-just@v1
         with:
           just-version: ${{ env.V_JUST }}
-
       - uses: actions/cache@v2
         with:
           path: src/ext
           key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/justfile') }}
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Format
+        run: cargo fmt -- --check
+
+      - name: Lint
+        run: just lint
 
       - name: Install external dependencies
         run: |
@@ -54,43 +51,6 @@ jobs:
       - name: Run tests
         run: just test
 
-  coverage:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - uses: extractions/setup-just@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          just-version: ${{ env.V_JUST }}
-
-      - uses: actions/cache@v2
-        with:
-          path: src/ext
-          key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/justfile') }}
-
-      - name: Install external dependencies
-        run: |
-          if [ ! -d "src/ext" ]; then
-            just deps
-          fi
-
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          override: true
-
-      - uses: actions/cache@v2
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
       - name: Run cargo-tarpaulin
         uses: actions-rs/tarpaulin@v0.1
         with:
@@ -110,3 +70,5 @@ jobs:
         with:
           name: code-coverage-report
           path: cobertura.xml
+
+
