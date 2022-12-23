@@ -1029,7 +1029,7 @@ impl VcfExt for bcf::Record {
             }
 
             let other_seq = other.slice(&other_iv, Some(i));
-            let diff = (other_ref.len() as i64 - al.len() as i64).abs() as i64;
+            let diff = (other_ref.len() as i64 - al.len() as i64).abs();
 
             if seq != other_seq {
                 continue;

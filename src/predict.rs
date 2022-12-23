@@ -224,7 +224,7 @@ impl Runner for Predict {
             .context("Failed to canonicalize outdir")?;
 
         self.validate_index()?;
-        let config = Config::from_path(&self.index_config())
+        let config = Config::from_path(self.index_config())
             .context("Failed to load index config file")?;
         debug!("Index is valid");
         let threads = &rayon::current_num_threads().to_string();
@@ -683,7 +683,7 @@ impl Predict {
 
     fn load_var_to_drugs(&self) -> Result<HashMap<String, (HashSet<String>, Residue)>> {
         let mut drug_info = HashMap::new();
-        let mut reader = bcf::Reader::from_path(&self.index_vcf_path())
+        let mut reader = bcf::Reader::from_path(self.index_vcf_path())
             .context("Failed to open panel VCF")?;
         for record_result in reader.records() {
             let record = unwrap_or_continue!(record_result);

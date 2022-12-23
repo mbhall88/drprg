@@ -383,7 +383,7 @@ impl Runner for Build {
             let fa_reader = File::open(&self.reference_file)
                 .map(BufReader::new)
                 .map(fasta::Reader::new)?;
-            let index = File::open(&self.reference_index_file())
+            let index = File::open(self.reference_index_file())
                 .map(BufReader::new)
                 .map(fai::Reader::new)?
                 .read_index()?;
@@ -421,7 +421,7 @@ impl Runner for Build {
 
                 let premsa_path = premsa_dir.join(format!("{}.fa", gene));
                 let mut premsa_writer =
-                    File::create(&premsa_path).map(BufWriter::new).map(|f| {
+                    File::create(premsa_path).map(BufWriter::new).map(|f| {
                         fasta::Writer::builder(f)
                             .set_line_base_count(usize::MAX)
                             .build()
@@ -556,7 +556,7 @@ impl Runner for Build {
                 for sample in input_vcf.header().samples() {
                     let s = sample.to_str_lossy().to_string();
                     let sample_consensus_path = consensus_dir.join(format!("{}.fa", s));
-                    let mut sample_consensus_fasta = File::open(&sample_consensus_path)
+                    let mut sample_consensus_fasta = File::open(sample_consensus_path)
                         .map(BufReader::new)
                         .map(fasta::Reader::new)?;
                     for result in sample_consensus_fasta.records() {
@@ -736,7 +736,7 @@ where
 
     // GFF3 start is 1-based, inclusive. We want to make it 0-based, inclusive
     let start: u64 = max(
-        (usize::from(record.start()) as isize - padding as isize - 1) as isize,
+        usize::from(record.start()) as isize - padding as isize - 1,
         0,
     ) as u64;
     // GFF3 end is 1-based, inclusive. We want to make it 0-based, exclusive
