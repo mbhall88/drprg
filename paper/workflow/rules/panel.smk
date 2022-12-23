@@ -88,7 +88,7 @@ rule filter_popn_vcf:
     log:
         LOGS / "filter_popn_vcf.log",
     container:
-        CONATINERS["bcftools"]
+        CONTAINERS["bcftools"]
     params:
         opts="-t ^NC_000962.3:761094",  # this becomes rpoB:1396 in drprg bcf and is an indel that is causing coverage problems
     shell:
