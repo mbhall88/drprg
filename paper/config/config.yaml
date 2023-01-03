@@ -48,7 +48,8 @@ depths:
 # filtering used on the pandora VCF in drprg
 minor:
   frac: 0.1  # minimum fraction of depth to call minor alleles
-  gaps: 0.3  # maximum gaps value to call minor allele
+  gaps: 0.5  # maximum gaps value to call minor allele
+  diff: 0.2  # maximum difference between the called allele's GAPS and minor allele's GAPS
   min_covg: 3
   min_strand_bias: 0.01
 filters:
