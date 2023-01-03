@@ -64,10 +64,15 @@ def infer_mykrobe_depth_reports(wildcards):
 
 
 def infer_drprg_tech_opts(wildcards) -> str:
-    return {
-        "illumina": f"-I -f {config['minor']['frac']} --max-gaps {config['minor']['gaps']}",
-        "nanopore": "-f 1.0",
-    }.get(wildcards.tech, "")
+    if wildcards.tech == "illumina":
+        minor_opts = config["minor"]
+        opts = f"-I -f {minor_opts['frac']} --max-gaps {minor_opts['gaps']} --minor-min-covg {minor_opts['min_covg']} --minor-min-strand-bias {minor_opts['min_strand_bias']}"
+    elif wildcards.tech == "nanopore":
+        opts = "-f 1.0"
+    else:
+        raise NotImplementedError(f"{wildcards.tech} not a recognised tech")
+
+    return opts
 
 
 def infer_preprocessing_tech_opts(wildcards) -> str:
