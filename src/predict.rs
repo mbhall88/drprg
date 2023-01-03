@@ -33,7 +33,7 @@ use std::collections::{HashMap, HashSet};
 use crate::config::Config;
 use crate::consequence::consequence_of_variant;
 use crate::expert::{ExpertRules, RuleExt, VariantType};
-use crate::minor::MinorAllele;
+use crate::minor::{MinorAllele, MINOR_MIN_COVG_STR, MINOR_MIN_STRAND_BIAS_STR};
 use noodles::fasta;
 use regex::Regex;
 use std::fs::File;
@@ -209,6 +209,12 @@ pub struct Predict {
     /// Output debugging files. Mostly for development purposes
     #[clap(long, hidden_short_help = true)]
     debug: bool,
+    /// Minimum depth allowed on a minor allele
+    #[clap(long, default_value = &MINOR_MIN_COVG_STR, hide = true)]
+    minor_min_covg: i32,
+    /// Minimum strand bias ratio allowed on a minor allele
+    #[clap(long, default_value = &MINOR_MIN_STRAND_BIAS_STR, hide = true)]
+    minor_min_strand_bias: f32,
 }
 
 impl Runner for Predict {
@@ -229,7 +235,6 @@ impl Runner for Predict {
         debug!("Index is valid");
         let threads = &rayon::current_num_threads().to_string();
         let pandora = Pandora::from_path(&self.pandora_exec)?;
-
         info!("Discovering variants...");
         let tsvpath = self.outdir.join("query.tsv");
         {
@@ -430,8 +435,13 @@ impl Predict {
         let mut vcf_header = bcf::Header::from_template(reader.header());
         self.filterer.add_filter_headers(&mut vcf_header);
         self.add_predict_info_to_header(&mut vcf_header);
-        let maf_checker =
-            MinorAllele::new(self.min_allele_freq, self.max_gaps, self.max_gaps_diff);
+        let maf_checker = MinorAllele::new(
+            self.min_allele_freq,
+            self.max_gaps,
+            self.max_gaps_diff,
+            self.minor_min_covg,
+            self.minor_min_strand_bias,
+        );
         maf_checker.add_vcf_headers(&mut vcf_header);
 
         let mut writer =

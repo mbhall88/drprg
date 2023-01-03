@@ -1,23 +1,43 @@
 use bstr::ByteSlice;
 use drprg::VcfExt;
+use float_cmp::approx_eq;
 use rust_htslib::bcf;
 use rust_htslib::bcf::record::GenotypeAllele;
 
+use lazy_static::lazy_static;
+
 const OGT_TAG: &str = "OGT";
 const PDP_TAG: &str = "PDP";
+const MINOR_MIN_COVG: i32 = 3;
+const MINOR_MIN_STRAND_BIAS: f32 = 0.01;
+lazy_static! {
+    pub static ref MINOR_MIN_COVG_STR: String = MINOR_MIN_COVG.to_string();
+    pub static ref MINOR_MIN_STRAND_BIAS_STR: String =
+        MINOR_MIN_STRAND_BIAS.to_string();
+}
 
 pub struct MinorAllele {
     min_allele_freq: f32,
     max_gap: f32,
     max_gap_diff: f32,
+    min_covg: i32,
+    min_strand_bias: f32,
 }
 
 impl MinorAllele {
-    pub fn new(maf: f32, max_gap: f32, max_gap_diff: f32) -> Self {
+    pub fn new(
+        maf: f32,
+        max_gap: f32,
+        max_gap_diff: f32,
+        min_covg: i32,
+        min_strand_bias: f32,
+    ) -> Self {
         MinorAllele {
             min_allele_freq: maf,
             max_gap,
             max_gap_diff,
+            min_covg,
+            min_strand_bias,
         }
     }
     pub fn add_vcf_headers(&self, header: &mut bcf::Header) {
@@ -71,7 +91,23 @@ impl MinorAllele {
             }
         }
         match largest_non_called {
-            Some((i, _)) => Ok(i as isize),
+            Some((gt, _)) => {
+                let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
+                let sum_covg = (fc[gt] + rc[gt]) as f32;
+                let covg = fc.get(gt).unwrap_or(&0) + rc.get(gt).unwrap_or(&0);
+                let has_low_covg = covg < self.min_covg;
+                let has_strand_bias = if approx_eq!(f32, sum_covg, 0.0) {
+                    true
+                } else {
+                    fc[gt].min(rc[gt]) as f32 / sum_covg < self.min_strand_bias
+                };
+
+                if has_low_covg || has_strand_bias {
+                    Ok(-1)
+                } else {
+                    Ok(gt as isize)
+                }
+            }
             None => Ok(-1),
         }
     }
@@ -110,7 +146,7 @@ mod tests {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
-        let ma = MinorAllele::new(1.0, 0.5, 0.1);
+        let ma = MinorAllele::new(1.0, 0.5, 0.1, 0, 0.0);
         ma.add_vcf_headers(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
@@ -122,7 +158,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_null_call() {
-        let ma = MinorAllele::new(0.5, 0.5, 0.0);
+        let ma = MinorAllele::new(0.5, 0.5, 0.0, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -152,7 +188,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_alt_call() {
-        let ma = MinorAllele::new(0.1, 0.5, 0.1);
+        let ma = MinorAllele::new(0.1, 0.5, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -185,7 +221,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_alt_has_most_depth() {
-        let ma = MinorAllele::new(0.5, 0.5, 0.1);
+        let ma = MinorAllele::new(0.5, 0.5, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -219,7 +255,7 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_below_threshold()
     {
-        let ma = MinorAllele::new(0.5, 0.5, 0.3);
+        let ma = MinorAllele::new(0.5, 0.5, 0.3, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -252,7 +288,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_eq_threshold() {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.5, 0.1);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.5, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -286,7 +322,7 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_above_threshold()
     {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.5, 0.1);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.5, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -320,7 +356,7 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_below_gaps_threshold(
     ) {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.5);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.5, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -353,7 +389,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_no_depth() {
-        let ma = MinorAllele::new(0.1, 0.5, 0.0);
+        let ma = MinorAllele::new(0.1, 0.5, 0.0, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -383,7 +419,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_calls_alternate_but_other_alt_is_minor() {
-        let ma = MinorAllele::new(0.2, 0.3, 0.1);
+        let ma = MinorAllele::new(0.2, 0.3, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -416,7 +452,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_below_threshold_but_above_diff() {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.1);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -449,7 +485,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_above_threshold_below_diff() {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.1);
+        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -482,7 +518,7 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_alt_has_less_gaps_than_ref() {
-        let ma = MinorAllele::new(0.1, 0.3, 0.1);
+        let ma = MinorAllele::new(0.1, 0.3, 0.1, 0, 0.0);
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -509,6 +545,105 @@ mod tests {
 
         let actual = ma.check_for_minor_alternate(&mut record).unwrap();
         let expected = 1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_check_for_minor_alternate_low_covg() {
+        let ma = MinorAllele::new(0.1, 0.3, 0.1, 3, 0.0);
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = bcf::Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
+        ma.add_vcf_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[6, 1])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[5, 1])
+            .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.3333, 0.0])
+            .expect("Failed to set gaps");
+
+        let actual = ma.check_for_minor_alternate(&mut record).unwrap();
+        let expected = -1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_check_for_minor_alternate_low_stand_bias() {
+        let ma = MinorAllele::new(0.1, 0.3, 0.1, 3, 0.01);
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = bcf::Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
+        ma.add_vcf_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[6, 3])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[5, 0])
+            .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.3333, 0.0])
+            .expect("Failed to set gaps");
+
+        let actual = ma.check_for_minor_alternate(&mut record).unwrap();
+        let expected = -1;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_check_for_minor_alternate_low_stand_bias_and_covg() {
+        let ma = MinorAllele::new(0.1, 0.3, 0.1, 3, 0.01);
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = bcf::Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#).push_record(br#"##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">"#).push_record(br#"##FORMAT=<ID=GAPS,Number=R,Type=Float,Description="Gaps">"#);
+        ma.add_vcf_headers(&mut header);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"A", b"T"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_genotypes(&[GenotypeAllele::Unphased(0)])
+            .unwrap();
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[6, 2])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[5, 0])
+            .expect("Failed to set reverse coverage");
+        record
+            .push_format_float(b"GAPS", &[0.3333, 0.0])
+            .expect("Failed to set gaps");
+
+        let actual = ma.check_for_minor_alternate(&mut record).unwrap();
+        let expected = -1;
 
         assert_eq!(actual, expected)
     }
