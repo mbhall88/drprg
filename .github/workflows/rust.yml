@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v2
 
       - uses: taiki-e/install-action@just
-        
+
       - uses: actions/cache@v2
         with:
           path: src/ext
@@ -50,12 +50,12 @@ jobs:
       - name: Run tests
         run: just test
 
-      - name: Run cargo-tarpaulin
-        uses: actions-rs/tarpaulin@v0.1
+      - uses: taiki-e/install-action@v2
         with:
-          version: '0.20.1'
-          timeout: '300'
-          args: '-- --test-threads 1'
+          tool: cargo-tarpaulin@0.23.1
+
+      - name: Run cargo-tarpaulin
+        run: just coverage
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
