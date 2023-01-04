@@ -195,6 +195,9 @@ pub struct Predict {
     /// Maximum value for the GAPS tag when calling a minor allele
     #[clap(long, default_value = "0.5", hide = true)]
     max_gaps: f32,
+    /// Maximum value for the GAPS tag of the called allele when calling a minor allele
+    #[clap(long, default_value = "0.5", hide = true)]
+    max_called_gaps: f32,
     /// Maximum difference allowed between major and minor alleles for the GAPS tag when calling a minor allele
     #[clap(long, default_value = "0.3", hide = true)]
     max_gaps_diff: f32,
@@ -438,6 +441,7 @@ impl Predict {
         let maf_checker = MinorAllele::new(
             self.min_allele_freq,
             self.max_gaps,
+            self.max_called_gaps,
             self.max_gaps_diff,
             self.minor_min_covg,
             self.minor_min_strand_bias,
