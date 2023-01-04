@@ -71,6 +71,7 @@ def infer_drprg_tech_opts(wildcards) -> str:
             f"--minor-min-covg {minor_opts['min_covg']} "
             f"--minor-min-strand-bias {minor_opts['min_strand_bias']} "
             f"--max-gaps-diff {minor_opts['diff']} "
+            f"--max-called-gaps {minor_opts['called_gaps']} "
         )
     elif wildcards.tech == "nanopore":
         opts = "-f 1.0"

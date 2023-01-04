@@ -1,18 +1,18 @@
-population_vcf:       "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
-cryptic_vcf:          "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/original/cryptic_release.2020-04.GPI.bcf.gz"
-padding:              100  # number of bases to add to the end and start of each gene/PRG
-match_len:            3  # minimum match length parameter to use in make_prg
+population_vcf: "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/filtered/sparse.filtered.vcf.gz"
+cryptic_vcf: "/hps/nobackup/iqbal/mbhall/tech_wars/data/H37Rv_PRG/vcfs/original/cryptic_release.2020-04.GPI.bcf.gz"
+padding: 100  # number of bases to add to the end and start of each gene/PRG
+match_len: 5  # minimum match length parameter to use in make_prg
 illumina_samplesheet: "config/illumina.samplesheet.csv"
 nanopore_samplesheet: "config/nanopore.samplesheet.csv"
-h2h_samplesheet:      "config/h2h.samplesheet.csv"
-h2h_phenotypes:       "config/h2h.phenotypes.csv"
-tbdb_url:             "https://github.com/jodyphelan/tbdb/archive/feb5e89141a01ff03bbe0439284cc2490b1fe425.zip"
-min_cov:              3
-genome_size:          4411532
-QC_dir:               "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
-expert_rules:         "resources/expert_rules.csv"
-who_panel_url:        "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"
-min_occurence:        15  # minimum number of R samples a mutation must occur in to be defined as common
+h2h_samplesheet: "config/h2h.samplesheet.csv"
+h2h_phenotypes: "config/h2h.phenotypes.csv"
+tbdb_url: "https://github.com/jodyphelan/tbdb/archive/feb5e89141a01ff03bbe0439284cc2490b1fe425.zip"
+min_cov: 3
+genome_size: 4411532
+QC_dir: "/hps/nobackup/iqbal/mbhall/tech_wars/data/QC"
+expert_rules: "resources/expert_rules.csv"
+who_panel_url: "https://raw.githubusercontent.com/mbhall88/WHO-correspondence/2022.06.22/docs/who-panel.tsv"
+min_occurence: 15  # minimum number of R samples a mutation must occur in to be defined as common
 panel:
   url: "https://figshare.com/ndownloader/files/35965220"
   md5: "4f276071d45bb3ade8d3af1b073ba8df"
@@ -33,8 +33,8 @@ pandora:
     - 19  # best illumina found in Rachel's thesis
 
 # selected from https://github.com/mbhall88/drprg/issues/6
-W:                    14
-K:                    15
+W: 14
+K: 15
 
 # mean read depths to use in depth analysis
 depths:
@@ -49,11 +49,12 @@ depths:
 minor:
   frac: 0.1  # minimum fraction of depth to call minor alleles
   gaps: 0.5  # maximum gaps value to call minor allele
+  called_gaps: 0.39  # maximum GAPS value for the called allele
   diff: 0.2  # maximum difference between the called allele's GAPS and minor allele's GAPS
   min_covg: 3
   min_strand_bias: 0.01
 filters:
-  min_covg:        3
+  min_covg: 3
   min_strand_bias: 0.01
   min_frs:
     nanopore: 0.51
@@ -63,16 +64,16 @@ filters:
     illumina: 5
 
 containers:
-  base:      "docker://bash:5.1"
-  python:    "docker://python:3.10.4-slim-bullseye"
-  mafft:     "docker://quay.io/biocontainers/mafft:7.505--hec16e2b_0"
-  drprg:     "docker://quay.io/mbhall88/drprg:f501920"
-  samtools:  "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
-  bcftools:  "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
-  fastq_dl:  "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
+  base: "docker://bash:5.1"
+  python: "docker://python:3.10.4-slim-bullseye"
+  mafft: "docker://quay.io/biocontainers/mafft:7.505--hec16e2b_0"
+  drprg: "docker://quay.io/mbhall88/drprg:f501920"
+  samtools: "docker://quay.io/biocontainers/samtools:1.15.1--h1170115_0"
+  bcftools: "docker://quay.io/biocontainers/bcftools:1.15.1--h0ea216a_0"
+  fastq_dl: "docker://quay.io/biocontainers/fastq-dl:1.1.1--hdfd78af_0"
   clockwork: "docker://quay.io/mbhall88/clockwork:fe62f00"
-  bwa:       "docker://quay.io/biocontainers/bwa:0.7.17--h7132678_9"
-  minimap2:  "docker://quay.io/biocontainers/minimap2:2.24--h7132678_1"
-  seqkit:    "docker://quay.io/biocontainers/seqkit:2.2.0--h9ee0642_0"
-  mykrobe:   "docker://quay.io/biocontainers/mykrobe:0.12.1--py38hf97919f_1"
-  rasusa:    "docker://quay.io/mbhall88/rasusa:0.7.0"
+  bwa: "docker://quay.io/biocontainers/bwa:0.7.17--h7132678_9"
+  minimap2: "docker://quay.io/biocontainers/minimap2:2.24--h7132678_1"
+  seqkit: "docker://quay.io/biocontainers/seqkit:2.2.0--h9ee0642_0"
+  mykrobe: "docker://quay.io/biocontainers/mykrobe:0.12.1--py38hf97919f_1"
+  rasusa: "docker://quay.io/mbhall88/rasusa:0.7.0"
