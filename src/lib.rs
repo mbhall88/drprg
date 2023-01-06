@@ -521,7 +521,15 @@ impl Pandora {
         }
         let logstream = File::create(outdir.join("discover.log"))
             .map_err(|source| DependencyError::FileError { source })?;
-        let fixed_args = &["discover", "-g", &MTB_GENOME_SIZE.to_string(), "-v", "-o"];
+        let fixed_args = &[
+            "discover",
+            "-g",
+            &MTB_GENOME_SIZE.to_string(),
+            "--max-covg",
+            &u32::MAX.to_string(),
+            "-v",
+            "-o",
+        ];
         let mut binding = Command::new(&self.executable);
         let cmd = binding
             .args(fixed_args)
@@ -587,6 +595,8 @@ impl Pandora {
             &outdir.to_string_lossy(),
             "-g",
             &MTB_GENOME_SIZE.to_string(),
+            "--max-covg",
+            &u32::MAX.to_string(),
             "--vcf-refs",
             &vcf_ref.to_string_lossy(),
         ];
