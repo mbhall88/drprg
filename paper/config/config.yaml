@@ -33,7 +33,7 @@ pandora:
     - 19  # best illumina found in Rachel's thesis
 
 # selected from https://github.com/mbhall88/drprg/issues/6
-W: 14
+W: 11
 K: 15
 
 # mean read depths to use in depth analysis

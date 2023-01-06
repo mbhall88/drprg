@@ -65,14 +65,14 @@ for w, k in WKS:
             WK_WILDCARDS["w"].append(w)
             WK_WILDCARDS["k"].append(k)
 
-target_files.add(PLOTS / "wk_sweep.png")
+# target_files.add(PLOTS / "wk_sweep.png")
 
-# for tech in TECHS:
-#     target_files.add(PLOTS / f"sn_sp/{tech}.png")
-#     for ext in ("png", "svg"):
-#         target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
-#         target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
-#     target_files.add(RESULTS / f"QC/{tech}.qc.csv")
+for tech in TECHS:
+    target_files.add(PLOTS / f"sn_sp/{tech}.png")
+    for ext in ("png", "svg"):
+        target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
+        target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
+    target_files.add(RESULTS / f"QC/{tech}.qc.csv")
 # target_files.add(RESULTS / f"depth/mykrobe/{tech}.summary.csv")
 # target_files.add(RESULTS / f"depth/tbprofiler/{tech}.summary.csv")
 # target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
