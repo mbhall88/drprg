@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::string::ToString;
 
 use anyhow::{anyhow, Context, Result};
-use clap::{AppSettings, Parser};
+use clap::Parser;
 use log::{debug, info};
 use rust_htslib::bcf;
 use rust_htslib::bcf::header::{TagLength, TagType};
@@ -33,7 +33,8 @@ use std::collections::{HashMap, HashSet};
 use crate::config::Config;
 use crate::consequence::consequence_of_variant;
 use crate::expert::{ExpertRules, RuleExt, VariantType};
-use crate::minor::{MinorAllele, MINOR_MIN_COVG_STR, MINOR_MIN_STRAND_BIAS_STR};
+use crate::minor::MinorAllele;
+
 use noodles::fasta;
 use regex::Regex;
 use std::fs::File;
@@ -41,6 +42,8 @@ use std::io::{BufReader, Write};
 use std::iter::FromIterator;
 
 static NONE_DRUG: &str = "NONE";
+// DEFAULT CLI OPTS
+static DEFAULT_OUTDIR: &str = ".";
 
 /// A collection of custom errors relating to the predict component of this package
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -127,14 +130,13 @@ impl Prediction {
 }
 
 #[derive(Parser, Debug, Default)]
-#[clap(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Predict {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
     #[clap(
         short = 'p',
         long = "pandora",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     pandora_exec: Option<PathBuf>,
@@ -142,8 +144,8 @@ pub struct Predict {
     #[clap(
         short = 'm',
         long = "makeprg",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     makeprg_exec: Option<PathBuf>,
@@ -151,25 +153,25 @@ pub struct Predict {
     #[clap(
         short = 'M',
         long = "mafft",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     mafft_exec: Option<PathBuf>,
     /// Directory containing the index (produced by `drprg build`)
-    #[clap(short = 'x', long, required = true, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
+    #[clap(short = 'x', long, required = true, value_parser = check_path_exists, value_name = "DIR")]
     index: PathBuf,
     /// Sample reads to predict resistance from
     ///
     /// Both fasta and fastq are accepted, along with compressed or uncompressed.
-    #[clap(short, long, required = true, parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short, long, required = true, value_parser = check_path_exists, value_name = "FILE")]
     input: PathBuf,
     /// Directory to place output
     #[clap(
         short,
         long,
-        default_value = ".",
-        parse(from_os_str),
+        default_value = DEFAULT_OUTDIR,
+        value_parser,
         value_name = "DIR"
     )]
     outdir: PathBuf,
@@ -181,43 +183,19 @@ pub struct Predict {
     /// Sample reads are from Illumina sequencing
     #[clap(short = 'I', long = "illumina")]
     is_illumina: bool,
-    /// Minimum allele frequency to call variants
-    ///
-    /// If an alternate allele has at least this fraction of the depth, a minor resistance
-    /// ("r") prediction is made. Set to 1 to disable
-    #[clap(
-        short = 'f',
-        long = "maf",
-        value_name = "FLOAT[0.0-1.0]",
-        default_value = "1.0"
-    )]
-    min_allele_freq: f32,
-    /// Maximum value for the GAPS tag when calling a minor allele
-    #[clap(long, default_value = "0.5", hide = true)]
-    max_gaps: f32,
-    /// Maximum value for the GAPS tag of the called allele when calling a minor allele
-    #[clap(long, default_value = "0.5", hide = true)]
-    max_called_gaps: f32,
-    /// Maximum difference allowed between major and minor alleles for the GAPS tag when calling a minor allele
-    #[clap(long, default_value = "0.3", hide = true)]
-    max_gaps_diff: f32,
     /// Ignore unknown (off-catalogue) variants that cause a synonymous substitution
     #[clap(short = 'S', long)]
     ignore_synonymous: bool,
     #[clap(flatten)]
     filterer: Filterer,
+    #[clap(flatten)]
+    maf_checker: MinorAllele,
     /// Set the minimum cluster size in pandora
-    #[clap(short = 'C', long, hidden = true, default_value = "10")]
+    #[clap(short = 'C', long, hide = true, default_value_t = 10)]
     pandora_min_cluster_size: u16,
     /// Output debugging files. Mostly for development purposes
-    #[clap(long, hidden_short_help = true)]
+    #[clap(long, hide_short_help = true)]
     debug: bool,
-    /// Minimum depth allowed on a minor allele
-    #[clap(long, default_value = &MINOR_MIN_COVG_STR, hide = true)]
-    minor_min_covg: i32,
-    /// Minimum strand bias ratio allowed on a minor allele
-    #[clap(long, default_value = &MINOR_MIN_STRAND_BIAS_STR, hide = true)]
-    minor_min_strand_bias: f32,
 }
 
 impl Runner for Predict {
@@ -438,15 +416,7 @@ impl Predict {
         let mut vcf_header = bcf::Header::from_template(reader.header());
         self.filterer.add_filter_headers(&mut vcf_header);
         self.add_predict_info_to_header(&mut vcf_header);
-        let maf_checker = MinorAllele::new(
-            self.min_allele_freq,
-            self.max_gaps,
-            self.max_called_gaps,
-            self.max_gaps_diff,
-            self.minor_min_covg,
-            self.minor_min_strand_bias,
-        );
-        maf_checker.add_vcf_headers(&mut vcf_header);
+        self.maf_checker.add_vcf_headers(&mut vcf_header);
 
         let mut writer =
             bcf::Writer::from_path(&predict_vcf_path, &vcf_header, false, Format::Bcf)
@@ -484,7 +454,8 @@ impl Predict {
 
             let max_pred = record_predictions.iter().max().unwrap_or(&Prediction::None);
 
-            let _has_minor_allele = match maf_checker
+            let _has_minor_allele = match self
+                .maf_checker
                 .check_for_minor_alternate(&mut record)
             {
                 Ok(i) if i > 0 && max_pred < &Prediction::Resistant => {
@@ -1505,6 +1476,14 @@ mod tests {
             min_gt_conf: 5.0,
             ..Default::default()
         };
+        let maf_checker = MinorAllele {
+            maf: 0.25,
+            max_gaps: 0.5,
+            max_gaps_diff: 0.3,
+            min_covg: 3,
+            max_called_gaps: 0.39,
+            min_strand_bias: 0.01,
+        };
         let pred = Predict {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             index: PathBuf::from("tests/cases/predict"),
@@ -1512,9 +1491,7 @@ mod tests {
             sample: Some("test".to_string()),
             ignore_synonymous: true,
             filterer: filt,
-            min_allele_freq: 0.25,
-            max_gaps: 0.5,
-            max_gaps_diff: 0.3,
+            maf_checker,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in.vcf");
@@ -1598,6 +1575,11 @@ mod tests {
             min_gt_conf: 5.0,
             ..Default::default()
         };
+        let maf_checker = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
         let pred = Predict {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             index: PathBuf::from("tests/cases/predict"),
@@ -1605,8 +1587,7 @@ mod tests {
             sample: Some("test".to_string()),
             ignore_synonymous: true,
             filterer: filt,
-            min_allele_freq: 0.1,
-            max_gaps: 0.3,
+            maf_checker,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in2.vcf");
@@ -1692,6 +1673,11 @@ mod tests {
             min_gt_conf: 5.0,
             ..Default::default()
         };
+        let maf_checker = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
         let pred = Predict {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             index: PathBuf::from("tests/cases/predict"),
@@ -1699,8 +1685,7 @@ mod tests {
             sample: Some("test".to_string()),
             ignore_synonymous: true,
             filterer: filt,
-            min_allele_freq: 0.1,
-            max_gaps: 0.3,
+            maf_checker,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in3.vcf");
@@ -1799,6 +1784,11 @@ mod tests {
             min_gt_conf: 5.0,
             ..Default::default()
         };
+        let maf_checker = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
         let pred = Predict {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),
             index: PathBuf::from("tests/cases/predict"),
@@ -1806,8 +1796,7 @@ mod tests {
             sample: Some("test".to_string()),
             ignore_synonymous: true,
             filterer: filt,
-            min_allele_freq: 0.1,
-            max_gaps: 0.3,
+            maf_checker,
             ..Default::default()
         };
         let pandora_vcf_path = Path::new("tests/cases/predict/in4.vcf");

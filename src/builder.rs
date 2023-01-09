@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use bstr::ByteSlice;
-use clap::{AppSettings, Parser};
+use clap::Parser;
 use log::{debug, info, warn};
 use noodles::core::Position;
 use noodles::fasta::fai;
@@ -36,16 +36,20 @@ use crate::Runner;
 
 static META: &str = "##";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+static DEFAULT_KMER_SIZE: u32 = 15;
+static DEFAULT_WINDOW_SIZE: u32 = 11;
+static DEFAULT_PADDING: u32 = 100;
+static DEFAULT_MIN_MATCH_LEN: u32 = 5;
+static DEFAULT_MAX_NESTING: u32 = 5;
 
 #[derive(Parser, Debug, Default)]
-#[clap(setting = AppSettings::DeriveDisplayOrder)]
 pub struct Build {
     /// Path to pandora executable. Will try in src/ext or $PATH if not given
     #[clap(
         short = 'p',
         long = "pandora",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     pandora_exec: Option<PathBuf>,
@@ -53,8 +57,8 @@ pub struct Build {
     #[clap(
         short = 'm',
         long = "makeprg",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     makeprg_exec: Option<PathBuf>,
@@ -62,8 +66,8 @@ pub struct Build {
     #[clap(
         short = 'M',
         long = "mafft",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     mafft_exec: Option<PathBuf>,
@@ -71,40 +75,34 @@ pub struct Build {
     #[clap(
         short = 'B',
         long = "bcftools",
-        parse(from_os_str),
-        hidden_short_help = true,
+        value_parser,
+        hide_short_help = true,
         value_name = "FILE"
     )]
     bcftools_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in panel
-    #[clap(short = 'a', long = "gff", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short = 'a', long = "gff", value_parser = check_path_exists, value_name = "FILE")]
     gff_file: PathBuf,
     /// Panel to build index for
-    #[clap(short = 'i', long = "panel", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short = 'i', long = "panel", value_parser = check_path_exists, value_name = "FILE")]
     panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
-    #[clap(short = 'f', long = "fasta", parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short = 'f', long = "fasta", value_parser = check_path_exists, value_name = "FILE")]
     reference_file: PathBuf,
     /// An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be
     /// given. See `--prebuilt-prg`
-    #[clap(short = 'b', long = "vcf", parse(try_from_os_str = check_path_exists), value_name = "FILE", required_unless_present("prebuilt-prg"))]
+    #[clap(short = 'b', long = "vcf", value_parser = check_path_exists, value_name = "FILE", required_unless_present("prebuilt_prg"))]
     input_vcf: Option<PathBuf>,
     /// Number of bases of padding to add to start and end of each gene
     #[clap(
         short = 'P',
         long = "padding",
-        default_value = "100",
+        default_value_t = DEFAULT_PADDING,
         value_name = "INT"
     )]
     padding: u32,
     /// Directory to place output
-    #[clap(
-        short,
-        long,
-        default_value = ".",
-        parse(from_os_str),
-        value_name = "DIR"
-    )]
+    #[clap(short, long, default_value = ".", value_parser, value_name = "DIR")]
     outdir: PathBuf,
     /// A prebuilt PRG to use.
     ///
@@ -114,20 +112,20 @@ pub struct Build {
     /// if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the
     /// reference sequence for each gene according to the annotation and reference genome given
     /// (along with padding) and must be in the forward strand orientation.
-    #[clap(short = 'd', long, parse(try_from_os_str = check_path_exists), value_name = "DIR")]
+    #[clap(short = 'd', long, value_parser = check_path_exists, value_name = "DIR")]
     prebuilt_prg: Option<PathBuf>,
     /// "Expert rules" to be applied in addition to the panel.
     ///
     /// CSV file with blanket rules that describe resistance (or susceptibility). The columns are
     /// <variant type>,<gene>,<start>,<end>,<drug(s)>. See the docs for a detailed explanation.
-    #[clap(short, long, parse(try_from_os_str = check_path_exists), value_name = "FILE")]
+    #[clap(short, long, value_parser = check_path_exists, value_name = "FILE")]
     rules: Option<PathBuf>,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
     #[clap(
         short = 'l',
         long = "match-len",
-        default_value = "7",
-        hidden_short_help = true,
+        default_value_t = DEFAULT_MIN_MATCH_LEN,
+        hide_short_help = true,
         value_name = "INT"
     )]
     match_len: u32,
@@ -135,8 +133,8 @@ pub struct Build {
     #[clap(
         short = 'N',
         long = "max-nesting",
-        default_value = "5",
-        hidden_short_help = true,
+        default_value_t = DEFAULT_MAX_NESTING,
+        hide_short_help = true,
         value_name = "INT"
     )]
     max_nesting: u32,
@@ -144,8 +142,8 @@ pub struct Build {
     #[clap(
         short = 'k',
         long,
-        default_value = "15",
-        hidden_short_help = true,
+        default_value_t = DEFAULT_KMER_SIZE,
+        hide_short_help = true,
         value_name = "INT"
     )]
     pandora_k: u32,
@@ -153,8 +151,8 @@ pub struct Build {
     #[clap(
         short = 'w',
         long,
-        default_value = "14",
-        hidden_short_help = true,
+        default_value_t = DEFAULT_WINDOW_SIZE,
+        hide_short_help = true,
         value_name = "INT"
     )]
     pandora_w: u32,
