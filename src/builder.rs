@@ -650,6 +650,7 @@ impl Runner for Build {
                 max_nesting: self.max_nesting,
                 k: self.pandora_k,
                 w: self.pandora_w,
+                padding: self.padding,
             };
             let toml = toml::to_string(&config)?;
             writeln!(f, "{}", toml)?;

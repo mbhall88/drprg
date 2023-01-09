@@ -324,7 +324,7 @@ impl Runner for Predict {
         info!("Making predictions from variants...");
         let predict_vcf_path = self.predict_from_pandora_vcf(&pandora_vcf_path)?;
         debug!("Predictions written to VCF {:?}", predict_vcf_path);
-        let predict_json_path = self.vcf_to_json(&predict_vcf_path)?;
+        let predict_json_path = self.vcf_to_json(&predict_vcf_path, config.padding)?;
         info!(
             "Prediction report written to JSON file {:?}",
             predict_json_path
@@ -730,7 +730,7 @@ impl Predict {
         Ok(drug_info)
     }
 
-    fn vcf_to_json(&self, vcf_path: &Path) -> Result<PathBuf> {
+    fn vcf_to_json(&self, vcf_path: &Path, padding: u32) -> Result<PathBuf> {
         let json_path = self.outdir.join(self.json_filename());
 
         debug!("Loading the panel...");
@@ -765,6 +765,59 @@ impl Predict {
         let mut json: BTreeMap<String, Susceptibility> = BTreeMap::new();
         let mut reader =
             bcf::Reader::from_path(vcf_path).context("Failed to open predict VCF")?;
+
+        let expected_genes: HashSet<String> = gene2drugs.keys().cloned().collect();
+        let mut present_genes: HashSet<String> = HashSet::new();
+        for hrec in reader.header().header_records() {
+            if let HeaderRecord::Contig { values: vals, .. } = hrec {
+                present_genes.insert(vals.get("ID").unwrap().to_string());
+            }
+        }
+        let absent_genes: HashSet<_> =
+            expected_genes.difference(&present_genes).cloned().collect();
+
+        // check if any absent genes are in the expert rules
+        if !absent_genes.is_empty() {
+            for (gene, rules) in &expert_rules {
+                if !absent_genes.contains(gene) {
+                    continue;
+                }
+                for rule in rules {
+                    if rule.variant_type == VariantType::Absence {
+                        for drug in &rule.drugs {
+                            if drug == NONE_DRUG {
+                                continue;
+                            }
+                            let evidence = Evidence {
+                                variant: Variant::gene_deletion(),
+                                gene: gene.to_owned(),
+                                residue: Residue::Nucleic,
+                                vcfid: "".to_string(),
+                            };
+                            let entry = json
+                                .entry(drug.to_string())
+                                .or_insert_with(Susceptibility::default);
+                            if entry.predict == Prediction::Resistant {
+                                entry.evidence.push(evidence);
+                            } else {
+                                entry.predict = Prediction::Resistant;
+                                entry.evidence = vec![evidence];
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // check if any genes have lost their start and have an absent expert rule type
+        let mut check_for_start_loss: HashMap<String, Vec<String>> = HashMap::new();
+        for gene in &present_genes {
+            let Some(gene_rules) = expert_rules.get(gene) else { continue };
+            let Some(rule) = gene_rules.iter().find(|r| r.variant_type == VariantType::Absence) else {continue};
+            check_for_start_loss
+                .insert(gene.to_owned(), Vec::from_iter(rule.drugs.to_owned()));
+        }
+
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
                 .context(format!("Failed to read record {} in predict VCF", i))?;
@@ -815,6 +868,35 @@ impl Predict {
             let is_failed = *max_pred == Prediction::Failed;
             if (!record.is_pass() && !is_failed) || *max_pred == Prediction::None {
                 continue;
+            }
+
+            if is_failed {
+                let record_spans_start = record.range().contains(&(padding as i64));
+                if record_spans_start {
+                    if let Some(drugs) = check_for_start_loss.get(&record.contig()) {
+                        for drug in drugs {
+                            if drug == NONE_DRUG {
+                                continue;
+                            }
+                            let evidence = Evidence {
+                                variant: Variant::start_lost(),
+                                gene: record.contig().to_owned(),
+                                residue: Residue::Nucleic,
+                                vcfid: String::from_utf8_lossy(&record.id())
+                                    .into_owned(),
+                            };
+                            let entry = json
+                                .entry(drug.to_string())
+                                .or_insert_with(Susceptibility::default);
+                            if entry.predict == Prediction::Resistant {
+                                entry.evidence.push(evidence);
+                            } else {
+                                entry.predict = Prediction::Resistant;
+                                entry.evidence = vec![evidence];
+                            }
+                        }
+                    }
+                }
             }
 
             for (prediction, varid) in preds
@@ -899,48 +981,6 @@ impl Predict {
             for d in drugs {
                 if d != NONE_DRUG {
                     json.entry(d).or_insert_with(Susceptibility::default);
-                }
-            }
-        }
-
-        let expected_genes: HashSet<String> = gene2drugs.keys().cloned().collect();
-        let mut present_genes: HashSet<String> = HashSet::new();
-        for hrec in reader.header().header_records() {
-            if let HeaderRecord::Contig { values: vals, .. } = hrec {
-                present_genes.insert(vals.get("ID").unwrap().to_string());
-            }
-        }
-        let absent_genes: HashSet<_> =
-            expected_genes.difference(&present_genes).cloned().collect();
-
-        if !absent_genes.is_empty() {
-            for (gene, rules) in expert_rules {
-                if !absent_genes.contains(&gene) {
-                    continue;
-                }
-                for rule in rules {
-                    if rule.variant_type == VariantType::Absence {
-                        for drug in rule.drugs {
-                            if drug == NONE_DRUG {
-                                continue;
-                            }
-                            let evidence = Evidence {
-                                variant: Variant::gene_deletion(),
-                                gene: gene.to_owned(),
-                                residue: Residue::Nucleic,
-                                vcfid: "".to_string(),
-                            };
-                            let entry = json
-                                .entry(drug.to_string())
-                                .or_insert_with(Susceptibility::default);
-                            if entry.predict == Prediction::Resistant {
-                                entry.evidence.push(evidence);
-                            } else {
-                                entry.predict = Prediction::Resistant;
-                                entry.evidence = vec![evidence];
-                            }
-                        }
-                    }
                 }
             }
         }
@@ -1874,7 +1914,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out.vcf");
-        let result = pred.vcf_to_json(vcf_path);
+        let result = pred.vcf_to_json(vcf_path, 100);
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -1924,7 +1964,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out3.vcf");
-        let result = pred.vcf_to_json(vcf_path);
+        let result = pred.vcf_to_json(vcf_path, 100);
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -1974,7 +2014,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out5.vcf");
-        let result = pred.vcf_to_json(vcf_path);
+        let result = pred.vcf_to_json(vcf_path, 100);
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -2024,7 +2064,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/SRR6824468.vcf");
-        let result = pred.vcf_to_json(vcf_path);
+        let result = pred.vcf_to_json(vcf_path, 100);
         assert!(result.is_ok());
 
         let json_path = result.unwrap();

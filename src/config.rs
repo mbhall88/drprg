@@ -19,6 +19,7 @@ pub struct Config {
     pub(crate) max_nesting: u32,
     pub(crate) k: u32,
     pub(crate) w: u32,
+    pub(crate) padding: u32,
 }
 
 impl Config {
