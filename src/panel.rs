@@ -196,8 +196,18 @@ impl Variant {
             new: "-".to_string(),
         }
     }
+    pub fn start_lost() -> Self {
+        Self {
+            reference: "".to_string(),
+            pos: 1,
+            new: "-".to_string(),
+        }
+    }
     pub fn is_gene_deletion(&self) -> bool {
         self.reference.is_empty() && self.pos == 0 && self.new == "-"
+    }
+    pub fn is_start_lost(&self) -> bool {
+        self.reference.is_empty() && self.pos == 1 && self.new == "-"
     }
 }
 
@@ -205,6 +215,8 @@ impl fmt::Display for Variant {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let to_write = if self.is_gene_deletion() {
             "gene_absent".to_string()
+        } else if self.is_start_lost() {
+            "start_lost".to_string()
         } else {
             format!("{}{}{}", &self.reference, self.pos, &self.new)
         };
