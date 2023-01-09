@@ -1,50 +1,56 @@
 use bstr::ByteSlice;
+use clap::builder::ArgPredicate;
+use clap::Parser;
 use drprg::VcfExt;
 use float_cmp::approx_eq;
 use rust_htslib::bcf;
 use rust_htslib::bcf::record::GenotypeAllele;
 
-use lazy_static::lazy_static;
-
 const OGT_TAG: &str = "OGT";
 const PDP_TAG: &str = "PDP";
-const MINOR_MIN_COVG: i32 = 3;
-const MINOR_MIN_STRAND_BIAS: f32 = 0.01;
-lazy_static! {
-    pub static ref MINOR_MIN_COVG_STR: String = MINOR_MIN_COVG.to_string();
-    pub static ref MINOR_MIN_STRAND_BIAS_STR: String =
-        MINOR_MIN_STRAND_BIAS.to_string();
-}
+pub static MINOR_AF: f32 = 1.0;
+pub static MINOR_AF_ILLUMINA: &str = "0.1";
+pub static MAX_GAPS: f32 = 0.5;
+pub static MAX_CALLED_GAPS: f32 = 0.39;
+pub static MAX_GAPS_DIFF: f32 = 0.2;
+pub const MINOR_MIN_COVG: i32 = 3;
+pub const MINOR_MIN_STRAND_BIAS: f32 = 0.01;
 
+#[derive(Parser, Debug, Default)]
 pub struct MinorAllele {
-    min_allele_freq: f32,
-    max_gap: f32,
-    max_called_gap: f32,
-    max_gap_diff: f32,
-    min_covg: i32,
-    min_strand_bias: f32,
+    /// Minimum allele frequency to call variants
+    ///
+    /// If an alternate allele has at least this fraction of the depth, a minor resistance
+    /// ("r") prediction is made. Set to 1 to disable. If --illumina is passed, the default
+    /// is 0.1
+    #[clap(
+    short = 'f',
+    long,
+    value_name = "FLOAT[0.0-1.0]",
+    default_value_t = MINOR_AF,
+    default_value_if("is_illumina", ArgPredicate::IsPresent, MINOR_AF_ILLUMINA)
+    )]
+    pub(crate) maf: f32,
+    /// Maximum value for the GAPS tag when calling a minor allele
+    #[clap(long, default_value_t = MAX_GAPS, hide = true)]
+    pub(crate) max_gaps: f32,
+    /// Maximum value for the GAPS tag of the called allele when calling a minor allele
+    #[clap(long, default_value_t = MAX_CALLED_GAPS, hide = true)]
+    pub(crate) max_called_gaps: f32,
+    /// Maximum difference allowed between major and minor alleles for the GAPS tag when calling a minor allele
+    #[clap(long, default_value_t = MAX_GAPS_DIFF, hide = true)]
+    pub(crate) max_gaps_diff: f32,
+    /// Minimum depth allowed on a minor allele
+    #[clap(long = "minor_min_covg", default_value_t = MINOR_MIN_COVG, hide = true)]
+    pub(crate) min_covg: i32,
+    /// Minimum strand bias ratio allowed on a minor allele
+    #[clap(long = "minor_min_strand_bias", default_value_t = MINOR_MIN_STRAND_BIAS, hide = true)]
+    pub(crate) min_strand_bias: f32,
 }
 
 impl MinorAllele {
-    pub fn new(
-        maf: f32,
-        max_gap: f32,
-        max_called_gap: f32,
-        max_gap_diff: f32,
-        min_covg: i32,
-        min_strand_bias: f32,
-    ) -> Self {
-        MinorAllele {
-            min_allele_freq: maf,
-            max_gap,
-            max_called_gap,
-            max_gap_diff,
-            min_covg,
-            min_strand_bias,
-        }
-    }
     pub fn add_vcf_headers(&self, header: &mut bcf::Header) {
-        header.push_record(format!("##INFO=<ID={},Number=1,Type=String,Description=\"Original genotype after adjusting for minor allele depth proportions of {}\">", OGT_TAG, self.min_allele_freq).as_bytes());
+        header.push_record(format!("##INFO=<ID={},Number=1,Type=String,Description=\"Original genotype after adjusting for minor allele depth proportions of {}\">", OGT_TAG, self.maf).as_bytes());
         header.push_record(format!("##INFO=<ID={},Number=R,Type=Float,Description=\"Proportion of the total position depth found on this allele\">", PDP_TAG).as_bytes());
     }
     fn add_proportions_tag(
@@ -78,7 +84,7 @@ impl MinorAllele {
         ix.sort_by(|a, b| a.1.total_cmp(b.1));
         let called_gaps = record.format(b"GAPS").float()?[0][gt as usize];
 
-        if called_gaps > self.max_called_gap {
+        if called_gaps > self.max_called_gaps {
             return Ok(-1);
         }
 
@@ -89,9 +95,9 @@ impl MinorAllele {
             } else {
                 let gaps = record.format(b"GAPS").float()?[0][*i];
                 let gaps_diff = gaps - record.format(b"GAPS").float()?[0][gt as usize];
-                if **d >= self.min_allele_freq
-                    && gaps <= self.max_gap
-                    && gaps_diff <= self.max_gap_diff
+                if **d >= self.maf
+                    && gaps <= self.max_gaps
+                    && gaps_diff <= self.max_gaps_diff
                 {
                     largest_non_called = Some((*i, **d));
                     break;
@@ -154,7 +160,14 @@ mod tests {
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
-        let ma = MinorAllele::new(1.0, 0.5, 0.5, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 1.0,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         ma.add_vcf_headers(&mut header);
         let vcf =
             bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
@@ -166,7 +179,12 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_null_call() {
-        let ma = MinorAllele::new(0.5, 0.5, 0.5, 0.0, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.5,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            ..Default::default()
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -196,7 +214,13 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_alt_call() {
-        let ma = MinorAllele::new(0.1, 0.5, 0.5, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.1,
+            ..Default::default()
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -229,7 +253,13 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_alt_has_most_depth() {
-        let ma = MinorAllele::new(0.5, 0.5, 0.5, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.5,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.1,
+            ..Default::default()
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -263,7 +293,14 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_below_threshold()
     {
-        let ma = MinorAllele::new(0.5, 0.5, 0.5, 0.3, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.5,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.3,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -296,7 +333,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_eq_threshold() {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.5, 0.5, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 50.0 / 160.0,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -330,7 +374,14 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_above_threshold()
     {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.5, 0.5, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 50.0 / 160.0,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -364,7 +415,14 @@ mod tests {
     #[test]
     fn test_check_for_minor_alternate_ref_call_ref_has_most_depth_alt_below_gaps_threshold(
     ) {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.4, 0.5, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 50.0 / 160.0,
+            max_gaps: 0.4,
+            max_called_gaps: 0.4,
+            max_gaps_diff: 0.5,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -397,7 +455,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_ref_call_no_depth() {
-        let ma = MinorAllele::new(0.1, 0.5, 0.5, 0.0, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.5,
+            max_called_gaps: 0.5,
+            max_gaps_diff: 0.0,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -427,7 +492,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_calls_alternate_but_other_alt_is_minor() {
-        let ma = MinorAllele::new(0.2, 0.3, 0.3, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.2,
+            max_gaps: 0.3,
+            max_called_gaps: 0.3,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -460,7 +532,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_below_threshold_but_above_diff() {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.4, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 50.0 / 160.0,
+            max_gaps: 0.4,
+            max_called_gaps: 0.4,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -493,7 +572,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_above_threshold_below_diff() {
-        let ma = MinorAllele::new(50.0 / 160.0, 0.4, 0.4, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 50.0 / 160.0,
+            max_gaps: 0.4,
+            max_called_gaps: 0.4,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -526,7 +612,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_alt_has_less_gaps_than_ref() {
-        let ma = MinorAllele::new(0.1, 0.4, 0.4, 0.1, 0, 0.0);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.4,
+            max_called_gaps: 0.4,
+            max_gaps_diff: 0.1,
+            min_covg: 0,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -559,7 +652,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_low_covg() {
-        let ma = MinorAllele::new(0.1, 0.3, 0.3, 0.1, 3, 0.0);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            max_called_gaps: 0.3,
+            max_gaps_diff: 0.1,
+            min_covg: 3,
+            min_strand_bias: 0.0,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -592,7 +692,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_low_stand_bias() {
-        let ma = MinorAllele::new(0.1, 0.3, 0.3, 0.1, 3, 0.01);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            max_called_gaps: 0.3,
+            max_gaps_diff: 0.1,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -625,7 +732,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_low_stand_bias_and_covg() {
-        let ma = MinorAllele::new(0.1, 0.3, 0.3, 0.1, 3, 0.01);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            max_called_gaps: 0.3,
+            max_gaps_diff: 0.1,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();
@@ -658,7 +772,14 @@ mod tests {
 
     #[test]
     fn test_check_for_minor_alternate_called_allele_over_max_called_gap() {
-        let ma = MinorAllele::new(0.1, 0.5, 0.39, 0.2, 3, 0.01);
+        let ma = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.5,
+            max_called_gaps: 0.39,
+            max_gaps_diff: 0.2,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+        };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
         let mut header = bcf::Header::new();

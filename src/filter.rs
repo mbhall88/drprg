@@ -3,26 +3,17 @@ use std::str::FromStr;
 
 use clap::Parser;
 use float_cmp::approx_eq;
-use lazy_static::lazy_static;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Record;
 use thiserror::Error;
 
 use crate::VcfExt;
 
-const MIN_COVG: i32 = -1;
+const MIN_COVG: i32 = 3;
 const MAX_COVG: i32 = i32::MAX;
-const MIN_SB: f32 = -1.0;
-const MIN_GTCONF: f32 = -1.0;
-const MAX_INDEL: Option<i32> = None;
-const MIN_FRS: f32 = -1.0;
-lazy_static! {
-    static ref MIN_COVG_STR: String = MIN_COVG.to_string();
-    static ref MAX_COVG_STR: String = MAX_COVG.to_string();
-    static ref MIN_SB_STR: String = MIN_SB.to_string();
-    static ref MIN_GTCONF_STR: String = MIN_GTCONF.to_string();
-    static ref MIN_FRS_STR: String = MIN_FRS.to_string();
-}
+const MIN_SB: f32 = 0.01;
+const MIN_GTCONF: f32 = 5.0;
+const MIN_FRS: f32 = 0.51;
 
 /// A collection of custom errors relating to the Tags enum
 #[derive(Error, Debug, PartialEq, Eq)]
@@ -174,25 +165,25 @@ pub trait Filter {
 #[derive(Parser, Debug)]
 pub struct Filterer {
     /// Minimum depth of coverage allowed on variants
-    #[clap(short = 'd', long, default_value = &MIN_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
+    #[clap(short = 'd', long, default_value_t = MIN_COVG, hide_short_help = true, value_name = "INT", allow_hyphen_values = true)]
     pub min_covg: i32,
     /// Maximum depth of coverage allowed on variants
-    #[clap(short = 'D', long, default_value = &MAX_COVG_STR, hidden_short_help = true, value_name = "INT", allow_hyphen_values = true)]
+    #[clap(short = 'D', long, default_value_t = MAX_COVG, hide_short_help = true, value_name = "INT", allow_hyphen_values = true)]
     pub max_covg: i32,
     /// Minimum strand bias ratio allowed on variants
     ///
     /// For example, setting to 0.25 requires >=25% of total (allele) coverage on both
     /// strands for an allele.
-    #[clap(short = 'b', long, default_value = &MIN_SB_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
+    #[clap(short = 'b', long, default_value_t = MIN_SB, hide_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_strand_bias: f32,
     /// Minimum genotype confidence (GT_CONF) score allow on variants
-    #[clap(short = 'g', long, default_value = &MIN_GTCONF_STR, hidden_short_help = true, value_name = "FLOAT, allow_hyphen_values = true")]
+    #[clap(short = 'g', long, default_value_t = MIN_GTCONF, hide_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_gt_conf: f32,
     /// Maximum (absolute) length of insertions/deletions allowed
     #[clap(
         short = 'L',
         long,
-        hidden_short_help = true,
+        hide_short_help = true,
         value_name = "INT",
         allow_hyphen_values = true
     )]
@@ -201,19 +192,19 @@ pub struct Filterer {
     ///
     /// For example, setting to 0.9 requires >=90% of coverage for the variant to be on the called
     /// allele
-    #[clap(short = 'K', long, default_value = &MIN_FRS_STR, hidden_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
+    #[clap(short = 'K', long, default_value_t = MIN_FRS, hide_short_help = true, value_name = "FLOAT", allow_hyphen_values = true)]
     pub min_frs: f32,
 }
 
 impl Default for Filterer {
     fn default() -> Self {
         Filterer {
-            min_covg: MIN_COVG,
-            max_covg: MAX_COVG,
-            min_strand_bias: MIN_SB,
-            min_gt_conf: MIN_GTCONF,
-            max_indel: MAX_INDEL,
-            min_frs: MIN_FRS,
+            min_covg: -1,
+            max_covg: i32::MAX,
+            min_strand_bias: -1.0,
+            min_gt_conf: -1.0,
+            max_indel: None,
+            min_frs: -1.0,
         }
     }
 }
@@ -320,26 +311,26 @@ impl Filterer {
     }
     /// Write meta-information lines to a VCF for the filters that are currently enabled
     pub fn add_filter_headers(&self, header: &mut bcf::Header) {
-        if self.min_covg > MIN_COVG {
+        if self.min_covg > -1 {
             let id = Tags::LowCovg.value();
             let desc =
                 format!("Kmer coverage on called allele less than {}", self.min_covg);
             header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
         }
-        if self.max_covg < MAX_COVG {
+        if self.max_covg < i32::MAX {
             let id = Tags::HighCovg.value();
             let desc =
                 format!("Kmer coverage on called allele more than {}", self.min_covg);
             header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
         }
-        if self.min_strand_bias > MIN_SB {
+        if self.min_strand_bias > -1.0 {
             let id = Tags::StrandBias.value();
             let desc = format!(
                 "A strand on the called allele has less than {:.2}% of the coverage for that allele", self.min_strand_bias * 100.0,
             );
             header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
         }
-        if self.min_gt_conf > MIN_GTCONF {
+        if self.min_gt_conf > -1.0 {
             let id = Tags::LowGtConf.value();
             let desc = format!(
                 "Genotype confidence score less than {:.1}",
@@ -352,7 +343,7 @@ impl Filterer {
             let desc = format!("Indel is longer than {}bp", self.max_indel.unwrap(),);
             header.push_record(Self::meta_info_line(id, desc.as_bytes()).as_slice());
         }
-        if self.min_frs > MIN_FRS {
+        if self.min_frs > -1.0 {
             let id = Tags::LowSupport.value();
             let desc = format!(
                 "Fraction of read support on called allele is less than {}",
@@ -1519,9 +1510,9 @@ pub(crate) mod test {
         let path = tmp.path();
         let mut header = Header::new();
         let filt = Filterer {
-            min_covg: MIN_COVG,
+            min_covg: -1,
             max_covg: 0,
-            min_strand_bias: MIN_SB,
+            min_strand_bias: -1.0,
             min_gt_conf: 0.0,
             max_indel: Some(1),
             min_frs: 0.0,
