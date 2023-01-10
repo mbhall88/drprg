@@ -1,5 +1,5 @@
 use std::cmp::{max, min};
-use std::ops::Range;
+use std::ops::{Range, RangeInclusive};
 
 /// A trait for defining interval operations (intended for use with Range)
 pub trait IntervalOp {
@@ -21,6 +21,20 @@ impl<Idx: PartialOrd<Idx> + Ord + ToOwned<Owned = Idx>> IntervalOp for Range<Idx
     }
 }
 
+impl<Idx: PartialOrd<Idx> + Ord + ToOwned<Owned = Idx>> IntervalOp
+    for RangeInclusive<Idx>
+{
+    fn intersect(&self, other: &Self) -> Option<Self> {
+        if other.start() > self.end() || self.start() > other.end() {
+            None
+        } else {
+            let start = max(&self.start(), &other.start()).to_owned().to_owned();
+            let end = min(&self.end(), &other.end()).to_owned().to_owned();
+            Some(start..=end)
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -29,6 +43,16 @@ mod tests {
     fn interval_op_intersect_no_intersection() {
         let i = 1..3;
         let j = 5..8;
+
+        let overlap = i.intersect(&j);
+
+        assert!(overlap.is_none())
+    }
+
+    #[test]
+    fn interval_op_rangeinclusive_intersect_no_intersection() {
+        let i = 1..=3;
+        let j = 5..=8;
 
         let overlap = i.intersect(&j);
 
@@ -46,6 +70,17 @@ mod tests {
     }
 
     #[test]
+    fn interval_op_rangeinclusive_intersect_no_intersection_end_off_by_one_check() {
+        let i = 1..=3;
+        let j = 3..=8;
+
+        let overlap = i.intersect(&j);
+        let expected = Some(3..=3);
+
+        assert_eq!(overlap, expected)
+    }
+
+    #[test]
     fn interval_op_intersect_no_intersection_start_off_by_one_check() {
         let i = 1..3;
         let j = 0..1;
@@ -56,12 +91,34 @@ mod tests {
     }
 
     #[test]
+    fn interval_op_rangeinclusive_intersect_no_intersection_start_off_by_one_check() {
+        let i = 1..=3;
+        let j = 0..=1;
+
+        let overlap = i.intersect(&j);
+        let expected = Some(1..=1);
+
+        assert_eq!(overlap, expected)
+    }
+
+    #[test]
     fn interval_op_intersect_no_intersection_start_edge() {
         let i = 1..3;
         let j = 0..2;
 
         let overlap = i.intersect(&j);
         let expected = Some(1..2);
+
+        assert_eq!(overlap, expected)
+    }
+
+    #[test]
+    fn interval_op_rangeinclusive_intersect_no_intersection_start_edge() {
+        let i = 1..=3;
+        let j = 0..=2;
+
+        let overlap = i.intersect(&j);
+        let expected = Some(1..=2);
 
         assert_eq!(overlap, expected)
     }
@@ -95,6 +152,17 @@ mod tests {
 
         let overlap = i.intersect(&j);
         let expected = Some(2..3);
+
+        assert_eq!(overlap, expected)
+    }
+
+    #[test]
+    fn interval_op_rangeinclusive_intersect_no_intersection_subset() {
+        let i = 1..=4;
+        let j = 2..=3;
+
+        let overlap = i.intersect(&j);
+        let expected = Some(2..=3);
 
         assert_eq!(overlap, expected)
     }

@@ -2,6 +2,7 @@ use log::warn;
 use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::hash::{Hash, Hasher};
+use std::ops::RangeInclusive;
 use std::str::FromStr;
 
 use bstr::ByteSlice;
@@ -208,6 +209,15 @@ impl Variant {
     }
     pub fn is_start_lost(&self) -> bool {
         self.reference.is_empty() && self.pos == 1 && self.new == "-"
+    }
+
+    pub fn range(&self) -> RangeInclusive<i64> {
+        let len = self.reference.len() as i64;
+        let mut end = self.pos + (len - 1);
+        if self.pos.is_negative() && end > -1 {
+            end += 1;
+        }
+        self.pos..=end
     }
 }
 
@@ -639,6 +649,51 @@ mod tests {
         let s = "T6 ";
         let result = Variant::from_str(s);
         assert!(result.is_err())
+    }
+
+    #[test]
+    fn variant_range_snp() {
+        let s = Variant::from_str("K2*").unwrap();
+        let actual = s.range();
+        let expected = 2..=2;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn variant_range_mnp() {
+        let s = Variant::from_str("ATC2TTC").unwrap();
+        let actual = s.range();
+        let expected = 2..=4;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn variant_range_indel() {
+        let s = Variant::from_str("ATC2TC").unwrap();
+        let actual = s.range();
+        let expected = 2..=4;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn variant_range_indel_in_promoter() {
+        let s = Variant::from_str("ATC-6TC").unwrap();
+        let actual = s.range();
+        let expected = -6..=-4;
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn variant_range_indel_in_promoter_crosses_start_pos() {
+        let s = Variant::from_str("ATC-2TC").unwrap();
+        let actual = s.range();
+        let expected = -2..=1;
+
+        assert_eq!(actual, expected)
     }
 
     #[test]

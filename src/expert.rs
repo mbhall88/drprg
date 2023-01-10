@@ -1,4 +1,5 @@
 use crate::report::Evidence;
+use drprg::interval::IntervalOp;
 use log::warn;
 use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
 use serde_derive::Deserialize;
@@ -96,10 +97,10 @@ impl Rule {
             return false;
         }
         let start = self.start.unwrap_or(1);
-        let end = self.end.unwrap_or(isize::MAX);
-        let rule_range = start..=end;
-        let mutation_pos = mutation.variant.pos as isize;
-        if !rule_range.contains(&mutation_pos) {
+        let end = self.end.unwrap_or(i64::MAX as isize);
+        let rule_range = start as i64..=end as i64;
+        let mutation_range = mutation.variant.range();
+        if rule_range.intersect(&mutation_range).is_none() {
             return false;
         }
         match self.variant_type {
@@ -627,7 +628,45 @@ mod tests {
         let rule = Rule {
             variant_type: VariantType::Frameshift,
             gene: "foo".to_string(),
+            start: None,
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(!rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_frameshift_in_promoter_allowed() {
+        let mutation = Evidence {
+            variant: Variant::from_str("ACG-5A").unwrap(),
+            gene: "foo".to_string(),
+            residue: Default::default(),
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "foo".to_string(),
             start: Some(-7),
+            end: None,
+            drugs: Default::default(),
+        };
+
+        assert!(rule.contains(&mutation))
+    }
+
+    #[test]
+    fn rule_contains_frameshift_in_promoter_that_reaches_into_gene() {
+        let mutation = Evidence {
+            variant: Variant::from_str("ACG-2A").unwrap(),
+            gene: "foo".to_string(),
+            residue: Default::default(),
+            vcfid: "".to_string(),
+        };
+        let rule = Rule {
+            variant_type: VariantType::Frameshift,
+            gene: "foo".to_string(),
+            start: None,
             end: None,
             drugs: Default::default(),
         };
