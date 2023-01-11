@@ -1,0 +1,20 @@
+SAMN31230555
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+capreomycin	resistant	liquid	MGIT960	2.5	CLSI
+amikacin	susceptible	liquid	MGIT960	1	CLSI
+kanamycin	susceptible	liquid	MGIT960	2.5	CLSI
+ofloxacin	resistant	liquid	MGIT960	2	CLSI
+SAMN31217771
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+capreomycin	resistant	liquid	MGIT960	2.5	CLSI
+amikacin	resistant	liquid	MGIT960	1	CLSI
+kanamycin	resistant	liquid	MGIT960	2.5	CLSI
+levofloxacin	resistant	liquid	MGIT960	1	CLSI
