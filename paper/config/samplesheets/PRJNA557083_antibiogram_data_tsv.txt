@@ -1,0 +1,329 @@
+SAMN14122385
+SAMN14053478
+SAMN14053477
+SAMN12389284
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389283
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389282
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389281
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389280
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389279
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389278
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389277
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389276
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389275
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389274
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389273
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389272
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389271
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389270
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389269
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389268
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389267
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389266
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389265
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389264
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389263
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389262
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389261
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389260
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389259
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389258
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389257
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389256
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389255
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389254
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389253
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389252
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389251
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389250
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389249
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389248
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389247
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389246
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389245
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389244
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389243
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389242
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389241
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389240
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389239
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389238
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389237
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389236
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389235
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389234
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389233
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389232
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389231
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389230
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389229
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389228
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389227
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389226
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389225
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389224
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389223
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389222
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389221
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389220
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389219
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389218
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389217
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389216
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389215
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389214
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389213
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389212
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389211
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389210
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389209
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389208
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389207
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389206
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389205
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389204
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389203
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389202
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389201
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389200
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389199
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389198
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389197
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389196
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389195
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389194
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389193
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389192
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389191
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389190
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389189
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389188
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389187
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389186
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389185
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389184
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389183
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389182
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389181
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389180
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389179
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389178
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389177
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389176
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389175
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389174
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389173
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389172
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389171
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389170
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389169
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389168
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389167
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389166
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389165
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389164
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389163
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389162
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389161
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389160
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389159
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389158
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389157
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389156
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389155
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389154
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389153
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389152
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389151
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389150
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389149
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389148
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389147
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389146
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389145
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389144
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389143
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389142
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389141
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389140
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389139
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389138
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389137
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389136
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389135
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389134
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389133
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389132
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389131
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389130
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389129
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389128
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389127
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+SAMN12389126
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389125
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389124
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389123
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+SAMN12389122
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI

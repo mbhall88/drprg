@@ -1,0 +1,506 @@
+SAMN31672581
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672580
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672579
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672578
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672577
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672576
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672575
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672574
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN31672573
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672572
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672571
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN31672570
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672569
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672568
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672567
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672566
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672565
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672564
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672563
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672562
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672561
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN31672560
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672559
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672558
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672557
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672556
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN31672555
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672554
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672553
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672552
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672551
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN31672550
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391484
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391483
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391482
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391481
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391480
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391479
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391478
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391477
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391476
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391475
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391474
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391473
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391472
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391471
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391470
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391469
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391468
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391467
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391466
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391465
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391464
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391463
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391462
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391461
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391460
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391459
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391458
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391457
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391456
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391455
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391454
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391453
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391452
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391451
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391450
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391449
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391448
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391447
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391446
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391445
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391444
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391443
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391442
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391441
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391440
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391439
+ethambutol	resistant	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	resistant	liquid	MGIT960	100	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	resistant	liquid	MGIT960	1	CLSI
+SAMN27391438
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391437
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391436
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391435
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391434
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	susceptible	liquid	MGIT960	0.1	CLSI
+pyrazinamide	susceptible	liquid	MGIT960	100	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391433
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+rifampin	resistant	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
+SAMN27391432
+ethambutol	susceptible	liquid	MGIT960	5	CLSI
+isoniazid	resistant	liquid	MGIT960	0.1	CLSI
+rifampin	susceptible	liquid	MGIT960	1	CLSI
+streptomycin	susceptible	liquid	MGIT960	1	CLSI
