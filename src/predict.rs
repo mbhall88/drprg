@@ -1480,9 +1480,9 @@ mod tests {
             maf: 0.25,
             max_gaps: 0.5,
             max_gaps_diff: 0.3,
-            min_covg: 3,
+            minor_min_covg: 3,
             max_called_gaps: 0.39,
-            min_strand_bias: 0.01,
+            minor_min_strand_bias: 0.01,
         };
         let pred = Predict {
             pandora_exec: Some(PathBuf::from("src/ext/pandora")),

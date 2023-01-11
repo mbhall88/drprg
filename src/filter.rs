@@ -13,7 +13,7 @@ const MIN_COVG: i32 = 3;
 const MAX_COVG: i32 = i32::MAX;
 const MIN_SB: f32 = 0.01;
 const MIN_GTCONF: f32 = 5.0;
-const MIN_FRS: f32 = 0.51;
+const MIN_FRS: f32 = 0.0;
 
 /// A collection of custom errors relating to the Tags enum
 #[derive(Error, Debug, PartialEq, Eq)]

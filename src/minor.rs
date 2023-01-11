@@ -42,10 +42,10 @@ pub struct MinorAllele {
     pub(crate) max_gaps_diff: f32,
     /// Minimum depth allowed on a minor allele
     #[clap(long = "minor_min_covg", default_value_t = MINOR_MIN_COVG, hide = true)]
-    pub(crate) min_covg: i32,
+    pub(crate) minor_min_covg: i32,
     /// Minimum strand bias ratio allowed on a minor allele
     #[clap(long = "minor_min_strand_bias", default_value_t = MINOR_MIN_STRAND_BIAS, hide = true)]
-    pub(crate) min_strand_bias: f32,
+    pub(crate) minor_min_strand_bias: f32,
 }
 
 impl MinorAllele {
@@ -109,11 +109,11 @@ impl MinorAllele {
                 let (fc, rc) = record.coverage().unwrap_or_else(|| (vec![0], vec![0]));
                 let sum_covg = (fc[gt] + rc[gt]) as f32;
                 let covg = fc.get(gt).unwrap_or(&0) + rc.get(gt).unwrap_or(&0);
-                let has_low_covg = covg < self.min_covg;
+                let has_low_covg = covg < self.minor_min_covg;
                 let has_strand_bias = if approx_eq!(f32, sum_covg, 0.0) {
                     true
                 } else {
-                    fc[gt].min(rc[gt]) as f32 / sum_covg < self.min_strand_bias
+                    fc[gt].min(rc[gt]) as f32 / sum_covg < self.minor_min_strand_bias
                 };
 
                 if has_low_covg || has_strand_bias {
@@ -165,8 +165,8 @@ mod tests {
             max_gaps: 0.5,
             max_called_gaps: 0.5,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         ma.add_vcf_headers(&mut header);
         let vcf =
@@ -298,8 +298,8 @@ mod tests {
             max_gaps: 0.5,
             max_called_gaps: 0.5,
             max_gaps_diff: 0.3,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -338,8 +338,8 @@ mod tests {
             max_gaps: 0.5,
             max_called_gaps: 0.5,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -379,8 +379,8 @@ mod tests {
             max_gaps: 0.5,
             max_called_gaps: 0.5,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -420,8 +420,8 @@ mod tests {
             max_gaps: 0.4,
             max_called_gaps: 0.4,
             max_gaps_diff: 0.5,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -460,8 +460,8 @@ mod tests {
             max_gaps: 0.5,
             max_called_gaps: 0.5,
             max_gaps_diff: 0.0,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -497,8 +497,8 @@ mod tests {
             max_gaps: 0.3,
             max_called_gaps: 0.3,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -537,8 +537,8 @@ mod tests {
             max_gaps: 0.4,
             max_called_gaps: 0.4,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -577,8 +577,8 @@ mod tests {
             max_gaps: 0.4,
             max_called_gaps: 0.4,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -617,8 +617,8 @@ mod tests {
             max_gaps: 0.4,
             max_called_gaps: 0.4,
             max_gaps_diff: 0.1,
-            min_covg: 0,
-            min_strand_bias: 0.0,
+            minor_min_covg: 0,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -657,8 +657,8 @@ mod tests {
             max_gaps: 0.3,
             max_called_gaps: 0.3,
             max_gaps_diff: 0.1,
-            min_covg: 3,
-            min_strand_bias: 0.0,
+            minor_min_covg: 3,
+            minor_min_strand_bias: 0.0,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -697,8 +697,8 @@ mod tests {
             max_gaps: 0.3,
             max_called_gaps: 0.3,
             max_gaps_diff: 0.1,
-            min_covg: 3,
-            min_strand_bias: 0.01,
+            minor_min_covg: 3,
+            minor_min_strand_bias: 0.01,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -737,8 +737,8 @@ mod tests {
             max_gaps: 0.3,
             max_called_gaps: 0.3,
             max_gaps_diff: 0.1,
-            min_covg: 3,
-            min_strand_bias: 0.01,
+            minor_min_covg: 3,
+            minor_min_strand_bias: 0.01,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
@@ -777,8 +777,8 @@ mod tests {
             max_gaps: 0.5,
             max_called_gaps: 0.39,
             max_gaps_diff: 0.2,
-            min_covg: 3,
-            min_strand_bias: 0.01,
+            minor_min_covg: 3,
+            minor_min_strand_bias: 0.01,
         };
         let tmp = NamedTempFile::new().unwrap();
         let path = tmp.path();
