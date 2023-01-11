@@ -41,10 +41,10 @@ pub struct MinorAllele {
     #[clap(long, default_value_t = MAX_GAPS_DIFF, hide = true)]
     pub(crate) max_gaps_diff: f32,
     /// Minimum depth allowed on a minor allele
-    #[clap(long = "minor_min_covg", default_value_t = MINOR_MIN_COVG, hide = true)]
+    #[clap(long, default_value_t = MINOR_MIN_COVG, hide = true)]
     pub(crate) minor_min_covg: i32,
     /// Minimum strand bias ratio allowed on a minor allele
-    #[clap(long = "minor_min_strand_bias", default_value_t = MINOR_MIN_STRAND_BIAS, hide = true)]
+    #[clap(long, default_value_t = MINOR_MIN_STRAND_BIAS, hide = true)]
     pub(crate) minor_min_strand_bias: f32,
 }
 
