@@ -63,12 +63,13 @@ def infer_mykrobe_depth_reports(wildcards):
     return files
 
 
-def infer_drprg_tech_opts(wildcards) -> str:
+def infer_drprg_tech_opts(wildcards, override_depth = None) -> str:
     if wildcards.tech == "illumina":
         minor_opts = config["minor"]
+        min_minor_cov = minor_opts['min_covg'] if override_depth is None else 1
         opts = (
             f"-I -f {minor_opts['frac']} --max-gaps {minor_opts['gaps']} "
-            f"--minor-min-covg {minor_opts['min_covg']} "
+            f"--minor-min-covg {min_minor_cov} "
             f"--minor-min-strand-bias {minor_opts['min_strand_bias']} "
             f"--max-gaps-diff {minor_opts['diff']} "
             f"--max-called-gaps {minor_opts['called_gaps']} "
