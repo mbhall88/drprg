@@ -45,7 +45,7 @@ def infer_mykrobe_reports(wildcards):
 
 def infer_mykrobe_depth_reports(wildcards):
     if wildcards.tech == "illumina":
-        df = illumina_df
+        df = illumina_depth_df
     else:
         df = ont_df
 
@@ -231,7 +231,7 @@ def infer_drprg_reports(wildcards):
 
 def infer_drprg_depth_reports(wildcards):
     if wildcards.tech == "illumina":
-        df = illumina_df
+        df = illumina_depth_df
     else:
         df = ont_df
 
@@ -270,7 +270,7 @@ def infer_tbprofiler_reports(wildcards):
 
 def infer_tbprofiler_depth_reports(wildcards):
     if wildcards.tech == "illumina":
-        df = illumina_df
+        df = illumina_depth_df
     else:
         df = ont_df
 
