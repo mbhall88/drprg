@@ -26,6 +26,23 @@ rule plot_phenotype_availability:
         SCRIPTS / "plot_susceptibility_availability.py"
 
 
+rule plot_sample_depth:
+    input:
+        qc=rules.qc_summary.output.summary,
+    output:
+        plots=report(
+            multiext(str(PLOTS / "QC/{tech}.depth"), ".png", ".svg"),
+            category="QC",
+            subcategory="Depth",
+            labels=dict(technology="{tech}")
+        )
+    log:
+        LOGS / "plot_sample_depth/{tech}.log"
+    conda:
+        ENVS / "plot_predict_benchmark.yaml"
+    script:
+        SCRIPTS / "plot_sample_depth.py"
+
 rule compare_sn_and_sp:
     input:
         summary_files=expand(
