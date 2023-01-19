@@ -590,6 +590,8 @@ impl Pandora {
             "map",
             "--genotype",
             "--local",
+            "--gt-conf",
+            "0",
             "-v",
             "-o",
             &outdir.to_string_lossy(),
