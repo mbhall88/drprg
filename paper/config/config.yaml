@@ -60,8 +60,8 @@ filters:
     nanopore: 0.0
     illumina: 0.0
   min_gt_conf:
-    nanopore: 5
-    illumina: 5
+    nanopore: 0
+    illumina: 0
 
 containers:
   base: "docker://bash:5.1"
