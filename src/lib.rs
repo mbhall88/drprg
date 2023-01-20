@@ -900,6 +900,7 @@ pub trait VcfExt {
     fn argmatch(&self, other: &Self) -> Option<usize>;
     fn is_indel(&self) -> bool;
     fn depth_proportions(&self) -> Option<Vec<f32>>;
+    fn has_no_depth(&self) -> bool;
 }
 
 impl VcfExt for bcf::Record {
@@ -1124,6 +1125,12 @@ impl VcfExt for bcf::Record {
             return None;
         }
         Some(allelic_depths.iter().map(|d| d / total_depth).collect())
+    }
+
+    fn has_no_depth(&self) -> bool {
+        let Some((fc, rc)) = self.coverage() else { return true };
+        let total_depth: i32 = fc.iter().chain(rc.iter()).sum();
+        total_depth == 0
     }
 }
 
@@ -1401,6 +1408,50 @@ mod tests {
         let expected = Some((vec![5, 0], vec![6, 1]));
 
         assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_record_has_no_depth_true() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[0, 0])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[0, 0])
+            .expect("Failed to set reverse coverage");
+
+        assert!(record.has_no_depth())
+    }
+
+    #[test]
+    fn test_record_has_no_depth_false() {
+        let tmp = NamedTempFile::new().unwrap();
+        let path = tmp.path();
+        let mut header = Header::new();
+
+        header.push_sample(b"sample").push_record(br#"##FORMAT=<ID=MEAN_FWD_COVG,Number=R,Type=Integer,Description="Med forward coverage">"#).push_record(br#"##FORMAT=<ID=MEAN_REV_COVG,Number=R,Type=Integer,Description="Med reverse coverage">"#);
+        let vcf =
+            bcf::Writer::from_path(path, &header, true, bcf::Format::Vcf).unwrap();
+        let mut record = vcf.empty_record();
+        let alleles: &[&[u8]] = &[b"AGG", b"TG"];
+        record.set_alleles(alleles).expect("Failed to set alleles");
+        record
+            .push_format_integer(b"MEAN_FWD_COVG", &[0, 0])
+            .expect("Failed to set forward coverage");
+        record
+            .push_format_integer(b"MEAN_REV_COVG", &[0, 1])
+            .expect("Failed to set reverse coverage");
+
+        assert!(!record.has_no_depth())
     }
 
     #[test]

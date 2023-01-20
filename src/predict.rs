@@ -37,6 +37,7 @@ use crate::minor::MinorAllele;
 
 use noodles::fasta;
 use regex::Regex;
+use rust_htslib::bcf::record::GenotypeAllele;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::iter::FromIterator;
@@ -430,6 +431,11 @@ impl Predict {
                 .context(format!("Failed to read record {} in pandora VCF", i))?;
 
             writer.translate(&mut record);
+            if record.has_no_depth() && record.gt_conf() == Some(0.0) {
+                record
+                    .push_genotypes(&[GenotypeAllele::Unphased(-1)])
+                    .context(format!("Failed to set record {} genotype to null", i))?;
+            }
             self.filterer.filter(&mut record)?;
             record
                 .set_id(Uuid::new_v4().to_string()[..8].as_bytes())
@@ -1923,6 +1929,116 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::assertions_on_constants)]
+    /// This tests that we change the genotype of positions with no depth and zero gt conf to null
+    fn test_predict_from_pandora_vcf_nullify_zero_depth_and_zero_confidence_calls() {
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 0.0,
+            ..Default::default()
+        };
+        let maf_checker = MinorAllele {
+            maf: 0.1,
+            max_gaps: 0.3,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            maf_checker,
+            ..Default::default()
+        };
+        let pandora_vcf_path = Path::new("tests/cases/predict/ERR4796933.pandora.vcf");
+
+        let result = pred.predict_from_pandora_vcf(pandora_vcf_path);
+        assert!(result.is_ok());
+
+        let mut expected_rdr = bcf::Reader::from_path(Path::new(
+            "tests/cases/predict/ERR4796933.drprg.vcf",
+        ))
+        .unwrap();
+        let mut actual_rdr =
+            bcf::Reader::from_path(tmpoutdir.join("test.drprg.bcf")).unwrap();
+        let mut actual_records = actual_rdr.records();
+        for r in expected_rdr.records() {
+            let expected_record = r.unwrap();
+            let actual_record = actual_records.next().unwrap().unwrap();
+            assert_eq!(expected_record.pos(), actual_record.pos());
+            let expected_varid = expected_record.info(b"VARID").string().unwrap();
+            let actual_varid = actual_record.info(b"VARID").string().unwrap();
+            match (expected_varid, actual_varid) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(
+                    false,
+                    "{}:{} {}:{}",
+                    actual_record.contig(),
+                    actual_record.pos(),
+                    expected_record.contig(),
+                    expected_record.pos()
+                ),
+                (None, None) => assert!(true),
+            }
+
+            let expected_pred = expected_record.info(b"PREDICT").string().unwrap();
+            let actual_pred = actual_record.info(b"PREDICT").string().unwrap();
+            match (expected_pred, actual_pred) {
+                (Some(bb1), Some(bb2)) => {
+                    let mut left = bb1.to_owned();
+                    let mut right = bb2.to_owned();
+                    left.sort_unstable();
+                    right.sort_unstable();
+                    assert_eq!(
+                        left,
+                        right,
+                        "{}:{} {}:{}",
+                        actual_record.contig(),
+                        actual_record.pos(),
+                        expected_record.contig(),
+                        expected_record.pos()
+                    )
+                }
+                (None, Some(_)) | (Some(_), None) => assert!(false),
+                (None, None) => assert!(true),
+            }
+
+            let expected_gt = expected_record.called_allele();
+            let actual_gt = actual_record.called_allele();
+            assert_eq!(
+                expected_gt,
+                actual_gt,
+                "{}:{} {}:{}",
+                actual_record.contig(),
+                actual_record.pos(),
+                expected_record.contig(),
+                expected_record.pos()
+            )
+        }
+    }
+
+    #[test]
     fn test_vcf_to_json() {
         use std::io::Read;
         use std::iter::Iterator;
@@ -2146,7 +2262,7 @@ mod tests {
             filterer: filt,
             ..Default::default()
         };
-        let vcf_path = Path::new("tests/cases/predict/ERR4796933.vcf");
+        let vcf_path = Path::new("tests/cases/predict/ERR4796933.drprg.vcf");
         let result = pred.vcf_to_json(vcf_path, 100);
         assert!(result.is_ok());
 
