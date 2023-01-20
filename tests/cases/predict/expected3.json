@@ -5,7 +5,6 @@
       "eis",
       "embA",
       "embB",
-      "ethA",
       "fabG1",
       "gid",
       "gyrA",
@@ -20,7 +19,8 @@
       "tlyA"
     ],
     "present": [
-      "ahpC"
+      "ahpC",
+      "ethA"
     ]
   },
   "sample": "test",

@@ -1,11 +1,15 @@
 {
   "genes": {
     "absent": [
+    ],
+    "present": [
       "ahpC",
       "ddn",
       "eis",
       "embA",
       "embB",
+      "ethA",
+      "fabG1",
       "gid",
       "gyrA",
       "gyrB",
@@ -17,10 +21,6 @@
       "rpsL",
       "rrs",
       "tlyA"
-    ],
-    "present": [
-      "ethA",
-      "fabG1"
     ]
   },
   "sample": "test",
@@ -48,24 +48,17 @@
     "Ethionamide": {
       "evidence": [
         {
-          "gene": "fabG1",
+          "gene": "ethA",
           "residue": "DNA",
-          "variant": "CTG607CTA",
-          "vcfid": "0745e4ee"
+          "variant": "start_lost",
+          "vcfid": "04dae167,e701a0b8,33aa4fa6,902bd677"
         }
       ],
       "predict": "R"
     },
     "Isoniazid": {
-      "evidence": [
-        {
-          "gene": "fabG1",
-          "residue": "DNA",
-          "variant": "CTG607CTA",
-          "vcfid": "0745e4ee"
-        }
-      ],
-      "predict": "R"
+      "evidence": [],
+      "predict": "S"
     },
     "Kanamycin": {
       "evidence": [],
@@ -88,15 +81,8 @@
       "predict": "S"
     },
     "Pyrazinamide": {
-      "evidence": [
-        {
-          "gene": "pncA",
-          "residue": "DNA",
-          "variant": "gene_absent",
-          "vcfid": ""
-        }
-      ],
-      "predict": "R"
+      "evidence": [],
+      "predict": "S"
     },
     "Rifampicin": {
       "evidence": [],

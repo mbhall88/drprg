@@ -21,6 +21,7 @@
 ##FORMAT=<ID=LIKELIHOOD,Number=R,Type=Float,Description="Likelihood">
 ##FORMAT=<ID=GT_CONF,Number=1,Type=Float,Description="Genotype confidence">
 ##contig=<ID=fabG1>
+##contig=<ID=ethA>
 ##FILTER=<ID=ld,Description="Kmer coverage on called allele less than 3">
 ##FILTER=<ID=sb,Description="A strand on the called allele has less than 1.00% of the coverage for that allele">
 ##FILTER=<ID=lgc,Description="Genotype confidence score less than 5.0">

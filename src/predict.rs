@@ -40,6 +40,7 @@ use regex::Regex;
 use std::fs::File;
 use std::io::{BufReader, Write};
 use std::iter::FromIterator;
+use std::ops::Range;
 
 static NONE_DRUG: &str = "NONE";
 // DEFAULT CLI OPTS
@@ -788,6 +789,9 @@ impl Predict {
             check_for_start_loss
                 .insert(gene.to_owned(), Vec::from_iter(rule.drugs.to_owned()));
         }
+        type OptionalIntervalWithId = Option<(Range<i64>, String)>;
+        let mut null_intervals: HashMap<String, Vec<OptionalIntervalWithId>> =
+            HashMap::new();
 
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
@@ -836,38 +840,24 @@ impl Predict {
 
             // we basically ignore the FILTER column if the variant failed genotyping as we want to
             // output this because it could indicate a deletion or some other event
-            let is_failed = *max_pred == Prediction::Failed;
-            if (!record.is_pass() && !is_failed) || *max_pred == Prediction::None {
-                continue;
+            let is_failed =
+                *max_pred == Prediction::Failed || record.called_allele() < 0;
+
+            if check_for_start_loss.get(&record.contig()).is_some() {
+                let entry = null_intervals.entry(record.contig()).or_default();
+                let element = if is_failed {
+                    Some((
+                        record.range(),
+                        String::from_utf8_lossy(&record.id()).into_owned(),
+                    ))
+                } else {
+                    None
+                };
+                entry.push(element);
             }
 
-            if is_failed {
-                let record_spans_start = record.range().contains(&(padding as i64));
-                if record_spans_start {
-                    if let Some(drugs) = check_for_start_loss.get(&record.contig()) {
-                        for drug in drugs {
-                            if drug == NONE_DRUG {
-                                continue;
-                            }
-                            let evidence = Evidence {
-                                variant: Variant::start_lost(),
-                                gene: record.contig().to_owned(),
-                                residue: Residue::Nucleic,
-                                vcfid: String::from_utf8_lossy(&record.id())
-                                    .into_owned(),
-                            };
-                            let entry = json
-                                .entry(drug.to_string())
-                                .or_insert_with(Susceptibility::default);
-                            if entry.predict == Prediction::Resistant {
-                                entry.evidence.push(evidence);
-                            } else {
-                                entry.predict = Prediction::Resistant;
-                                entry.evidence = vec![evidence];
-                            }
-                        }
-                    }
-                }
+            if (!record.is_pass() && !is_failed) || *max_pred == Prediction::None {
+                continue;
             }
 
             for (prediction, varid) in preds
@@ -948,6 +938,60 @@ impl Predict {
                 }
             }
         }
+
+        for (gene, ivs) in null_intervals {
+            let mut current_start: Option<i64> = None;
+            let mut null_spans_start = false;
+            let mut vcfids = Vec::new();
+            for el in ivs {
+                match el {
+                    Some((iv, vcfid)) => {
+                        vcfids.push(vcfid);
+                        if current_start.is_none() {
+                            current_start = Some(iv.start);
+                        }
+                        let rng = current_start.unwrap()..iv.end;
+                        if rng.contains(&(padding as i64)) {
+                            null_spans_start = true;
+                        }
+                    }
+                    None => {
+                        current_start = None;
+                        if null_spans_start {
+                            break;
+                        } else {
+                            vcfids.clear();
+                        }
+                    }
+                }
+            }
+            if null_spans_start {
+                if let Some(drugs) = check_for_start_loss.get(&gene) {
+                    let vcfid = vcfids.join(",");
+                    for drug in drugs {
+                        if drug == NONE_DRUG {
+                            continue;
+                        }
+                        let evidence = Evidence {
+                            variant: Variant::start_lost(),
+                            gene: gene.to_owned(),
+                            residue: Residue::Nucleic,
+                            vcfid: vcfid.to_owned(),
+                        };
+                        let entry = json
+                            .entry(drug.to_string())
+                            .or_insert_with(Susceptibility::default);
+                        if entry.predict == Prediction::Resistant {
+                            entry.evidence.push(evidence);
+                        } else {
+                            entry.predict = Prediction::Resistant;
+                            entry.evidence = vec![evidence];
+                        }
+                    }
+                }
+            }
+        }
+
         for (_, (drugs, _)) in var2drugs {
             for d in drugs {
                 if d != NONE_DRUG {
@@ -2029,7 +2073,7 @@ mod tests {
     }
 
     #[test]
-    fn test_vcf_to_json_partial_gene_deletion_start_lost() {
+    fn test_vcf_to_json_partial_gene_deletion_start_lost_single_null_position() {
         use std::io::Read;
         use std::iter::Iterator;
 
@@ -2068,6 +2112,56 @@ mod tests {
 
         buffer.clear();
         let file = File::open("tests/cases/predict/SRR6824468.json").unwrap();
+        let mut reader = BufReader::new(file);
+        reader.read_to_string(&mut buffer).unwrap();
+        let expected = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_vcf_to_json_partial_gene_deletion_start_lost_multiple_null_positions() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/ERR4796933.vcf");
+        let result = pred.vcf_to_json(vcf_path, 100);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        buffer.clear();
+        let file = File::open("tests/cases/predict/ERR4796933.json").unwrap();
         let mut reader = BufReader::new(file);
         reader.read_to_string(&mut buffer).unwrap();
         let expected = buffer
