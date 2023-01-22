@@ -25,6 +25,16 @@ def load_susceptibility(stream) -> dict:
     return data["susceptibility"]
 
 
+def evidence_to_str(evidence: list[dict]) -> str:
+    mut_strs = []
+    for ev in evidence:
+        gene = ev["gene"]
+        v = ev["variant"]
+        mut_strs.append(f"{gene}_{v}")
+
+    return ";".join(mut_strs)
+
+
 with open(snakemake.output.report, "w") as fout:
 
     print(
@@ -37,6 +47,7 @@ with open(snakemake.output.report, "w") as fout:
                 "tool",
                 "drug",
                 "prediction",
+                "mutations",
             ]
         ),
         file=fout,
@@ -58,6 +69,8 @@ with open(snakemake.output.report, "w") as fout:
             continue
 
         for drug, pred in report.items():
+            evidence = pred["evidence"]
+
             print(
                 DELIM.join(
                     (
@@ -68,6 +81,7 @@ with open(snakemake.output.report, "w") as fout:
                         "drprg",
                         drug,
                         pred["predict"],
+                        evidence_to_str(evidence),
                     )
                 ),
                 file=fout,

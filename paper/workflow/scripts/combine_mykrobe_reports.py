@@ -48,6 +48,7 @@ def load_report(p: Path) -> list[str]:
     rows = []
 
     for drug, pred in report.items():
+        evidence = pred.get("called_by", dict())
         row = DELIM.join(
             (
                 run,
@@ -57,11 +58,20 @@ def load_report(p: Path) -> list[str]:
                 "mykrobe",
                 drug,
                 pred["predict"],
+                evidence_to_str(evidence),
             )
         )
         rows.append(row)
 
     return rows
+
+
+def evidence_to_str(evidence: dict[str, dict]) -> str:
+    mut_strs = []
+    for variant in evidence:
+        mut_strs.append(variant.split("-")[0])
+
+    return ";".join(mut_strs)
 
 
 def flatten(list_of_lists):
@@ -82,6 +92,7 @@ def main():
                     "tool",
                     "drug",
                     "prediction",
+                    "mutations",
                 ]
             ),
             file=fout,

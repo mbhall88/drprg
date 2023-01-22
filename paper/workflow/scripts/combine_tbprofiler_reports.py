@@ -1,4 +1,5 @@
 import sys
+from collections import defaultdict
 
 sys.stderr = open(snakemake.log[0], "w")
 
@@ -38,6 +39,7 @@ with open(snakemake.output.report, "w") as fout:
                 "tool",
                 "drug",
                 "prediction",
+                "mutations",
             ]
         ),
         file=fout,
@@ -56,28 +58,26 @@ with open(snakemake.output.report, "w") as fout:
 
         if not report:
             print(
-                DELIM.join(
-                    (
-                        run,
-                        sample,
-                        proj,
-                        tech,
-                        "tbprofiler",
-                        "all",
-                        "S",
-                    )
-                ),
+                DELIM.join((run, sample, proj, tech, "tbprofiler", "all", "S", "")),
                 file=fout,
             )
             continue
 
-        seen_drugs = set()
+        drug_variants = defaultdict(set)
 
         for variant in report:
+            gene = variant["gene"]
+            v = variant["change"]
+            mut = f"{gene}_{v}"
             for info in variant["drugs"]:
                 drug = info["drug"]
-                if info["confers"] != "resistance" or drug in seen_drugs:
+                if info["confers"] != "resistance":
                     continue
+                else:
+                    drug_variants[mut].add(drug)
+
+        for mutation, drugs in drug_variants.items():
+            for d in drugs:
                 print(
                     DELIM.join(
                         (
@@ -86,10 +86,10 @@ with open(snakemake.output.report, "w") as fout:
                             proj,
                             tech,
                             "tbprofiler",
-                            drug,
+                            d,
                             "R",
+                            mutation,
                         )
                     ),
                     file=fout,
                 )
-                seen_drugs.add(drug)
