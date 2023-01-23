@@ -1,0 +1,96 @@
+{
+  "genes": {
+    "absent": [
+    ],
+    "present": [
+      "ahpC",
+      "ddn",
+      "eis",
+      "embA",
+      "embB",
+      "ethA",
+      "fabG1",
+      "gid",
+      "gyrA",
+      "gyrB",
+      "inhA",
+      "katG",
+      "pncA",
+      "rplC",
+      "rpoB",
+      "rpsL",
+      "rrs",
+      "tlyA"
+    ]
+  },
+  "sample": "test",
+  "susceptibility": {
+    "Amikacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Capreomycin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ciprofloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Delamanid": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ethambutol": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ethionamide": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Isoniazid": {
+      "evidence": [
+        {
+          "gene": "katG",
+          "residue": "DNA",
+          "variant": "stop_lost",
+          "vcfid": "3c0d1df2,cd194b85,4b33ae53,2ab90027,d3f926b7,9bc6e631"
+        }
+      ],
+      "predict": "U"
+    },
+    "Kanamycin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Levofloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Linezolid": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Moxifloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Ofloxacin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Pyrazinamide": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Rifampicin": {
+      "evidence": [],
+      "predict": "S"
+    },
+    "Streptomycin": {
+      "evidence": [],
+      "predict": "S"
+    }
+  }
+}

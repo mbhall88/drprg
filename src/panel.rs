@@ -5,6 +5,7 @@ use std::hash::{Hash, Hasher};
 use std::ops::RangeInclusive;
 use std::str::FromStr;
 
+use crate::report::STOP;
 use bstr::ByteSlice;
 use regex::Regex;
 use rust_htslib::bcf;
@@ -204,11 +205,21 @@ impl Variant {
             new: "-".to_string(),
         }
     }
+    pub fn stop_lost(pos: i64) -> Self {
+        Self {
+            reference: STOP.to_string(),
+            pos,
+            new: "-".to_string(),
+        }
+    }
     pub fn is_gene_deletion(&self) -> bool {
         self.reference.is_empty() && self.pos == 0 && self.new == "-"
     }
     pub fn is_start_lost(&self) -> bool {
         self.reference.is_empty() && self.pos == 1 && self.new == "-"
+    }
+    pub fn is_stop_lost(&self) -> bool {
+        self.reference == STOP && self.pos >= 1 && self.new == "-"
     }
 
     pub fn range(&self) -> RangeInclusive<i64> {
@@ -227,6 +238,8 @@ impl fmt::Display for Variant {
             "gene_absent".to_string()
         } else if self.is_start_lost() {
             "start_lost".to_string()
+        } else if self.is_stop_lost() {
+            "stop_lost".to_string()
         } else {
             format!("{}{}{}", &self.reference, self.pos, &self.new)
         };

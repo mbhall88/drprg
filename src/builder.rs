@@ -452,6 +452,10 @@ impl Runner for Build {
                 }
             }
         }
+        debug!("Indexing the genes reference fasta...");
+        index_fasta(&gene_refs_path)
+            .context("Failed to index genes reference fasta")?;
+
         debug!("Sorting the original panel VCF...");
         let bcftools = Bcftools::from_path(&self.bcftools_exec)?;
         bcftools

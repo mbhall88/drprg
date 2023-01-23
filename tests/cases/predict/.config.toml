@@ -1,0 +1,5 @@
+min_match_len = 5
+max_nesting = 5
+k = 15
+w = 11
+padding = 100

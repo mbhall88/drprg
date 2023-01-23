@@ -36,7 +36,7 @@ use crate::expert::{ExpertRules, RuleExt, VariantType};
 use crate::minor::MinorAllele;
 
 use noodles::fasta;
-use regex::Regex;
+use noodles::fasta::fai;
 use rust_htslib::bcf::record::GenotypeAllele;
 use std::fs::File;
 use std::io::{BufReader, Write};
@@ -364,6 +364,10 @@ impl Predict {
 
     fn index_vcf_ref_path(&self) -> PathBuf {
         self.index.join("genes.fa")
+    }
+
+    fn index_vcf_ref_faidx_path(&self) -> PathBuf {
+        self.index.join("genes.fa.fai")
     }
 
     fn index_msa_dir(&self) -> PathBuf {
@@ -849,18 +853,16 @@ impl Predict {
             let is_failed =
                 *max_pred == Prediction::Failed || record.called_allele() < 0;
 
-            if check_for_start_loss.get(&record.contig()).is_some() {
-                let entry = null_intervals.entry(record.contig()).or_default();
-                let element = if is_failed {
-                    Some((
-                        record.range(),
-                        String::from_utf8_lossy(&record.id()).into_owned(),
-                    ))
-                } else {
-                    None
-                };
-                entry.push(element);
-            }
+            let entry = null_intervals.entry(record.contig()).or_default();
+            let element = if is_failed {
+                Some((
+                    record.range(),
+                    String::from_utf8_lossy(&record.id()).into_owned(),
+                ))
+            } else {
+                None
+            };
+            entry.push(element);
 
             if (!record.is_pass() && !is_failed) || *max_pred == Prediction::None {
                 continue;
@@ -945,14 +947,28 @@ impl Predict {
             }
         }
 
+        let index = fai::read(self.index_vcf_ref_faidx_path())
+            .context("Failed to read vcf reference faidx")?;
+        let mut gene_lengths: HashMap<String, u64> = HashMap::new();
+        for idx_record in index {
+            let gene = idx_record.name();
+            gene_lengths.insert(gene.to_string(), idx_record.len());
+        }
+
         for (gene, ivs) in null_intervals {
+            // safe to unwrap as we only have genes that occur in the index anyway
+            let stop_pos: i64 =
+                (gene_lengths.get(&gene).unwrap() - (padding as u64)) as i64;
             let mut current_start: Option<i64> = None;
             let mut null_spans_start = false;
-            let mut vcfids = Vec::new();
+            let mut null_spans_stop = false;
+            let mut start_vcfids = Vec::new();
+            let mut stop_vcfids = Vec::new();
             for el in ivs {
                 match el {
                     Some((iv, vcfid)) => {
-                        vcfids.push(vcfid);
+                        start_vcfids.push(vcfid.to_owned());
+                        stop_vcfids.push(vcfid.to_owned());
                         if current_start.is_none() {
                             current_start = Some(iv.start);
                         }
@@ -960,20 +976,24 @@ impl Predict {
                         if rng.contains(&(padding as i64)) {
                             null_spans_start = true;
                         }
+                        if rng.contains(&stop_pos) {
+                            null_spans_stop = true;
+                        }
                     }
                     None => {
                         current_start = None;
-                        if null_spans_start {
-                            break;
-                        } else {
-                            vcfids.clear();
+                        if !null_spans_start {
+                            start_vcfids.clear();
+                        }
+                        if !null_spans_stop {
+                            stop_vcfids.clear();
                         }
                     }
                 }
             }
             if null_spans_start {
                 if let Some(drugs) = check_for_start_loss.get(&gene) {
-                    let vcfid = vcfids.join(",");
+                    let vcfid = start_vcfids.join(",");
                     for drug in drugs {
                         if drug == NONE_DRUG {
                             continue;
@@ -992,6 +1012,37 @@ impl Predict {
                         } else {
                             entry.predict = Prediction::Resistant;
                             entry.evidence = vec![evidence];
+                        }
+                    }
+                }
+            }
+            if null_spans_stop {
+                if let Some(drugs) = gene2drugs.get(&gene) {
+                    let vcfid = stop_vcfids.join(",");
+                    for drug in drugs {
+                        if drug == NONE_DRUG {
+                            continue;
+                        }
+                        let evidence = Evidence {
+                            variant: Variant::stop_lost(
+                                *gene_lengths.get(&gene).unwrap() as i64,
+                            ),
+                            gene: gene.to_owned(),
+                            residue: Residue::Nucleic,
+                            vcfid: vcfid.to_owned(),
+                        };
+                        let entry = json
+                            .entry(drug.to_string())
+                            .or_insert_with(Susceptibility::default);
+                        match entry.predict {
+                            Prediction::Unknown => {
+                                entry.evidence.push(evidence);
+                            }
+                            p if p < Prediction::Unknown => {
+                                entry.predict = Prediction::Unknown;
+                                entry.evidence = vec![evidence];
+                            }
+                            _ => {}
                         }
                     }
                 }
@@ -1029,6 +1080,9 @@ impl Predict {
 
     fn consequence(&self, record: &bcf::Record) -> Result<Evidence, PredictError> {
         let gene_name = record.contig();
+        let config = Config::from_path(self.index_config())
+            .map_err(|_| PredictError::InvalidIndex(self.index_config()))?;
+        let padding = config.padding as i64;
 
         let mut rdr = File::open(self.index_vcf_ref_path())
             .map(BufReader::new)
@@ -1048,30 +1102,6 @@ impl Predict {
             if gene.name() != gene_name {
                 continue;
             }
-            let description = gene.description().ok_or_else(|| {
-                PredictError::ConsequenceError(format!(
-                    "Expected gene ({}) record to have padding in description",
-                    gene_name
-                ))
-            })?;
-            let re = Regex::new(r"padding=(?P<padding>\d+)").unwrap();
-            let caps = re.captures(description).ok_or_else(|| {
-                PredictError::ConsequenceError(format!(
-                    "Could not get padding from header - {}",
-                    gene_name
-                ))
-            })?;
-            let padding_as_str = caps
-                .name("padding")
-                .ok_or_else(|| {
-                    PredictError::ConsequenceError(format!(
-                        "Could not get padding from header - {}",
-                        gene_name
-                    ))
-                })?
-                .as_str();
-            // unwrap here as it would not have been captured if it wasn't a positive int
-            let padding = i64::from_str(padding_as_str).unwrap();
 
             return consequence_of_variant(record, padding, &gene)
                 .map_err(PredictError::ConsequenceError);
@@ -2278,6 +2308,56 @@ mod tests {
 
         buffer.clear();
         let file = File::open("tests/cases/predict/ERR4796933.json").unwrap();
+        let mut reader = BufReader::new(file);
+        reader.read_to_string(&mut buffer).unwrap();
+        let expected = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        assert_eq!(actual, expected)
+    }
+
+    #[test]
+    fn test_vcf_to_json_partial_gene_deletion_stop_lost_multiple_null_positions() {
+        use std::io::Read;
+        use std::iter::Iterator;
+
+        let tmp = TempDir::new().unwrap();
+        let tmpoutdir = tmp.path();
+        let filt = Filterer {
+            min_frs: 0.51,
+            min_covg: 3,
+            min_strand_bias: 0.01,
+            max_indel: Some(20),
+            min_gt_conf: 5.0,
+            ..Default::default()
+        };
+        let pred = Predict {
+            pandora_exec: Some(PathBuf::from("src/ext/pandora")),
+            index: PathBuf::from("tests/cases/predict"),
+            outdir: PathBuf::from(tmpoutdir),
+            sample: Some("test".to_string()),
+            ignore_synonymous: true,
+            filterer: filt,
+            ..Default::default()
+        };
+        let vcf_path = Path::new("tests/cases/predict/ERR2510634.drprg.vcf");
+        let result = pred.vcf_to_json(vcf_path, 100);
+        assert!(result.is_ok());
+
+        let json_path = result.unwrap();
+        let file = File::open(json_path).unwrap();
+        let mut reader = BufReader::new(file);
+        let mut buffer = String::new();
+        reader.read_to_string(&mut buffer).unwrap();
+        let actual = buffer
+            .chars()
+            .filter(|c| !c.is_whitespace())
+            .collect::<String>();
+
+        buffer.clear();
+        let file = File::open("tests/cases/predict/ERR2510634.json").unwrap();
         let mut reader = BufReader::new(file);
         reader.read_to_string(&mut buffer).unwrap();
         let expected = buffer
