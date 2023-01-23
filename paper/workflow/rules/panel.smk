@@ -90,10 +90,15 @@ rule filter_popn_vcf:
     container:
         CONTAINERS["bcftools"]
     params:
-        opts="-t ^NC_000962.3:761094",  # this becomes rpoB:1396 in drprg bcf and is an indel that is causing coverage problems
+        targets=",".join(
+            [
+                "^NC_000962.3:761094", # this becomes rpoB:1396 in drprg bcf and is an indel that is causing coverage problems
+                "NC_000962.3:4407954", # this becomes gid:330 in drprg and spans common variants causing errors
+            ]
+        ),
     shell:
         """
-        bcftools view {params.opts} -o {output.vcf} {input.vcf} 2> {log}
+        bcftools view -t {params.targets} -o {output.vcf} {input.vcf} 2> {log}
         bcftools index -f {output.vcf} 2>> {log}
         """
 
