@@ -74,22 +74,22 @@ with open(snakemake.output.report, "w") as fout:
                 if info["confers"] != "resistance":
                     continue
                 else:
-                    drug_variants[mut].add(drug)
+                    drug_variants[drug].add(mut)
 
-        for mutation, drugs in drug_variants.items():
-            for d in drugs:
-                print(
-                    DELIM.join(
-                        (
-                            run,
-                            sample,
-                            proj,
-                            tech,
-                            "tbprofiler",
-                            d,
-                            "R",
-                            mutation,
-                        )
-                    ),
-                    file=fout,
-                )
+        for drug, mutations in drug_variants.items():
+            mut_str = ";".join(sorted(mutations))
+            print(
+                DELIM.join(
+                    (
+                        run,
+                        sample,
+                        proj,
+                        tech,
+                        "tbprofiler",
+                        drug,
+                        "R",
+                        mut_str,
+                    )
+                ),
+                file=fout,
+            )
