@@ -14,7 +14,7 @@ if [[ ! -d "$LOG_DIR" ]]; then
   exit 1
 fi
 
-MEMORY=4000
+MEMORY=16000
 THREADS=2
 PROFILE="lsf"
 BINDS="/tmp,$HOME"
