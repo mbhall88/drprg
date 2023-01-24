@@ -50,8 +50,8 @@ illumina_df = pd.read_csv(
     config["illumina_samplesheet"], low_memory=False, index_col="run"
 )
 illumina_df["run"] = illumina_df.index
-illumina_query = "run in @illumina_subsample_runs or delamanid.notna()"
-illumina_df.query(illumina_query, inplace=True)
+# illumina_query = "run in @illumina_subsample_runs or delamanid.notna()"
+# illumina_df.query(illumina_query, inplace=True)
 illumina_depth_df = illumina_df.query("(levofloxacin.notna() and streptomycin.notna() and kanamycin.isna() and ofloxacin.notna() and pyrazinamide.notna()) or (delamanid.notna() and pyrazinamide.notna() and levofloxacin.isna())")
 ont_df = pd.read_csv(config["nanopore_samplesheet"], index_col="run", low_memory=False)
 
