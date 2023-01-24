@@ -118,8 +118,6 @@ rule tbprofiler_predict:
     output:
         report=RESULTS
         / "amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/results/{run}.results.json",
-        vcf=RESULTS
-        / "amr_predictions/tbprofiler/{tech}/{proj}/{sample}/{run}/vcf/{run}.targets.csq.vcf.gz",
     log:
         LOGS / "tbprofiler_predict/{tech}/{proj}/{sample}/{run}.log",
     shadow:
