@@ -24,6 +24,7 @@ ARGS="--contain -B $BINDS"
 
 SNAKEMAKE_TMP="tmp/snakemake"
 mkdir -p "$SNAKEMAKE_TMP"
+trap 'rm -rf -- "$SNAKEMAKE_TMP"' EXIT
 
 bsub -R "select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" \
   -M "$MEMORY" \
