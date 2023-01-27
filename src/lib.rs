@@ -333,12 +333,12 @@ impl MakePrg {
 
         for gene in &genes_to_update {
             debug!("Updating MSA for {}", gene);
-            let existing_msa = index_msas_dir.join(format!("{}.fa", gene));
-            let new_sequence = dir.join(format!("{}.consensus.fa", gene));
+            let existing_msa = index_msas_dir.join(format!("{gene}.fa"));
+            let new_sequence = dir.join(format!("{gene}.consensus.fa"));
             {
                 let record = match faidx.get(gene) {
                     Some(Ok(r)) => r,
-                    _ => return Err(DependencyError::HtslibIndexError(format!("Could not extract {} from pandora discover consensus sequences", gene)))
+                    _ => return Err(DependencyError::HtslibIndexError(format!("Could not extract {gene} from pandora discover consensus sequences")))
                 };
                 let mut fa_writer =
                     File::create(&new_sequence).map(BufWriter::new).map(|f| {
@@ -346,11 +346,11 @@ impl MakePrg {
                             .set_line_base_count(usize::MAX)
                             .build()
                     })?;
-                let def = Definition::new(format!("{}_updated", gene), None);
+                let def = Definition::new(format!("{gene}_updated"), None);
                 let new_record = Record::new(def, record.sequence().to_owned());
                 fa_writer.write_record(&new_record)?;
             }
-            let updated_msa = update_msa_dir.join(format!("{}.fa", gene));
+            let updated_msa = update_msa_dir.join(format!("{gene}.fa"));
             aligner.run_with(
                 &existing_msa,
                 &updated_msa,
@@ -648,8 +648,7 @@ impl Pandora {
         let re = Regex::new(r"\n(?P<num>\d+) loci with denovo variants\n").unwrap();
         let contents = std::fs::read_to_string(denovo_file).map_err(|_| {
             DependencyError::NovelVariantParsingError(format!(
-                "Unable to read {:?}",
-                denovo_file
+                "Unable to read {denovo_file:?}",
             ))
         })?;
         let captures = re.captures(&contents).ok_or_else(|| {
@@ -798,8 +797,7 @@ pub fn index_vcf(path: &Path) -> Result<(), DependencyError> {
                     .to_string(),
             )),
             i => Err(DependencyError::HtslibIndexError(format!(
-                "Unknown htslib exit code ({}) received",
-                i
+                "Unknown htslib exit code ({i}) received",
             ))),
         }
     }
@@ -817,12 +815,10 @@ pub fn index_fasta(path: &Path) -> Result<PathBuf, DependencyError> {
         match rust_htslib::htslib::fai_build(fname.as_ptr()) {
             0 => Ok(path.add_extension(OsStr::new(".fai"))),
             -1 => Err(DependencyError::HtslibIndexError(format!(
-                "Fasta indexing failed (htslib exit code -1) {:?}",
-                path
+                "Fasta indexing failed (htslib exit code -1) {path:?}",
             ))),
             i => Err(DependencyError::HtslibIndexError(format!(
-                "Unknown htslib exit code ({}) received",
-                i
+                "Unknown htslib exit code ({i}) received",
             ))),
         }
     }
@@ -839,7 +835,7 @@ pub fn dependency_dir() -> PathBuf {
 /// Checks whether the program is executable. If it is, it returns the full path to the
 /// executable file
 pub fn is_executable(program: &str) -> Option<String> {
-    let cmd = format!("realpath $(command -v {})", program);
+    let cmd = format!("realpath $(command -v {program})");
     let result = Command::new("sh").args(["-c", &cmd]).output();
     match result {
         Ok(output) => {

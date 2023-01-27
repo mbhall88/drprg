@@ -184,14 +184,12 @@ impl Build {
             info!("No index found for {:?}. Creating one...", vcf_path);
             index_vcf(vcf_path).map_err(|src| {
                 BuildError::IndexError(format!(
-                    "Failed to create an index file for {:?} due to {:?}",
-                    vcf_path, src
+                    "Failed to create an index file for {vcf_path:?} due to {src:?}",
                 ))
             })
         } else {
             Err(BuildError::IndexError(format!(
-                "No index exists for {:?} and creation was not requested",
-                vcf_path
+                "No index exists for {vcf_path:?} and creation was not requested",
             )))
         }
     }
@@ -208,15 +206,13 @@ impl Build {
             info!("No index found for {:?}. Creating one...", fasta_path);
             match index_fasta(fasta_path) {
                 Err(src) => Err(BuildError::IndexError(format!(
-                    "Failed to create an index file for {:?} due to {:?}",
-                    fasta_path, src
+                    "Failed to create an index file for {fasta_path:?} due to {src:?}",
                 ))),
                 Ok(_) => Ok(()),
             }
         } else {
             Err(BuildError::IndexError(format!(
-                "No index exists for {:?} and creation was not requested",
-                fasta_path
+                "No index exists for {fasta_path:?} and creation was not requested",
             )))
         }
     }
@@ -226,7 +222,7 @@ impl Build {
         annotations: &HashMap<String, gff::Record>,
     ) -> bcf::Header {
         let mut header = bcf::Header::new();
-        header.push_record(format!("{}source=drprgV{}", META, VERSION).as_bytes());
+        header.push_record(format!("{META}source=drprgV{VERSION}").as_bytes());
         // add contigs to vcf header
         for (gene, gff_record) in annotations {
             let length: u64 = ((usize::from(gff_record.end()) + 1)
@@ -298,8 +294,7 @@ impl Build {
             match fs_extra::copy_items(&to_copy, &self.outdir, &copyopts) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(BuildError::CopyError(format!(
-                    "Failed to copy prebuilt PRG files with error message {}",
-                    e
+                    "Failed to copy prebuilt PRG files with error message {e}"
                 ))),
             }
         }
@@ -417,7 +412,7 @@ impl Runner for Build {
                     fasta::Record::new(definition, Sequence::from(seq.to_owned()));
                 fa_writer.write_record(&fa_record)?;
 
-                let premsa_path = premsa_dir.join(format!("{}.fa", gene));
+                let premsa_path = premsa_dir.join(format!("{gene}.fa"));
                 let mut premsa_writer =
                     File::create(premsa_path).map(BufWriter::new).map(|f| {
                         fasta::Writer::builder(f)
@@ -535,7 +530,7 @@ impl Runner for Build {
 
             samples.into_par_iter().try_for_each(|sample| {
                 let s = sample.to_str_lossy();
-                let consensus_path = consensus_dir.join(format!("{}.fa", s));
+                let consensus_path = consensus_dir.join(format!("{s}.fa"));
                 let args = &[
                     "-H",
                     "A",
@@ -557,7 +552,7 @@ impl Runner for Build {
                 debug!("Combining consensus sequences into pre-MSAs...");
                 for sample in input_vcf.header().samples() {
                     let s = sample.to_str_lossy().to_string();
-                    let sample_consensus_path = consensus_dir.join(format!("{}.fa", s));
+                    let sample_consensus_path = consensus_dir.join(format!("{s}.fa"));
                     let mut sample_consensus_fasta = File::open(sample_consensus_path)
                         .map(BufReader::new)
                         .map(fasta::Reader::new)?;
@@ -566,7 +561,7 @@ impl Runner for Build {
                         let gene = consensus_record.name();
                         let is_reverse =
                             annotations.get(gene).unwrap().strand() == Strand::Reverse;
-                        let gene_pre_msa_path = premsa_dir.join(format!("{}.fa", gene));
+                        let gene_pre_msa_path = premsa_dir.join(format!("{gene}.fa"));
                         {
                             let mut premsa_writer = File::options()
                                 .append(true)
@@ -606,8 +601,8 @@ impl Runner for Build {
             }
 
             genes.par_iter().try_for_each(|gene| {
-                let premsa_path = premsa_dir.join(format!("{}.fa", gene));
-                let msa_path = msa_dir.join(format!("{}.fa", gene));
+                let premsa_path = premsa_dir.join(format!("{gene}.fa"));
+                let msa_path = msa_dir.join(format!("{gene}.fa"));
                 debug!("Running MSA for {}", gene);
                 mafft.run_with(&premsa_path, &msa_path, ["--auto", "--thread", "-1"])
             })?;
@@ -655,7 +650,7 @@ impl Runner for Build {
                 padding: self.padding,
             };
             let toml = toml::to_string(&config)?;
-            writeln!(f, "{}", toml)?;
+            writeln!(f, "{toml}")?;
         }
 
         debug!("Cleaning up temporary files...");
@@ -784,7 +779,7 @@ where
 }
 
 fn vcf_contig_field(id: &str, length: u64) -> Vec<u8> {
-    format!("{}contig=<ID={},length={}>", META, id, length)
+    format!("{META}contig=<ID={id},length={length}>")
         .as_bytes()
         .to_owned()
 }

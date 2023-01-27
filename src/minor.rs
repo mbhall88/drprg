@@ -51,7 +51,7 @@ pub struct MinorAllele {
 impl MinorAllele {
     pub fn add_vcf_headers(&self, header: &mut bcf::Header) {
         header.push_record(format!("##INFO=<ID={},Number=1,Type=String,Description=\"Original genotype after adjusting for minor allele depth proportions of {}\">", OGT_TAG, self.maf).as_bytes());
-        header.push_record(format!("##INFO=<ID={},Number=R,Type=Float,Description=\"Proportion of the total position depth found on this allele\">", PDP_TAG).as_bytes());
+        header.push_record(format!("##INFO=<ID={PDP_TAG},Number=R,Type=Float,Description=\"Proportion of the total position depth found on this allele\">").as_bytes());
     }
     fn add_proportions_tag(
         record: &mut bcf::Record,

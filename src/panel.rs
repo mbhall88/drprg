@@ -107,7 +107,7 @@ impl fmt::Display for Residue {
             Residue::Nucleic => "DNA",
             Residue::Amino => "PROT",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 
@@ -243,7 +243,7 @@ impl fmt::Display for Variant {
         } else {
             format!("{}{}{}", &self.reference, self.pos, &self.new)
         };
-        write!(f, "{}", to_write)
+        write!(f, "{to_write}")
     }
 }
 

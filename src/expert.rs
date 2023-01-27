@@ -33,7 +33,7 @@ impl fmt::Display for VariantType {
             VariantType::Nonsense => "nonsense",
             VariantType::Absence => "absence",
         };
-        write!(f, "{}", s)
+        write!(f, "{s}")
     }
 }
 

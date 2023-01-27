@@ -432,13 +432,13 @@ impl Predict {
 
         for (i, record_result) in reader.records().enumerate() {
             let mut record = record_result
-                .context(format!("Failed to read record {} in pandora VCF", i))?;
+                .context(format!("Failed to read record {i} in pandora VCF"))?;
 
             writer.translate(&mut record);
             if record.has_no_depth() && record.gt_conf() == Some(0.0) {
                 record
                     .push_genotypes(&[GenotypeAllele::Unphased(-1)])
-                    .context(format!("Failed to set record {} genotype to null", i))?;
+                    .context(format!("Failed to set record {i} genotype to null"))?;
             }
             self.filterer.filter(&mut record)?;
             record
@@ -622,8 +622,7 @@ impl Predict {
             let vid_str = vid.to_str_lossy();
             // we unwrap here as we can't have an invalid variant id string
             let (_, var_str) = vid_str.split_once('_').context(format!(
-                "Couldn't split variant ID {} at underscore",
-                vid_str
+                "Couldn't split variant ID {vid_str} at underscore",
             ))?;
             let vid_var = Variant::from_str(var_str).unwrap();
             let (drugs, _) = &panel.get(&*vid_str).unwrap();
@@ -721,7 +720,7 @@ impl Predict {
         for (var, (drugs, _)) in &var2drugs {
             let (chrom, _) = var
                 .split_once('_')
-                .context(format!("Couldn't split variant ID {} at underscore", var))?;
+                .context(format!("Couldn't split variant ID {var} at underscore"))?;
             let entry = gene2drugs
                 .entry(chrom.to_string())
                 .or_insert_with(HashSet::new);
@@ -805,14 +804,13 @@ impl Predict {
 
         for (i, record_result) in reader.records().enumerate() {
             let record = record_result
-                .context(format!("Failed to read record {} in predict VCF", i))?;
+                .context(format!("Failed to read record {i} in predict VCF"))?;
             let is_alt = record.called_allele() > 0;
             let preds = match record
                 .info(InfoField::Prediction.id().as_bytes())
                 .string()
                 .context(format!(
-                    "Failed to get prediction tag for record number {}",
-                    i
+                    "Failed to get prediction tag for record number {i}",
                 ))? {
                 Some(v) => v
                     .iter()
@@ -830,7 +828,7 @@ impl Predict {
             let varids = match record
                 .info(InfoField::VarId.id().as_bytes())
                 .string()
-                .context(format!("Failed to get variant ID for record number {}", i))?
+                .context(format!("Failed to get variant ID for record number {i}"))?
             {
                 Some(v) => v
                     .iter()
@@ -874,8 +872,7 @@ impl Predict {
                 .filter(|(p, _)| *p == max_pred)
             {
                 let (chrom, var) = varid.split_once('_').context(format!(
-                    "Couldn't split variant ID {} at underscore",
-                    varid
+                    "Couldn't split variant ID {varid} at underscore",
                 ))?;
                 let (drugs, residue) = match var2drugs.get(varid) {
                     Some((d, r)) => (d.clone(), r.clone()),
@@ -1072,7 +1069,7 @@ impl Predict {
                 File::create(&json_path).context("Failed to create JSON file")?;
             let s = serde_json::to_string_pretty(&data)
                 .context("Failed to write to JSON file")?;
-            write!(&file, "{}", s)?;
+            write!(&file, "{s}")?;
             file.flush()?;
         }
         Ok(json_path)
@@ -1108,8 +1105,7 @@ impl Predict {
         }
 
         Err(PredictError::ConsequenceError(format!(
-            "Couldn't find gene {} in index FASTA",
-            gene_name
+            "Couldn't find gene {gene_name} in index FASTA",
         )))
     }
 }
