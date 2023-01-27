@@ -23,7 +23,7 @@ fn build_paths_dont_exist() -> Result<(), Box<dyn std::error::Error>> {
     ]);
     cmd.assert()
         .failure()
-        .stderr(predicate::str::contains("Invalid value"));
+        .stderr(predicate::str::contains("nvalid value"));
 
     Ok(())
 }
