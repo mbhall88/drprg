@@ -20,7 +20,7 @@ rule validate_run_info:
     input:
         info=rules.download_data.output.run_info,
     output:
-        run_info=RESULTS / "download/{tech}/{proj}/{sample}/{run}/run_info.tsv",
+        run_info=RESULTS / "validate/{tech}/{proj}/{sample}/{run}/run_info.tsv",
     log:
         LOGS / "validate_run_info/{tech}/{proj}/{sample}/{run}.log",
     params:

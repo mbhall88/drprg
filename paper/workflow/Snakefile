@@ -72,7 +72,7 @@ for run, row in illumina_df.iterrows():
     proj = row["bioproject"]
     sample = row["biosample"]
     tech = "illumina"
-    target_files.add(RESULTS / f"download/{tech}/{proj}/{sample}/{run}/run_info.tsv")
+    target_files.add(RESULTS / f"validate/{tech}/{proj}/{sample}/{run}/run_info.tsv")
 
 # for tech in TECHS:
     # target_files.add(PLOTS / f"sn_sp/{tech}.png")
