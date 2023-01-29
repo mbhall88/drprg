@@ -15,6 +15,7 @@ IFS=';' read -r -a files <<< "$files_str"
 n_files="${#files[@]}"
 
 tmpout=$(mktemp -d)
+trap 'rm -rf -- "$tmpout"' EXIT
 
 if [ "$n_files" -eq 2 ]; then
     prefix="${tmpout}/${run_acc}"

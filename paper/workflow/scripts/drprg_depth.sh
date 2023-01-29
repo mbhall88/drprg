@@ -14,6 +14,7 @@ genome_size="${snakemake_params[genome_size]}"
 files_str=$(grep "$run_acc" "$run_info" | cut -f2)
 n_files=$(awk -F \; '{print NF}' <<< "$files_str")
 tmpout=$(mktemp -d)
+trap 'rm -rf -- "$tmpout"' EXIT
 prefix="${tmpout}/${run_acc}"
 subreads="${prefix}_${depth}.fq"
 
