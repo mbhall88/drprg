@@ -7,7 +7,7 @@ rule download_data:
     container:
         CONTAINERS["fastq_dl"]
     resources:
-        mem_mb=lambda wildcards, attempt: attempt * int(1 * GB),
+        mem_mb=lambda wildcards, attempt: attempt * int(2 * GB),
     params:
         db="sra",
     shadow:
