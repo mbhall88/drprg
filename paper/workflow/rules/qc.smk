@@ -3,7 +3,7 @@ rule preprocessing:
         run_dir=rules.download_data.output.outdir,
         run_info=rules.validate_run_info.output.run_info,
     output:
-        fastq=temp(RESULTS / "preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz"),
+        fastq=RESULTS / "preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz",
     threads: 2
     resources:
         mem_mb=lambda wildcards, attempt: attempt * int(16 * GB),
