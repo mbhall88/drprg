@@ -74,7 +74,7 @@ for w, k in WKS:
 #     tech = "illumina"
 #     target_files.add(RESULTS / f"preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz")
 
-# for tech in TECHS:
+for tech in TECHS:
     # target_files.add(PLOTS / f"sn_sp/{tech}.png")
     # for ext in ("png", "svg"):
         # target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
