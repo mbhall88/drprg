@@ -68,11 +68,11 @@ for w, k in WKS:
 
 # target_files.add(PLOTS / "wk_sweep.png")
 
-for run, row in illumina_df.iterrows():
-    proj = row["bioproject"]
-    sample = row["biosample"]
-    tech = "illumina"
-    target_files.add(RESULTS / f"preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz")
+# for run, row in illumina_df.iterrows():
+#     proj = row["bioproject"]
+#     sample = row["biosample"]
+#     tech = "illumina"
+#     target_files.add(RESULTS / f"preprocessing/{tech}/{proj}/{sample}/{run}.fq.gz")
 
 # for tech in TECHS:
     # target_files.add(PLOTS / f"sn_sp/{tech}.png")
@@ -80,7 +80,7 @@ for run, row in illumina_df.iterrows():
         # target_files.add(PLOTS / f"benchmark/predict/memory.{tech}.{ext}")
         # target_files.add(PLOTS / f"benchmark/predict/runtime.{tech}.{ext}")
         # target_files.add(PLOTS / f"QC/{tech}.depth.{ext}")
-    # target_files.add(RESULTS / f"QC/{tech}.qc.csv")
+    target_files.add(RESULTS / f"QC/{tech}.qc.csv")
     # target_files.add(RESULTS / f"depth/mykrobe/{tech}.summary.csv")
     # target_files.add(RESULTS / f"depth/tbprofiler/{tech}.summary.csv")
     # target_files.add(RESULTS / f"depth/drprg/{tech}.summary.csv")
