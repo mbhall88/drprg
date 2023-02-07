@@ -22,7 +22,7 @@ BINDS+=",/hps/scratch,/hps/nobackup/iqbal,/nfs/research/zi,$FASTSW_DIR --scratch
 
 ARGS="--contain -B $BINDS"
 
-SNAKEMAKE_TMP="tmp/snakemake"
+SNAKEMAKE_TMP=$(realpath "tmp/snakemake")
 mkdir -p "$SNAKEMAKE_TMP"
 
 bsub -R "select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" \
@@ -32,7 +32,7 @@ bsub -R "select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" \
   -e "$LOG_DIR"/"$JOB_NAME".e \
   -J "$JOB_NAME" \
   snakemake --profile "$PROFILE" \
-  --default-resources tmpdir=$SNAKEMAKE_TMP \
+  --default-resources tmpdir="$SNAKEMAKE_TMP" \
   --local-cores "$THREADS" \
   "$@" --singularity-args "$ARGS"
 
