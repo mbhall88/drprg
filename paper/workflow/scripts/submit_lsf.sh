@@ -32,7 +32,7 @@ bsub -R "select[mem>$MEMORY] rusage[mem=$MEMORY] span[hosts=1]" \
   -e "$LOG_DIR"/"$JOB_NAME".e \
   -J "$JOB_NAME" \
   snakemake --profile "$PROFILE" \
-  --default-resources tmpdir="$SNAKEMAKE_TMP" \
+  --default-resources "tmpdir='$SNAKEMAKE_TMP'" \
   --scheduler greedy \
   --local-cores "$THREADS" \
   "$@" --singularity-args "$ARGS"
