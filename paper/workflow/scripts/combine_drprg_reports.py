@@ -54,8 +54,8 @@ with open(snakemake.output.report, "w") as fout:
     )
 
     for p in map(Path, snakemake.input.reports):
-        proj = p.parts[-3]
-        sample = p.parts[-2]
+        proj = p.parts[-4]
+        sample = p.parts[-3]
         run = p.name.split(".")[0]
         tech = snakemake.wildcards.tech
 
