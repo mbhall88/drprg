@@ -94,6 +94,7 @@ rule filter_popn_vcf:
             [
                 "^NC_000962.3:761094", # this becomes rpoB:1396 in drprg bcf and is an indel that is causing coverage problems
                 "NC_000962.3:4407954", # this becomes gid:330 in drprg and spans common variants causing errors
+                "NC_000962.3:2155693",  # this becomes katG:519 in drprg and causes a weird duplication of vcf positions
             ]
         ),
     shell:
