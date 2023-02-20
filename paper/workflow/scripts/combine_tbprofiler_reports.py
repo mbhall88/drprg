@@ -20,9 +20,8 @@ def eprint(msg):
     print(msg, file=sys.stderr)
 
 
-def load_susceptibility(stream) -> dict:
+def load_susceptibility(data: dict) -> dict:
     """Extract the susceptibility info from the JSON"""
-    data = json.load(stream)
     variants = data["dr_variants"]
     return variants
 
@@ -39,6 +38,7 @@ with open(snakemake.output.report, "w") as fout:
                 "tool",
                 "drug",
                 "prediction",
+                "lineage",
                 "mutations",
             ]
         ),
@@ -54,7 +54,9 @@ with open(snakemake.output.report, "w") as fout:
         fopen = gzip.open if p.suffix == ".gz" else open
 
         with fopen(p) as fp:
-            report = load_susceptibility(fp)
+            data = json.load(fp)
+            report = load_susceptibility(data)
+            lineage = data["sublin"]
 
         if not report:
             print(
@@ -88,6 +90,7 @@ with open(snakemake.output.report, "w") as fout:
                         "tbprofiler",
                         drug,
                         "R",
+                        lineage,
                         mut_str,
                     )
                 ),
