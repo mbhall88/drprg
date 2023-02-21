@@ -60,7 +60,9 @@ with open(snakemake.output.report, "w") as fout:
 
         if not report:
             print(
-                DELIM.join((run, sample, proj, tech, "tbprofiler", "all", "S", "")),
+                DELIM.join(
+                    (run, sample, proj, tech, "tbprofiler", "all", "S", lineage, "")
+                ),
                 file=fout,
             )
             continue
