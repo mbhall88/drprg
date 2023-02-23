@@ -14,6 +14,7 @@ use thiserror::Error;
 
 use crate::filter::Tags;
 use crate::interval::IntervalOp;
+use anyhow::Context;
 use noodles::fasta::record::Definition;
 use noodles::fasta::repository::adapters::IndexedReader;
 use noodles::fasta::repository::Adapter;
@@ -21,8 +22,10 @@ use noodles::fasta::{fai, Record};
 use noodles::{fasta, gff};
 use regex::Regex;
 use std::cmp::{max, min};
+use std::collections::HashSet;
 use std::fs;
 use std::io::{BufReader, BufWriter, ErrorKind};
+use tempfile::NamedTempFile;
 
 pub mod filter;
 pub mod interval;
@@ -83,6 +86,8 @@ pub enum DependencyError {
     /// Issue parsing fasta records
     #[error("Failed to parse fasta record in {0:?}")]
     FastaParserError(PathBuf),
+    #[error("Failed to deduplicate an MSA: {0}")]
+    DeduplicationError(String),
 }
 
 pub struct Bcftools {
@@ -351,6 +356,7 @@ impl MakePrg {
                 fa_writer.write_record(&new_record)?;
             }
             let updated_msa = update_msa_dir.join(format!("{gene}.fa"));
+            // todo deduplicate updated msa
             aligner.run_with(
                 &existing_msa,
                 &updated_msa,
@@ -723,6 +729,8 @@ impl MultipleSeqAligner {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
+        deduplicate_fasta(input)
+            .map_err(|e| DependencyError::DeduplicationError(e.to_string()))?;
         let ostream = File::create(output)
             .map_err(|source| DependencyError::FileError { source })?;
         let mut binding = Command::new(&self.executable);
@@ -754,6 +762,35 @@ impl MultipleSeqAligner {
             }
         }
     }
+}
+
+fn deduplicate_fasta(path: &Path) -> anyhow::Result<()> {
+    let mut fa_reader = File::open(path)
+        .map(BufReader::new)
+        .map(fasta::Reader::new)?;
+    let tmp = NamedTempFile::new().unwrap();
+    let tmpfile = tmp.path();
+    let mut fa_writer = File::create(tmpfile).map(BufWriter::new).map(|f| {
+        fasta::Writer::builder(f)
+            .set_line_base_count(usize::MAX)
+            .build()
+    })?;
+
+    let mut seen_seqs = HashSet::new();
+    for res in fa_reader.records() {
+        let record = res?;
+        let seq = record.sequence().to_owned();
+        if seen_seqs.contains(seq.as_ref()) {
+            continue;
+        } else {
+            seen_seqs.insert(seq.as_ref().to_owned());
+            fa_writer.write_record(&record)?;
+        }
+    }
+
+    fs::rename(tmpfile, path).context("Failed to rename tmp deduplicated fasta")?;
+
+    Ok(())
 }
 
 /// Check if an (optional) path is executable, and return it as a String. If no path is given, test
@@ -3039,5 +3076,31 @@ ahpC
         let expected = DependencyError::NovelVariantParsingError("".to_string());
 
         assert_eq!(actual.type_id(), expected.type_id())
+    }
+
+    #[test]
+    fn test_deduplicate_fasta() {
+        const FASTA_FILE: &[u8] = b">chr1\nGTAG\n>chr2\nAAAA\n>chr3\nGTAG\n";
+        let tmpfile = NamedTempFile::new().unwrap();
+        let p = tmpfile.path();
+
+        {
+            let mut f = File::create(p).unwrap();
+            f.write_all(FASTA_FILE).unwrap();
+        }
+
+        deduplicate_fasta(p).unwrap();
+
+        let mut reader = File::open(p)
+            .map(BufReader::new)
+            .map(fasta::Reader::new)
+            .unwrap();
+
+        let mut n_records = 0;
+        for _ in reader.records() {
+            n_records += 1;
+        }
+
+        assert_eq!(n_records, 2)
     }
 }
