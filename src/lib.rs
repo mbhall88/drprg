@@ -25,7 +25,6 @@ use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::fs;
 use std::io::{BufReader, BufWriter, ErrorKind};
-use tempfile::NamedTempFile;
 
 pub mod filter;
 pub mod interval;
@@ -356,7 +355,6 @@ impl MakePrg {
                 fa_writer.write_record(&new_record)?;
             }
             let updated_msa = update_msa_dir.join(format!("{gene}.fa"));
-            // todo deduplicate updated msa
             aligner.run_with(
                 &existing_msa,
                 &updated_msa,
@@ -768,9 +766,8 @@ fn deduplicate_fasta(path: &Path) -> anyhow::Result<()> {
     let mut fa_reader = File::open(path)
         .map(BufReader::new)
         .map(fasta::Reader::new)?;
-    let tmp = NamedTempFile::new().unwrap();
-    let tmpfile = tmp.path();
-    let mut fa_writer = File::create(tmpfile).map(BufWriter::new).map(|f| {
+    let tmp = path.with_extension(".tmp");
+    let mut fa_writer = File::create(&tmp).map(BufWriter::new).map(|f| {
         fasta::Writer::builder(f)
             .set_line_base_count(usize::MAX)
             .build()
@@ -788,7 +785,10 @@ fn deduplicate_fasta(path: &Path) -> anyhow::Result<()> {
         }
     }
 
-    fs::rename(tmpfile, path).context("Failed to rename tmp deduplicated fasta")?;
+    fs::rename(&tmp, path).context(format!(
+        "Failed to rename tmp deduplicated fasta {0:?} to {1:?}",
+        tmp, path
+    ))?;
 
     Ok(())
 }
