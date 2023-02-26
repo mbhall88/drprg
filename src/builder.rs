@@ -604,7 +604,12 @@ impl Runner for Build {
                 let premsa_path = premsa_dir.join(format!("{gene}.fa"));
                 let msa_path = msa_dir.join(format!("{gene}.fa"));
                 debug!("Running MSA for {}", gene);
-                mafft.run_with(&premsa_path, &msa_path, ["--auto", "--thread", "-1"])
+                mafft.run_with(
+                    &premsa_path,
+                    &msa_path,
+                    ["--auto", "--thread", "-1"],
+                    true,
+                )
             })?;
             info!("Successfully generated MSAs");
 

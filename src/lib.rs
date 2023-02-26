@@ -366,6 +366,7 @@ impl MakePrg {
                     "--add",
                     new_sequence.to_str().unwrap(),
                 ],
+                false,
             )?;
         }
 
@@ -722,6 +723,7 @@ impl MultipleSeqAligner {
         input: &Path,
         output: &Path,
         args: I,
+        deduplicate: bool,
     ) -> Result<(), DependencyError>
     where
         I: IntoIterator<Item = S>,
@@ -730,8 +732,10 @@ impl MultipleSeqAligner {
         if !input.exists() {
             std::thread::sleep(std::time::Duration::from_secs(5));
         }
-        deduplicate_fasta(input)
-            .map_err(|e| DependencyError::DeduplicationError(e.to_string()))?;
+        if deduplicate {
+            deduplicate_fasta(input)
+                .map_err(|e| DependencyError::DeduplicationError(e.to_string()))?;
+        }
         let ostream = File::create(output)
             .map_err(|source| DependencyError::FileError { source })?;
         let mut binding = Command::new(&self.executable);
@@ -765,7 +769,7 @@ impl MultipleSeqAligner {
     }
 }
 
-fn deduplicate_fasta(path: &Path) -> anyhow::Result<()> {
+pub fn deduplicate_fasta(path: &Path) -> anyhow::Result<()> {
     let mut fa_reader = File::open(path)
         .map(BufReader::new)
         .map(fasta::Reader::new)?;
