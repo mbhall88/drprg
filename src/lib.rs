@@ -727,6 +727,9 @@ impl MultipleSeqAligner {
         I: IntoIterator<Item = S>,
         S: AsRef<OsStr>,
     {
+        if !input.exists() {
+            std::thread::sleep(std::time::Duration::from_secs(5));
+        }
         deduplicate_fasta(input)
             .map_err(|e| DependencyError::DeduplicationError(e.to_string()))?;
         let ostream = File::create(output)
@@ -767,24 +770,25 @@ fn deduplicate_fasta(path: &Path) -> anyhow::Result<()> {
         .map(BufReader::new)
         .map(fasta::Reader::new)?;
     let tmp = path.with_extension(".tmp");
-    let mut fa_writer = File::create(&tmp).map(BufWriter::new).map(|f| {
-        fasta::Writer::builder(f)
-            .set_line_base_count(usize::MAX)
-            .build()
-    })?;
+    {
+        let mut fa_writer = File::create(&tmp).map(BufWriter::new).map(|f| {
+            fasta::Writer::builder(f)
+                .set_line_base_count(usize::MAX)
+                .build()
+        })?;
 
-    let mut seen_seqs = HashSet::new();
-    for res in fa_reader.records() {
-        let record = res?;
-        let seq = record.sequence().to_owned();
-        if seen_seqs.contains(seq.as_ref()) {
-            continue;
-        } else {
-            seen_seqs.insert(seq.as_ref().to_owned());
-            fa_writer.write_record(&record)?;
+        let mut seen_seqs = HashSet::new();
+        for res in fa_reader.records() {
+            let record = res?;
+            let seq = record.sequence().to_owned();
+            if seen_seqs.contains(seq.as_ref()) {
+                continue;
+            } else {
+                seen_seqs.insert(seq.as_ref().to_owned());
+                fa_writer.write_record(&record)?;
+            }
         }
     }
-
     fs::rename(&tmp, path).context(format!(
         "Failed to rename tmp deduplicated fasta {0:?} to {1:?}",
         tmp, path
