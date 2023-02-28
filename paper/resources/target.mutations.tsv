@@ -6,6 +6,7 @@ rpoB_H445D
 rpoB_H445Y
 rpoB_H445R
 rpoB_S450L
+rpoB_S450F
 rpoB_S450W
 rpoB_L452P
 rpoB_I491F
@@ -32,10 +33,15 @@ pncA_D49G
 pncA_H51D
 pncA_H51R
 pncA_H57D
+pncA_P62L
 pncA_S67P
 pncA_W68C
 pncA_W68R
+pncA_Y103*
+pncA_W119G
+pncA_V125G
 pncA_A134V
+pncA_C138R
 pncA_Q141P
 pncA_V180F
 pncA_V180G
