@@ -63,7 +63,7 @@ class Rule:
                 return item.residue == PROT and item.ref != item.alt
             case RuleType.Frameshift:
                 len_diff = abs(len(item.ref) - len(item.alt))
-                return item.residue == DNA and len_diff % 3 != 0
+                return item.residue == DNA and len_diff % 3 != 0 and item.pos > -1
             case _:
                 return False
 
