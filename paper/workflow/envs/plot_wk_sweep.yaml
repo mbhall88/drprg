@@ -1,9 +1,0 @@
-name: plot_wk_sweep
-channels:
-  - conda-forge
-dependencies:
-  - python=3.10
-  - matplotlib=3.5
-  - seaborn=0.11
-  - pandas=1.4
-  - numpy=1.23

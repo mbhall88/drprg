@@ -1,9 +1,0 @@
-channels:
-  - conda-forge
-  - bioconda
-  - defaults
-dependencies:
-  - mykrobe=0.12.1
-  - rasusa=0.7.0
-  - seqfu=1.16
-  - bash=5
