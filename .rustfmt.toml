@@ -1,0 +1,14 @@
+# https://rust-lang.github.io/rustfmt
+#combine_control_expr = false
+#comment_width = 88
+#wrap_comments = true
+edition = "2018"
+#force_multiline_blocks = true
+#format_code_in_doc_comments = true
+#format_strings = true
+#match_block_trailing_comma = true
+max_width = 88
+#imports_granularity = "Crate"
+#normalize_doc_attributes = true
+#group_imports = "StdExternalCrate"
+use_field_init_shorthand = true
