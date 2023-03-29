@@ -139,3 +139,5 @@ notepad.ipynb
 .DS_Store
 paper/report.html
 *.fai
+
+docs/book
