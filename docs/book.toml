@@ -4,3 +4,4 @@ language = "en"
 multilingual = false
 src = "src"
 title = "Drug resistance Prediction with Reference Graphs"
+[output.html]
