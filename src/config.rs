@@ -20,6 +20,7 @@ pub struct Config {
     pub(crate) k: u32,
     pub(crate) w: u32,
     pub(crate) padding: u32,
+    pub(crate) version: String
 }
 
 impl Config {

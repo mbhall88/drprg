@@ -21,6 +21,7 @@ use rayon::prelude::*;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Read;
 use thiserror::Error;
+use chrono::Utc;
 
 use drprg::{
     find_prg_index_in, index_fasta, index_vcf, revcomp, Bcftools, GffExt, MakePrg,
@@ -41,6 +42,10 @@ static DEFAULT_WINDOW_SIZE: u32 = 11;
 static DEFAULT_PADDING: u32 = 100;
 static DEFAULT_MIN_MATCH_LEN: u32 = 5;
 static DEFAULT_MAX_NESTING: u32 = 5;
+
+lazy_static! {
+    static ref CURRENT_DATE: String = format!("{}", Utc::now().format("%Y-%m-%d"));
+}
 
 #[derive(Parser, Debug, Default)]
 pub struct Build {
@@ -162,6 +167,9 @@ pub struct Build {
     /// Don't index --vcf if an index doesn't exist
     #[clap(short = 'C', long = "no-csi")]
     dont_index_vcf: bool,
+    /// Version to use for the index
+    #[clap(long, default_value_t = CURRENT_DATE.to_string())]
+    version: String,
 }
 
 impl Build {
@@ -653,6 +661,7 @@ impl Runner for Build {
                 k: self.pandora_k,
                 w: self.pandora_w,
                 padding: self.padding,
+                version: self.version.to_owned(),
             };
             let toml = toml::to_string(&config)?;
             writeln!(f, "{toml}")?;
