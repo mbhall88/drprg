@@ -1,94 +1,9 @@
-> ⚠️**In early development stage - do not use**⚠️
-
-👩‍⚕Dr. PRG - **D**rug **R**esistance **P**rediction with **R**eference **G**raphs️👨‍⚕️
+👩‍⚕Dr. PRG - **D**rug **r**esistance **P**rediction with **R**eference **G**raphs️👨‍⚕️
 
 [![codecov](https://codecov.io/gh/mbhall88/drprg/branch/main/graph/badge.svg?token=2WAA6MZRKK)](https://codecov.io/gh/mbhall88/drprg)
 [![Rust](https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/mbhall88/drprg/actions/workflows/rust.yml)
 
 
-[TOC]:#
-
-## Table of Contents
-- [Install](#install)
-  - [Container](#container)
-  - [Conda](#conda)
-  - [Local](#local)
-- [Usage](#usage)
-  - [Build](#build)
-
-
-## Install
-
-### Container
-
-[![Docker Repository on Quay](https://quay.io/repository/mbhall88/drprg/status "Docker Repository on Quay")](https://quay.io/repository/mbhall88/drprg)
-
-A Docker container is available for all commits/branches/versions. To view the available
-tags, visit <https://quay.io/repository/mbhall88/drprg?tab=tags>
-
-For example, to use the latest commit on the `main` branch, the URI is
-
-```
-$ TAG="latest"
-$ URI="quay.io/mbhall88/drprg:$TAG"
-```
-
-#### Docker
-
-To run `drprg` using the above container with Docker
-
-```
-$ docker pull "$URI"
-$ docker run -it "$URI" drprg --help
-```
-
-#### Singularity
-
-To run `drprg` using the above container with [Singularity]
-
-```
-$ singularity exec "docker://$URI" drprg --help
-```
-
-### Conda
-
-<!--todo-->
-
-### Local
-
-**Minimum supported Rust version**: `1.52.1`
-
-```
-$ cargo build --release
-$ target/release/drprg -h
-```
-
-#### Dependencies
-
-`drprg` relies on [`pandora`][pandora] for all subcommands. Additionally, if you want to
-build a custom panel, you will need [`bcftools`][bcftools], [`make_prg`][makeprg]
-(prototype) and [`mafft`][mafft]. To download dependencies and place them in their
-default location, run
-
-```shell script
-# all dependencies
-$ make deps
-# pandora only
-$ make pandora
-# make_prg only
-$ make makeprg
-# mafft only
-$ make mafft
-# bcftools only
-$ make bcftools
-```
-
-By default, the external dependencies will be downloaded to `src/ext`. This can be
-changed by specifying a path to `EXTDIR` when installing the external dependencies.
-
-```shell script
-$ make deps EXTDIR="some/other/dir"
-```
 
 ## Usage
 
@@ -101,28 +16,6 @@ $ drprg build -a annotation.gff3 -i panel.tsv -f ref.fa -o outdir
 ```
 
 <!--todo: document the input and output files for build-->
-
-#### Expert rules
-
-These are blanket rules that describe resistance (or susceptibility). The file is a CSV 
-with each row representing a rule. The format of each row is
-
-```csv
-vartype,gene,start,end,drug
-```
-
-1. `vartype`: the variant type of the rule. Supported types are:
-    * [`frameshift`][frameshift] - any insertion or deletion whose length is not a multiple of three
-    * [`missense`][missense] - A DNA change that results in a different amino acid
-    * [`nonsense`][nonsense] - A DNA change that results in a stop codon instead of an amino acid
-2. `gene`: the name of the gene the rule applies to
-3. `start`: An optional start position for the rule to apply from. The position is in codon coordinates where the rule applies to amino acid changes and is 1-based inclusive. If not provided, the start of the gene is inferred. If you want to include the upstream (promoter) region of the gene, use negative coordinates.
-4. `end`: An optional end position for the rule to apply to. The position is in codon coordinates where the rule applies to amino acid changes and is 1-based inclusive. If not provided, the end of the gene is inferred.
-5. `drug`: A semi-colon-delimited (';') list of drugs the rule impacts. If the rule confers susceptibility, use `NONE` for this column.
-
-[frameshift]: https://www.genome.gov/genetics-glossary/Frameshift-Mutation
-[missense]: https://www.genome.gov/genetics-glossary/Missense-Mutation
-[nonsense]: https://www.genome.gov/genetics-glossary/Nonsense-Mutation
 
 #### Full usage
 

@@ -4,4 +4,14 @@ language = "en"
 multilingual = false
 src = "src"
 title = "Drug resistance Prediction with Reference Graphs"
+
 [output.html]
+git-repository-url = "https://github.com/mbhall88/drprg"
+edit-url-template = "https://github.com/mbhall88/drprg/edit/master/guide/{path}"
+additional-css = ["./theme/catppuccin.css", "./theme/catppuccin-highlight.css"]
+default-theme = "Latte"
+
+[preprocessor]
+
+[preprocessor.catppuccin]
+assets_version = "0.1.1" # DO NOT EDIT: Managed by `mdbook-catppuccin install`
