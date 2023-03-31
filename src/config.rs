@@ -1,6 +1,25 @@
+use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 use thiserror::Error;
+
+lazy_static! {
+    pub static ref INDEX_CONFIG: HashMap<&'static str, HashMap<&'static str, Url>> = {
+        let mut conf = HashMap::new();
+        let species_versions = [("mtb", ["20230308"])];
+        for (species, versions) in species_versions {
+            let mut species_conf = HashMap::new();
+            for ver in versions {
+                let urlstr = format!("https://github.com/mbhall88/drprg-index/raw/main/species/{species}/{species}-{ver}.tar.gz");
+                let url = Url::parse(&urlstr).unwrap();
+                species_conf.insert(ver, url);
+            }
+            conf.insert(species, species_conf);
+        }
+        conf
+    };
+}
 
 /// A collection of custom errors relating to the working with files for this package.
 #[derive(Error, Debug)]
@@ -20,7 +39,7 @@ pub struct Config {
     pub(crate) k: u32,
     pub(crate) w: u32,
     pub(crate) padding: u32,
-    pub(crate) version: String
+    pub(crate) version: String,
 }
 
 impl Config {

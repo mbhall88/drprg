@@ -15,6 +15,7 @@ mod cli;
 pub mod config;
 mod consequence;
 mod expert;
+mod index;
 mod minor;
 mod panel;
 pub mod predict;
@@ -49,6 +50,7 @@ fn main() -> Result<()> {
     let mut subcmd: Box<dyn Runner> = match args.cmd {
         Command::Predict(cmd) => Box::new(cmd),
         Command::Build(cmd) => Box::new(cmd),
+        Command::Index(cmd) => Box::new(cmd),
     };
 
     subcmd.run()?;

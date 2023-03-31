@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Context, Result};
 use bstr::ByteSlice;
+use chrono::Utc;
 use clap::Parser;
 use log::{debug, info, warn};
 use noodles::core::Position;
@@ -21,7 +22,6 @@ use rayon::prelude::*;
 use rust_htslib::bcf;
 use rust_htslib::bcf::Read;
 use thiserror::Error;
-use chrono::Utc;
 
 use drprg::{
     find_prg_index_in, index_fasta, index_vcf, revcomp, Bcftools, GffExt, MakePrg,
@@ -44,7 +44,7 @@ static DEFAULT_MIN_MATCH_LEN: u32 = 5;
 static DEFAULT_MAX_NESTING: u32 = 5;
 
 lazy_static! {
-    static ref CURRENT_DATE: String = format!("{}", Utc::now().format("%Y-%m-%d"));
+    static ref CURRENT_DATE: String = format!("{}", Utc::now().format("%Y%m%d"));
 }
 
 #[derive(Parser, Debug, Default)]

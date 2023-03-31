@@ -160,10 +160,10 @@ pub struct Predict {
         value_name = "FILE"
     )]
     mafft_exec: Option<PathBuf>,
-    /// Directory containing the index (produced by `drprg build`)
+    /// Name of a downloaded index or path to an index
     #[clap(short = 'x', long, required = true, value_parser = check_path_exists, value_name = "DIR")]
     index: PathBuf,
-    /// Sample reads to predict resistance from
+    /// Reads to predict resistance from
     ///
     /// Both fasta and fastq are accepted, along with compressed or uncompressed.
     #[clap(short, long, required = true, value_parser = check_path_exists, value_name = "FILE")]

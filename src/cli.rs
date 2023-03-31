@@ -1,6 +1,7 @@
 use clap::Parser;
 
 use crate::builder::Build;
+use crate::index::Index;
 use crate::predict::Predict;
 use std::ffi::OsStr;
 use std::path::PathBuf;
@@ -17,6 +18,7 @@ pub fn check_path_exists<S: AsRef<OsStr> + ?Sized>(s: &S) -> Result<PathBuf, Str
 
 /// Drug Resistance Prediction with Reference Graphs
 #[derive(Parser, Debug)]
+#[clap(author, version, about)]
 pub struct Cli {
     /// Use verbose output
     #[clap(short, long, global = true)]
@@ -36,6 +38,8 @@ pub enum Command {
     Build(Build),
     /// Predict drug resistance
     Predict(Predict),
+    /// Download and interact with indices
+    Index(Index),
 }
 #[cfg(test)]
 mod tests {

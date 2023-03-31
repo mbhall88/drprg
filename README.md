@@ -21,7 +21,7 @@ drprg index --download mtb
 Predict resistance from an Illumina fastq
 
 ```
-drprg predict 
+drprg predict -x mtb -i reads.fq --illumina -o outdir/
 ```
 
 ## Citation
