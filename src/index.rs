@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use clap::Parser;
 use flate2::read::GzDecoder;
 use log::{debug, info};
+use prettytable::{Row, Table};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use tar::Archive;
@@ -25,10 +26,10 @@ pub struct Index {
     /// Download a prebuilt index
     #[clap(short, long, conflicts_with = "list")]
     download: bool,
-    /// List all available (and downloaded) indices and version
+    /// List all available (and downloaded) indices
     #[clap(short, long)]
     list: bool,
-    /// The name/path of the index to interact with
+    /// The name/path of the index to download
     #[clap(default_value = "all")]
     name: String,
     /// Index directory
@@ -59,6 +60,8 @@ impl Runner for Index {
             download_indices(&species, &version, &self.outdir, self.force).context(
                 format!("Failed to download {species} species version {version}"),
             )?;
+        } else if self.list {
+            list_indices(&self.outdir);
         }
 
         Ok(())
@@ -113,4 +116,40 @@ fn download_from_url(url: &str, dest: &Path) -> Result<()> {
     let mut archive = Archive::new(tar);
     archive.unpack(dest)?;
     Ok(())
+}
+
+fn list_indices(outdir: &Path) {
+    let mut avail_tbl = Table::new();
+
+    let is_verbose = log::max_level() == log::Level::Debug;
+    let mut header = vec!["Name", "Species", "Version", "Downloaded"];
+    if is_verbose {
+        header.push("URL");
+    }
+
+    avail_tbl.add_row(Row::from(header));
+
+    for (species, spec_conf) in &*INDEX_CONFIG {
+        for (version, url) in spec_conf {
+            let mut row = vec![
+                format!("{species}@{version}"),
+                species.to_string(),
+                version.to_string(),
+            ];
+
+            let outpath = outdir.join(species).join(format!("{species}-{version}"));
+            if outpath.exists() {
+                row.push("Y".to_string());
+            } else {
+                row.push("N".to_string());
+            }
+
+            if is_verbose {
+                row.push(url.to_string());
+            }
+            avail_tbl.add_row(Row::from(row));
+        }
+    }
+
+    avail_tbl.printstd();
 }
