@@ -1,25 +1,35 @@
+use crate::config::INDEX_CONFIG;
 use crate::Runner;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Parser;
 use flate2::read::GzDecoder;
-use reqwest::Url;
+use log::{debug, info};
 use std::io::Cursor;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tar::Archive;
-use crate::config::INDEX_CONFIG;
+use thiserror::Error;
 
 lazy_static! {
     // we unwrap here because $HOME not being set is extremely unlikely
     static ref DEFAULT_OUTDIR: PathBuf = PathBuf::from(format!("{}/.drprg/", std::env::var("HOME").unwrap()));
 }
 
+#[derive(Error, Debug)]
+pub enum DownloadError {
+    #[error("Failed to find version {version} for species {species}")]
+    UnknownVersion { version: String, species: String },
+}
+
 #[derive(Parser, Debug, Default)]
 pub struct Index {
     /// Download a prebuilt index
-    #[clap(short, long)]
+    #[clap(short, long, conflicts_with = "list")]
     download: bool,
+    /// List all available (and downloaded) indices and version
+    #[clap(short, long)]
+    list: bool,
     /// The name/path of the index to interact with
-    #[clap()]
+    #[clap(default_value = "all")]
     name: String,
     /// Index directory
     ///
@@ -33,26 +43,74 @@ pub struct Index {
     value_name = "DIR"
     )]
     outdir: PathBuf,
+    /// Overwrite any existing indices
+    #[clap(short = 'F', long)]
+    force: bool,
 }
 
 impl Runner for Index {
     fn run(&mut self) -> Result<()> {
         let (species, version) = match self.name.split_once('@') {
             Some((s, v)) => (s.to_owned(), v.to_owned()),
-            None => (self.name.to_owned(), "latest".to_string())
+            None => (self.name.to_owned(), "latest".to_string()),
         };
 
-        // Download the tar archive file
-        let mut response = reqwest::blocking::get(url)?;
-        let mut buf = vec![];
-        response.copy_to(&mut buf)?;
-
-        // Decompress the tar archive file in memory
-        let cursor = Cursor::new(buf);
-        let tar = GzDecoder::new(cursor);
-        let mut archive = Archive::new(tar);
-        archive.unpack(&self.outdir)?;
+        if self.download {
+            download_indices(&species, &version, &self.outdir, self.force).context(
+                format!("Failed to download {species} species version {version}"),
+            )?;
+        }
 
         Ok(())
     }
+}
+
+fn download_indices(
+    species: &str,
+    version: &str,
+    outdir: &Path,
+    force: bool,
+) -> Result<()> {
+    for (spec, spec_conf) in &*INDEX_CONFIG {
+        if spec == &species || species == "all" {
+            let (ver, url) = if version == "latest" {
+                spec_conf.last_key_value()
+            } else {
+                spec_conf.get_key_value(version)
+            }
+            .ok_or_else(|| DownloadError::UnknownVersion {
+                version: version.to_string(),
+                species: spec.to_string(),
+            })?;
+            let outpath = outdir.join(spec).join(format!("{spec}-{ver}"));
+
+            if outpath.exists() && force {
+                debug!("{outpath:?} already exists. Removing it...");
+                std::fs::remove_dir_all(&outpath)?;
+            } else {
+                info!("{spec} index version {ver} already downloaded. Skipping...");
+                continue;
+            }
+
+            info!("Downloading {spec} index version {ver} to {outpath:?}...");
+            download_from_url(url, outpath.parent().unwrap())?;
+            info!("Download complete");
+        }
+    }
+
+    Ok(())
+}
+
+fn download_from_url(url: &str, dest: &Path) -> Result<()> {
+    // Download the tar archive file
+    let mut response = reqwest::blocking::get(url)?;
+    let mut buf = vec![];
+    response.copy_to(&mut buf)?;
+
+    // Decompress the tar archive file in memory
+    let cursor = Cursor::new(buf);
+    let tar = GzDecoder::new(cursor);
+    let mut archive = Archive::new(tar);
+    archive.unpack(dest)?;
+    Ok(())
 }

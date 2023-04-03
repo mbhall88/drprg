@@ -1,18 +1,16 @@
-use reqwest::Url;
 use serde_derive::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::path::Path;
 use thiserror::Error;
 
 lazy_static! {
-    pub static ref INDEX_CONFIG: HashMap<&'static str, HashMap<&'static str, Url>> = {
-        let mut conf = HashMap::new();
+    pub static ref INDEX_CONFIG: BTreeMap<&'static str, BTreeMap<&'static str, String>> = {
+        let mut conf = BTreeMap::new();
         let species_versions = [("mtb", ["20230308"])];
         for (species, versions) in species_versions {
-            let mut species_conf = HashMap::new();
+            let mut species_conf = BTreeMap::new();
             for ver in versions {
-                let urlstr = format!("https://github.com/mbhall88/drprg-index/raw/main/species/{species}/{species}-{ver}.tar.gz");
-                let url = Url::parse(&urlstr).unwrap();
+                let url = format!("https://github.com/mbhall88/drprg-index/raw/main/species/{species}/{species}-{ver}.tar.gz");
                 species_conf.insert(ver, url);
             }
             conf.insert(species, species_conf);
