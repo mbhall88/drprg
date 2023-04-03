@@ -12,7 +12,7 @@ for how to create your own.
 
 ## Quick usage
 
-Download the *M. tuberculosis* prebuilt index
+Download the latest *M. tuberculosis* prebuilt index
 
 ```
 drprg index --download mtb
