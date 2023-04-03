@@ -155,6 +155,78 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="download-prebuilt-index"><a class="header" href="#download-prebuilt-index">Download prebuilt index</a></h1>
+<p>The <code>index</code> subcommand can be used to download or list available indices.</p>
+<p>To download the latest index version for all species</p>
+<pre><code>drprg index --download
+# is the same as
+drprg index --download all
+</code></pre>
+<p>If you only want the latest for a particular species</p>
+<pre><code>drprg index --download mtb
+# is the same as
+drprg index --download mtb@latest
+</code></pre>
+<p>If you want to see what indices are available in the first place</p>
+<pre><code>drprg index --list
++--------------+---------+----------+------------+
+| Name         | Species | Version  | Downloaded |
++--------------+---------+----------+------------+
+| mtb@20230308 | mtb     | 20230308 | N          |
++--------------+---------+----------+------------+
+</code></pre>
+<p>You can specify a version with the following syntax</p>
+<pre><code>drprg index --download mtb@&lt;version&gt;
+</code></pre>
+<p>where <code>&lt;version&gt;</code> is the version you want. If no version is provided, <code>latest</code> is used.</p>
+<h2 id="output-directory"><a class="header" href="#output-directory">Output directory</a></h2>
+<p>By default, indices are stored in <code>$HOME/.drprg/</code>, nested as <code>species/species-version</code>.
+So downloading version <code>20230308</code> of species <code>mtb</code> will produce an index
+at <code>$HOME/.drprg/mtb/mtb-20230308/</code>.</p>
+<p>You can change the default output directory (<code>$HOME/.drprg/</code>) with the <code>--outdir</code>
+option. If you do this, you'll need to pass the full path to the index when
+using <a href="predict.html"><code>predict</code></a>.</p>
+<h2 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h2>
+<pre><code>$ drprg index --help
+Download and interact with indices
+
+Usage: drprg index [OPTIONS] [NAME]
+
+Arguments:
+  [NAME]
+          The name/path of the index to download
+
+          [default: all]
+
+Options:
+  -d, --download
+          Download a prebuilt index
+
+  -v, --verbose
+          Use verbose output
+
+  -l, --list
+          List all available (and downloaded) indices
+
+  -t, --threads &lt;INT&gt;
+          Maximum number of threads to use
+
+          Use 0 to select the number automatically
+
+          [default: 1]
+
+  -o, --outdir &lt;DIR&gt;
+          Index directory
+
+          Use this if your indices are not in a default location, or you want to download them to a non-default location
+
+          [default: $HOME/.drprg/]
+
+  -F, --force
+          Overwrite any existing indices
+
+  -h, --help
+          Print help (see a summary with '-h')
+</code></pre>
 
                     </main>
 

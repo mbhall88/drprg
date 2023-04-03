@@ -161,7 +161,7 @@ data. It can be used for any species, provided an index is available for that sp
 The <a href="https://mbh.sh/drprg/">documentation</a> outlines which species have prebuilt indices and also a guide
 for how to create your own.</p>
 <h2 id="quick-usage"><a class="header" href="#quick-usage">Quick usage</a></h2>
-<p>Download the <em>M. tuberculosis</em> prebuilt index</p>
+<p>Download the latest <em>M. tuberculosis</em> prebuilt index</p>
 <pre><code>drprg index --download mtb
 </code></pre>
 <p>Predict resistance from an Illumina fastq</p>
@@ -221,13 +221,85 @@ changed by specifying a path to <code>EXTDIR</code> when installing the external
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="quick-usage-1"><a class="header" href="#quick-usage-1">Quick Usage</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="download-prebuilt-index"><a class="header" href="#download-prebuilt-index">Download prebuilt index</a></h1>
+<p>The <code>index</code> subcommand can be used to download or list available indices.</p>
+<p>To download the latest index version for all species</p>
+<pre><code>drprg index --download
+# is the same as
+drprg index --download all
+</code></pre>
+<p>If you only want the latest for a particular species</p>
+<pre><code>drprg index --download mtb
+# is the same as
+drprg index --download mtb@latest
+</code></pre>
+<p>If you want to see what indices are available in the first place</p>
+<pre><code>drprg index --list
++--------------+---------+----------+------------+
+| Name         | Species | Version  | Downloaded |
++--------------+---------+----------+------------+
+| mtb@20230308 | mtb     | 20230308 | N          |
++--------------+---------+----------+------------+
+</code></pre>
+<p>You can specify a version with the following syntax</p>
+<pre><code>drprg index --download mtb@&lt;version&gt;
+</code></pre>
+<p>where <code>&lt;version&gt;</code> is the version you want. If no version is provided, <code>latest</code> is used.</p>
+<h2 id="output-directory"><a class="header" href="#output-directory">Output directory</a></h2>
+<p>By default, indices are stored in <code>$HOME/.drprg/</code>, nested as <code>species/species-version</code>.
+So downloading version <code>20230308</code> of species <code>mtb</code> will produce an index
+at <code>$HOME/.drprg/mtb/mtb-20230308/</code>.</p>
+<p>You can change the default output directory (<code>$HOME/.drprg/</code>) with the <code>--outdir</code>
+option. If you do this, you'll need to pass the full path to the index when
+using <a href="guide/predict.html"><code>predict</code></a>.</p>
+<h2 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h2>
+<pre><code>$ drprg index --help
+Download and interact with indices
+
+Usage: drprg index [OPTIONS] [NAME]
+
+Arguments:
+  [NAME]
+          The name/path of the index to download
+
+          [default: all]
+
+Options:
+  -d, --download
+          Download a prebuilt index
+
+  -v, --verbose
+          Use verbose output
+
+  -l, --list
+          List all available (and downloaded) indices
+
+  -t, --threads &lt;INT&gt;
+          Maximum number of threads to use
+
+          Use 0 to select the number automatically
+
+          [default: 1]
+
+  -o, --outdir &lt;DIR&gt;
+          Index directory
+
+          Use this if your indices are not in a default location, or you want to download them to a non-default location
+
+          [default: $HOME/.drprg/]
+
+  -F, --force
+          Overwrite any existing indices
+
+  -h, --help
+          Print help (see a summary with '-h')
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="predict"><a class="header" href="#predict">Predict</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="output"><a class="header" href="#output">Output</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-an-index"><a class="header" href="#build-an-index">Build an index</a></h1>
 <pre><code>$ drprg build -a annotation.gff3 -i panel.tsv -f ref.fa -o outdir
 </code></pre>
 <!--todo: document the input and output files for build-->
-<h4 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h4>
+<h4 id="full-usage-1"><a class="header" href="#full-usage-1">Full usage</a></h4>
 <pre><code>$ drprg build --help
 Build a drprg panel from a mykrobe-style panel
 
