@@ -155,39 +155,20 @@
                         <p>👩‍⚕Dr. PRG - <strong>D</strong>rug <strong>r</strong>esistance <strong>P</strong>rediction with <strong>R</strong>eference <strong>G</strong>raphs️👨‍⚕️</p>
 <p><a href="https://codecov.io/gh/mbhall88/drprg"><img src="https://codecov.io/gh/mbhall88/drprg/branch/main/graph/badge.svg?token=2WAA6MZRKK" alt="codecov" /></a>
 <a href="https://github.com/mbhall88/drprg/actions/workflows/rust.yml"><img src="https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main" alt="Rust" /></a></p>
-<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
-<h3 id="build"><a class="header" href="#build">Build</a></h3>
-<p>Build a <code>drprg</code> panel from a <a href="https://github.com/Mykrobe-tools/mykrobe"><code>mykrobe</code></a>-style panel.</p>
-<pre><code>$ drprg build -a annotation.gff3 -i panel.tsv -f ref.fa -o outdir
+<p>Full documentation: <a href="https://mbh.sh/drprg/">https://mbh.sh/drprg/</a></p>
+<p>As the name suggests, DrPRG is a tool for predicting drug resistance from sequencing
+data. It can be used for any species, provided an index is available for that species.
+The <a href="https://mbh.sh/drprg/">documentation</a> outlines which species have prebuilt indices and also a guide
+for how to create your own.</p>
+<h2 id="quick-usage"><a class="header" href="#quick-usage">Quick usage</a></h2>
+<p>Download the <em>M. tuberculosis</em> prebuilt index</p>
+<pre><code>drprg index --download mtb
 </code></pre>
-<!--todo: document the input and output files for build-->
-<h4 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h4>
-<pre><code>$ drprg build --help
-Build a drprg panel from a mykrobe-style panel
-
-USAGE:
-    drprg build [FLAGS] [OPTIONS] --gff &lt;gff-file&gt; --panel &lt;panel-file&gt; --fasta &lt;reference-file&gt;
-
-FLAGS:
-    -F, --force      Force overwriting existing files. Use this if you want to build from scratch
-    -h, --help       Prints help information
-        --keep       Keep all temporary files that would otherwise be deleted
-    -V, --version    Prints version information
-    -v, --verbose    Use verbose output
-
-OPTIONS:
-    -a, --gff &lt;gff-file&gt;            Annotation file that will be used to gather information about genes in panel
-    -M, --mafft &lt;mafft-exec&gt;        Path to MAFFT executable. Will try in src/ext or $PATH if not given
-    -m, --makeprg &lt;makeprg-exec&gt;    Path to make_prg executable. Will try in src/ext or $PATH if not given
-    -l, --match-len &lt;match-len&gt;     Minimum number of consecutive characters which must be identical for a match in
-                                    make_prg [default: 7]
-    -o, --outdir &lt;outdir&gt;           Directory to place output [default: .]
-    -P, --padding &lt;padding&gt;         Number of bases of padding to add to start and end of each gene [default: 100]
-    -p, --pandora &lt;pandora-exec&gt;    Path to pandora executable. Will try in src/ext or $PATH if not given
-    -i, --panel &lt;panel-file&gt;        Panel to build index from
-    -f, --fasta &lt;reference-file&gt;    Reference genome in FASTA format (must be indexed with samtools faidx)
-    -t, --threads &lt;threads&gt;         Number of threads to use. Use 0 to select the number automatically [default: 1]
+<p>Predict resistance from an Illumina fastq</p>
+<pre><code>drprg predict -x mtb -i reads.fq --illumina -o outdir/
 </code></pre>
+<h2 id="citation"><a class="header" href="#citation">Citation</a></h2>
+<p>Preprint coming soon...</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <h2 id="conda"><a class="header" href="#conda">Conda</a></h2>
 <pre><code>conda install drprg
@@ -238,11 +219,41 @@ $ just bcftools
 changed by specifying a path to <code>EXTDIR</code> when installing the external dependencies.</p>
 <pre><code class="language-shell script">$ just deps EXTDIR=&quot;some/other/dir&quot;
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="quick-usage"><a class="header" href="#quick-usage">Quick Usage</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="quick-usage-1"><a class="header" href="#quick-usage-1">Quick Usage</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="download-prebuilt-index"><a class="header" href="#download-prebuilt-index">Download prebuilt index</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="predict"><a class="header" href="#predict">Predict</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="output"><a class="header" href="#output">Output</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-an-index"><a class="header" href="#build-an-index">Build an index</a></h1>
+<pre><code>$ drprg build -a annotation.gff3 -i panel.tsv -f ref.fa -o outdir
+</code></pre>
+<!--todo: document the input and output files for build-->
+<h4 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h4>
+<pre><code>$ drprg build --help
+Build a drprg panel from a mykrobe-style panel
+
+USAGE:
+    drprg build [FLAGS] [OPTIONS] --gff &lt;gff-file&gt; --panel &lt;panel-file&gt; --fasta &lt;reference-file&gt;
+
+FLAGS:
+    -F, --force      Force overwriting existing files. Use this if you want to build from scratch
+    -h, --help       Prints help information
+        --keep       Keep all temporary files that would otherwise be deleted
+    -V, --version    Prints version information
+    -v, --verbose    Use verbose output
+
+OPTIONS:
+    -a, --gff &lt;gff-file&gt;            Annotation file that will be used to gather information about genes in panel
+    -M, --mafft &lt;mafft-exec&gt;        Path to MAFFT executable. Will try in src/ext or $PATH if not given
+    -m, --makeprg &lt;makeprg-exec&gt;    Path to make_prg executable. Will try in src/ext or $PATH if not given
+    -l, --match-len &lt;match-len&gt;     Minimum number of consecutive characters which must be identical for a match in
+                                    make_prg [default: 7]
+    -o, --outdir &lt;outdir&gt;           Directory to place output [default: .]
+    -P, --padding &lt;padding&gt;         Number of bases of padding to add to start and end of each gene [default: 100]
+    -p, --pandora &lt;pandora-exec&gt;    Path to pandora executable. Will try in src/ext or $PATH if not given
+    -i, --panel &lt;panel-file&gt;        Panel to build index from
+    -f, --fasta &lt;reference-file&gt;    Reference genome in FASTA format (must be indexed with samtools faidx)
+    -t, --threads &lt;threads&gt;         Number of threads to use. Use 0 to select the number automatically [default: 1]
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="vcf-to-build-reference-graph"><a class="header" href="#vcf-to-build-reference-graph">VCF to build reference graph</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="catalogue-of-mutations"><a class="header" href="#catalogue-of-mutations">Catalogue of mutations</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="expert-rules"><a class="header" href="#expert-rules">Expert rules</a></h1>
