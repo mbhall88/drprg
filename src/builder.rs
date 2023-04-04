@@ -85,10 +85,10 @@ pub struct Build {
         value_name = "FILE"
     )]
     bcftools_exec: Option<PathBuf>,
-    /// Annotation file that will be used to gather information about genes in panel
+    /// Annotation file that will be used to gather information about genes in catalogue
     #[clap(short = 'a', long = "gff", value_parser = check_path_exists, value_name = "FILE")]
     gff_file: PathBuf,
-    /// Panel to build index for
+    /// Panel/catalogue to build index for
     #[clap(short = 'i', long = "panel", value_parser = check_path_exists, value_name = "FILE")]
     panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
@@ -119,7 +119,7 @@ pub struct Build {
     /// (along with padding) and must be in the forward strand orientation.
     #[clap(short = 'd', long, value_parser = check_path_exists, value_name = "DIR")]
     prebuilt_prg: Option<PathBuf>,
-    /// "Expert rules" to be applied in addition to the panel.
+    /// "Expert rules" to be applied in addition to the catalogue.
     ///
     /// CSV file with blanket rules that describe resistance (or susceptibility). The columns are
     /// <variant type>,<gene>,<start>,<end>,<drug(s)>. See the docs for a detailed explanation.
@@ -134,7 +134,7 @@ pub struct Build {
         value_name = "INT"
     )]
     match_len: u32,
-    /// Maximum nesting level when constructing the panel graph with make_prg
+    /// Maximum nesting level when constructing the reference graph with make_prg
     #[clap(
         short = 'N',
         long = "max-nesting",

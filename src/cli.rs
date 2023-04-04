@@ -95,7 +95,7 @@ pub struct Cli {
 
 #[derive(Parser, Debug)]
 pub enum Command {
-    /// Build a drprg panel from a mykrobe-style panel
+    /// Build an index to predict resistance from
     Build(Build),
     /// Predict drug resistance
     Predict(Predict),
