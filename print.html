@@ -296,39 +296,171 @@ Options:
 <div style="break-before: page; page-break-before: always;"></div><h1 id="predict"><a class="header" href="#predict">Predict</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="output"><a class="header" href="#output">Output</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-an-index"><a class="header" href="#build-an-index">Build an index</a></h1>
-<pre><code>$ drprg build -a annotation.gff3 -i panel.tsv -f ref.fa -o outdir
+<p>The <code>build</code> subcommand is used to build a custom index to <a href="guide/build/../predict.html"><code>predict</code></a>
+from.</p>
+<pre><code>$ drprg build -a annotation.gff3 -i catalogue.tsv -f ref.fa -o outdir
 </code></pre>
-<!--todo: document the input and output files for build-->
-<h4 id="full-usage-1"><a class="header" href="#full-usage-1">Full usage</a></h4>
+<h2 id="required"><a class="header" href="#required">Required</a></h2>
+<h3 id="catalogue"><a class="header" href="#catalogue">Catalogue</a></h3>
+<p>Also referred to as &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
+resistance (or susceptibility). See <a href="guide/build/./catalogue.html">the Catalogue docs</a> for more
+details of what format this file must take. Provided via the <code>-i/--panel</code> option.</p>
+<h3 id="reference-genome"><a class="header" href="#reference-genome">Reference genome</a></h3>
+<p>A FASTA file of the reference genome that will act as the &quot;skeleton&quot; for the reference
+graph. Provided via the <code>-f/--fasta</code> option.</p>
+<h3 id="annotation"><a class="header" href="#annotation">Annotation</a></h3>
+<p>The annotation is a <a href="https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md">GFF3</a> file for the species you are building the index for.
+Provided via the <code>-a/--gff</code> option.</p>
+<h3 id="vcf"><a class="header" href="#vcf">VCF</a></h3>
+<p>A VCF to build the reference graph from. See <a href="guide/build/./vcf.html">VCF</a> for a detailed description
+of this file. Provided via the <code>-b/--vcf</code> option. This option is mutually exclusive
+with <a href="guide/build/build.html#prebuilt-reference-graph"><code>--prebuilt-prg</code></a>.</p>
+<h2 id="optional"><a class="header" href="#optional">Optional</a></h2>
+<h3 id="expert-rules"><a class="header" href="#expert-rules">Expert rules</a></h3>
+<p>These describe a set of rules - rather than a single mutation - that cause resistance.
+See <a href="guide/build/./expert.html">Expert rules</a> for a detailed description of the rules. Provided via
+the <code>-r/--rules</code> option.</p>
+<h3 id="padding"><a class="header" href="#padding">Padding</a></h3>
+<p>Number of bases to add to the start and end of each gene (locus) in the reference graph.
+Set to 100 by default. Provided via the <code>-P/--padding</code> option.</p>
+<h3 id="prebuilt-reference-graph"><a class="header" href="#prebuilt-reference-graph">Prebuilt reference graph</a></h3>
+<p><strong>Advanced users only.</strong> For those who know how to build their own reference graphs, and
+would prefer to do that themselves by hand, rather than let DrPRG do it for them. The
+value passed to this option must be a directory containing:</p>
+<ul>
+<li>A reference graph file named <code>dr.prg</code></li>
+<li>A directory of multiple sequence alignments (<code>/msas/</code>) that the reference graph was
+built from. There must be a fasta file alignment for each gene in this
+directory <code>&lt;gene&gt;.fa</code>.</li>
+<li>An optional <a href="https://github.com/rmcolq/pandora"><code>pandora</code></a> index. If not present, one will be created.</li>
+</ul>
+<p>The reference graph is expected to contain the reference sequence (
+with <a href="guide/build/build.html#padding">padding</a>) for each gene according to the <a href="guide/build/build.html#annotation">annotation</a>
+and <a href="guide/build/build.html#reference-genome">reference sequence</a> provided.</p>
+<p>Provided with the <code>-d/--prebuilt-prg</code> option.</p>
+<h3 id="version"><a class="header" href="#version">Version</a></h3>
+<p>The version name for the index. Set to the current date (<code>YYYYMMDD</code>) by default.
+Provided via the <code>--version</code> option.</p>
+<h2 id="quick-usage-2"><a class="header" href="#quick-usage-2">Quick usage</a></h2>
+<pre><code>$ drprg build -h
+Build an index to predict resistance from
+
+Usage: drprg build [OPTIONS] --gff &lt;FILE&gt; --panel &lt;FILE&gt; --fasta &lt;FILE&gt;
+
+Options:
+  -v, --verbose             Use verbose output
+  -t, --threads &lt;INT&gt;       Maximum number of threads to use [default: 1]
+  -a, --gff &lt;FILE&gt;          Annotation file that will be used to gather information about genes in catalogue
+  -i, --panel &lt;FILE&gt;        Panel/catalogue to build index for
+  -f, --fasta &lt;FILE&gt;        Reference genome in FASTA format (must be indexed with samtools faidx)
+  -b, --vcf &lt;FILE&gt;          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
+  -P, --padding &lt;INT&gt;       Number of bases of padding to add to start and end of each gene [default: 100]
+  -o, --outdir &lt;DIR&gt;        Directory to place output [default: .]
+  -d, --prebuilt-prg &lt;DIR&gt;  A prebuilt PRG to use
+  -r, --rules &lt;FILE&gt;        &quot;Expert rules&quot; to be applied in addition to the catalogue
+  -I, --no-fai              Don't index --fasta if an index doesn't exist
+  -C, --no-csi              Don't index --vcf if an index doesn't exist
+      --version &lt;VERSION&gt;   Version to use for the index [default: 20230404]
+  -h, --help                Print help (see more with '--help')
+</code></pre>
+<h2 id="full-usage-1"><a class="header" href="#full-usage-1">Full usage</a></h2>
 <pre><code>$ drprg build --help
-Build a drprg panel from a mykrobe-style panel
+Build an index to predict resistance from
 
-USAGE:
-    drprg build [FLAGS] [OPTIONS] --gff &lt;gff-file&gt; --panel &lt;panel-file&gt; --fasta &lt;reference-file&gt;
+Usage: drprg build [OPTIONS] --gff &lt;FILE&gt; --panel &lt;FILE&gt; --fasta &lt;FILE&gt;
 
-FLAGS:
-    -F, --force      Force overwriting existing files. Use this if you want to build from scratch
-    -h, --help       Prints help information
-        --keep       Keep all temporary files that would otherwise be deleted
-    -V, --version    Prints version information
-    -v, --verbose    Use verbose output
+Options:
+  -p, --pandora &lt;FILE&gt;
+          Path to pandora executable. Will try in src/ext or $PATH if not given
 
-OPTIONS:
-    -a, --gff &lt;gff-file&gt;            Annotation file that will be used to gather information about genes in panel
-    -M, --mafft &lt;mafft-exec&gt;        Path to MAFFT executable. Will try in src/ext or $PATH if not given
-    -m, --makeprg &lt;makeprg-exec&gt;    Path to make_prg executable. Will try in src/ext or $PATH if not given
-    -l, --match-len &lt;match-len&gt;     Minimum number of consecutive characters which must be identical for a match in
-                                    make_prg [default: 7]
-    -o, --outdir &lt;outdir&gt;           Directory to place output [default: .]
-    -P, --padding &lt;padding&gt;         Number of bases of padding to add to start and end of each gene [default: 100]
-    -p, --pandora &lt;pandora-exec&gt;    Path to pandora executable. Will try in src/ext or $PATH if not given
-    -i, --panel &lt;panel-file&gt;        Panel to build index from
-    -f, --fasta &lt;reference-file&gt;    Reference genome in FASTA format (must be indexed with samtools faidx)
-    -t, --threads &lt;threads&gt;         Number of threads to use. Use 0 to select the number automatically [default: 1]
+  -v, --verbose
+          Use verbose output
+
+  -m, --makeprg &lt;FILE&gt;
+          Path to make_prg executable. Will try in src/ext or $PATH if not given
+
+  -t, --threads &lt;INT&gt;
+          Maximum number of threads to use
+
+          Use 0 to select the number automatically
+
+          [default: 1]
+
+  -M, --mafft &lt;FILE&gt;
+          Path to MAFFT executable. Will try in src/ext or $PATH if not given
+
+  -B, --bcftools &lt;FILE&gt;
+          Path to bcftools executable. Will try in src/ext or $PATH if not given
+
+  -a, --gff &lt;FILE&gt;
+          Annotation file that will be used to gather information about genes in catalogue
+
+  -i, --panel &lt;FILE&gt;
+          Panel/catalogue to build index for
+
+  -f, --fasta &lt;FILE&gt;
+          Reference genome in FASTA format (must be indexed with samtools faidx)
+
+  -b, --vcf &lt;FILE&gt;
+          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
+
+  -P, --padding &lt;INT&gt;
+          Number of bases of padding to add to start and end of each gene
+
+          [default: 100]
+
+  -o, --outdir &lt;DIR&gt;
+          Directory to place output
+
+          [default: .]
+
+  -d, --prebuilt-prg &lt;DIR&gt;
+          A prebuilt PRG to use.
+
+          Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `&lt;gene&gt;.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
+
+  -r, --rules &lt;FILE&gt;
+          &quot;Expert rules&quot; to be applied in addition to the catalogue.
+
+          CSV file with blanket rules that describe resistance (or susceptibility). The columns are &lt;variant type&gt;,&lt;gene&gt;,&lt;start&gt;,&lt;end&gt;,&lt;drug(s)&gt;. See the docs for a detailed explanation.
+
+  -l, --match-len &lt;INT&gt;
+          Minimum number of consecutive characters which must be identical for a match in make_prg
+
+          [default: 5]
+
+  -N, --max-nesting &lt;INT&gt;
+          Maximum nesting level when constructing the reference graph with make_prg
+
+          [default: 5]
+
+  -k, --pandora-k &lt;INT&gt;
+          Kmer size to use for pandora
+
+          [default: 15]
+
+  -w, --pandora-w &lt;INT&gt;
+          Window size to use for pandora
+
+          [default: 11]
+
+  -I, --no-fai
+          Don't index --fasta if an index doesn't exist
+
+  -C, --no-csi
+          Don't index --vcf if an index doesn't exist
+
+      --version &lt;VERSION&gt;
+          Version to use for the index
+
+          [default: 20230404]
+
+  -h, --help
+          Print help (see a summary with '-h')
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="vcf-to-build-reference-graph"><a class="header" href="#vcf-to-build-reference-graph">VCF to build reference graph</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="catalogue-of-mutations"><a class="header" href="#catalogue-of-mutations">Catalogue of mutations</a></h1>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="expert-rules"><a class="header" href="#expert-rules">Expert rules</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="expert-rules-1"><a class="header" href="#expert-rules-1">Expert rules</a></h1>
 <p>These are blanket rules that describe resistance (or susceptibility). The file is a CSV
 with each row representing a rule and is passed to <code>drprg build</code> via the <code>--rules</code>
 option. The format of each row is</p>
