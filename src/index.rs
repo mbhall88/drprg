@@ -12,7 +12,7 @@ use thiserror::Error;
 
 lazy_static! {
     // we unwrap here because $HOME not being set is extremely unlikely
-    static ref DEFAULT_OUTDIR: PathBuf = PathBuf::from(format!("{}/.drprg/", std::env::var("HOME").unwrap()));
+    pub static ref DEFAULT_OUTDIR: PathBuf = PathBuf::from(format!("{}/.drprg/", std::env::var("HOME").unwrap()));
 }
 
 #[derive(Error, Debug)]

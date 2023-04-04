@@ -895,6 +895,11 @@ pub fn is_executable(program: &str) -> Option<String> {
     }
 }
 
+/// CHecks whether a string contains a path separator - https://stackoverflow.com/a/69079442/5299417
+pub fn has_single_component(path: &str) -> bool {
+    !path.contains(std::path::is_separator)
+}
+
 pub trait PathExt {
     fn add_extension(&self, extension: &OsStr) -> PathBuf;
     fn prefix(&self) -> Option<&str>;
@@ -3110,5 +3115,15 @@ ahpC
         }
 
         assert_eq!(n_records, 2)
+    }
+
+    #[test]
+    fn test_has_single_component() {
+        assert!(has_single_component("foo.bar"))
+    }
+
+    #[test]
+    fn test_does_not_have_single_component() {
+        assert!(!has_single_component("path/foo.bar"))
     }
 }

@@ -22,7 +22,7 @@ use drprg::{
     PathExt, VcfExt,
 };
 
-use crate::cli::check_path_exists;
+use crate::cli::{check_path_exists, validate_index};
 use crate::panel::{Residue, Variant};
 use crate::report::{Evidence, Susceptibility, STOP};
 use crate::Runner;
@@ -161,7 +161,7 @@ pub struct Predict {
     )]
     mafft_exec: Option<PathBuf>,
     /// Name of a downloaded index or path to an index
-    #[clap(short = 'x', long, required = true, value_parser = check_path_exists, value_name = "DIR")]
+    #[clap(short = 'x', long, required = true, value_parser = validate_index, value_name = "DIR")]
     index: PathBuf,
     /// Reads to predict resistance from
     ///
