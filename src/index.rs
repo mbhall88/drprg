@@ -87,12 +87,14 @@ fn download_indices(
             })?;
             let outpath = outdir.join(spec).join(format!("{spec}-{ver}"));
 
-            if outpath.exists() && force {
-                debug!("{outpath:?} already exists. Removing it...");
-                std::fs::remove_dir_all(&outpath)?;
-            } else {
-                info!("{spec} index version {ver} already downloaded. Skipping...");
-                continue;
+            if outpath.exists() {
+                if force {
+                    debug!("{outpath:?} already exists. Removing it...");
+                    std::fs::remove_dir_all(&outpath)?;
+                } else {
+                    info!("{spec} index version {ver} already downloaded. Skipping...");
+                    continue;
+                }
             }
 
             info!("Downloading {spec} index version {ver} to {outpath:?}...");
