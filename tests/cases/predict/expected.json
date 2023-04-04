@@ -230,5 +230,9 @@
       ],
       "predict": "R"
     }
+  },
+  "version": {
+    "drprg": "0.1.0",
+    "index": "version"
   }
 }

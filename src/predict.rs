@@ -304,7 +304,8 @@ impl Runner for Predict {
         info!("Making predictions from variants...");
         let predict_vcf_path = self.predict_from_pandora_vcf(&pandora_vcf_path)?;
         debug!("Predictions written to VCF {:?}", predict_vcf_path);
-        let predict_json_path = self.vcf_to_json(&predict_vcf_path, config.padding)?;
+        let predict_json_path =
+            self.vcf_to_json(&predict_vcf_path, config.padding, &config.version)?;
         info!(
             "Prediction report written to JSON file {:?}",
             predict_json_path
@@ -711,7 +712,12 @@ impl Predict {
         Ok(drug_info)
     }
 
-    fn vcf_to_json(&self, vcf_path: &Path, padding: u32) -> Result<PathBuf> {
+    fn vcf_to_json(
+        &self,
+        vcf_path: &Path,
+        padding: u32,
+        idx_version: &str,
+    ) -> Result<PathBuf> {
         let json_path = self.outdir.join(self.json_filename());
 
         debug!("Loading the panel...");
@@ -1063,7 +1069,10 @@ impl Predict {
         genes_json.insert("present".to_string(), Vec::from_iter(present_genes));
         genes_json.insert("absent".to_string(), Vec::from_iter(absent_genes));
 
-        let data = json!({"sample": self.sample_name(), "genes": genes_json, "susceptibility": json});
+        const VERSION: &str = env!("CARGO_PKG_VERSION");
+        let version_json = BTreeMap::from([("drprg", VERSION), ("index", idx_version)]);
+
+        let data = json!({"sample": self.sample_name(), "version": version_json, "genes": genes_json, "susceptibility": json});
         {
             let mut file =
                 File::create(&json_path).context("Failed to create JSON file")?;
@@ -2089,7 +2098,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out.vcf");
-        let result = pred.vcf_to_json(vcf_path, 100);
+        let result = pred.vcf_to_json(vcf_path, 100, "version");
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -2139,7 +2148,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out3.vcf");
-        let result = pred.vcf_to_json(vcf_path, 100);
+        let result = pred.vcf_to_json(vcf_path, 100, "version");
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -2189,7 +2198,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/out5.vcf");
-        let result = pred.vcf_to_json(vcf_path, 100);
+        let result = pred.vcf_to_json(vcf_path, 100, "version");
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -2239,7 +2248,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/SRR6824468.vcf");
-        let result = pred.vcf_to_json(vcf_path, 100);
+        let result = pred.vcf_to_json(vcf_path, 100, "version");
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -2289,7 +2298,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/ERR4796933.drprg.vcf");
-        let result = pred.vcf_to_json(vcf_path, 100);
+        let result = pred.vcf_to_json(vcf_path, 100, "version");
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
@@ -2339,7 +2348,7 @@ mod tests {
             ..Default::default()
         };
         let vcf_path = Path::new("tests/cases/predict/ERR2510634.drprg.vcf");
-        let result = pred.vcf_to_json(vcf_path, 100);
+        let result = pred.vcf_to_json(vcf_path, 100, "version");
         assert!(result.is_ok());
 
         let json_path = result.unwrap();
