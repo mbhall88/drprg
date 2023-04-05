@@ -302,7 +302,7 @@ from.</p>
 </code></pre>
 <h2 id="required"><a class="header" href="#required">Required</a></h2>
 <h3 id="catalogue"><a class="header" href="#catalogue">Catalogue</a></h3>
-<p>Also referred to as &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
+<p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). See <a href="guide/build/./catalogue.html">the Catalogue docs</a> for more
 details of what format this file must take. Provided via the <code>-i/--panel</code> option.</p>
 <h3 id="reference-genome"><a class="header" href="#reference-genome">Reference genome</a></h3>
@@ -460,6 +460,34 @@ Options:
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="vcf-to-build-reference-graph"><a class="header" href="#vcf-to-build-reference-graph">VCF to build reference graph</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="catalogue-of-mutations"><a class="header" href="#catalogue-of-mutations">Catalogue of mutations</a></h1>
+<p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
+resistance (or susceptibility). Provided via the <code>-i/--panel</code> option.</p>
+<p>This file is a tab-delimited (TSV) file with four columns</p>
+<ol>
+<li>The gene name of the mutation</li>
+<li>The mutation in the form <code>&lt;ref&gt;&lt;pos&gt;&lt;alt&gt;</code>, where <code>&lt;ref&gt;</code> is the reference nucleotide
+or amino acid, <code>&lt;pos&gt;</code> is the 1-based position in the gene/protein, and <code>&lt;alt&gt;</code> is
+the nucleotide or amino acid the reference is changed to. <code>&lt;pos&gt;</code> is with respect to
+the type of mutation - i.e. if the mutation is a amino acid change, the <code>&lt;pos&gt;</code> must
+be position within the protein (codon position). Promoter mutations can be specied
+with a negative symbol - e.g. -10 means 10 nucleotide before the first position in
+the gene. One-letter codes are to be used for amino acids.</li>
+<li>The residue type - <code>DNA</code> (nucleotide change) or <code>PROT</code> (amino acid change).</li>
+<li>Comma-separated list of the drug(s) the mutation confers resistance to. Use <code>NONE</code> if
+the mutation is not associated with resistance. </li>
+</ol>
+<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<pre><code>pncA    TCG196TAG   DNA Pyrazinamide
+pncA    T142R   PROT    Pyrazinamide
+tlyA    S159*   PROT    Capreomycin
+embB    M306N   PROT    Ethambutol
+rpoB    C1275CCA    DNA Rifampicin
+gid R137P   PROT    Streptomycin
+gid R118S   PROT    Streptomycin
+tlyA    G123GC  DNA Capreomycin
+pncA    G97D    PROT    Pyrazinamide
+fabG1   C-15X   DNA Ethionamide,Isoniazid
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="expert-rules-1"><a class="header" href="#expert-rules-1">Expert rules</a></h1>
 <p>These are blanket rules that describe resistance (or susceptibility). The file is a CSV
 with each row representing a rule and is passed to <code>drprg build</code> via the <code>--rules</code>
@@ -490,7 +518,7 @@ confers susceptibility, use <code>NONE</code> for this column.</li>
 </ol>
 <p>If there are certain rules you need for your
 species-of-interest, <a href="https://github.com/mbhall88/drprg/issues/new/choose">raise an issue</a>, and we can look at implementing it.</p>
-<h3 id="example"><a class="header" href="#example">Example</a></h3>
+<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
 <p>This is an example of the <em>M. tuberculosis</em> expert rules file used in our paper.</p>
 <pre><code class="language-csv">missense,rpoB,426,452,Rifampicin
 nonsense,rpoB,426,452,Rifampicin
