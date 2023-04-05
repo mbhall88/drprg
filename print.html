@@ -294,13 +294,169 @@ Options:
           Print help (see a summary with '-h')
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="predict"><a class="header" href="#predict">Predict</a></h1>
+<p>The <code>predict</code> subcommand is used to predict resistance for a sample from an index.</p>
+<p>At its simplest</p>
+<pre><code>drprg predict -i reads.fq -x mtb -o outdir
+</code></pre>
+<p><code>drprg</code> is a bit &quot;new-age&quot; in that it assume the reads are Nanopore. If they're
+Illumina, use the <code>-I/--illumina</code> option.</p>
+<p>See <a href="guide/./predict-output.html">Predict Output</a> documentation for a detailed description of
+what results/output files and formats to expect.</p>
+<h2 id="required"><a class="header" href="#required">Required</a></h2>
+<h3 id="index"><a class="header" href="#index">Index</a></h3>
+<p>The index is provided via the <code>-x/--index</code> option. It can either be a path to an index,
+or the name of a <a href="guide/./download.html">downloaded index</a>. As with the <a href="guide/./download.html"><code>index</code></a>
+subcommmand, you can specify a version if you don't want to use the latest.</p>
+<h3 id="input-reads"><a class="header" href="#input-reads">Input reads</a></h3>
+<p>A fastq (or fasta) file of the reads you want to predict resistance from - provided via
+the <code>-i/--input</code> option. If you have paired reads in two files, simply combine them and
+pass the combined file - interleave order doesn't matter. For example</p>
+<pre><code>cat r1.fq r2.fq &gt; combined.fq
+drprg predict -i combined.fq ...
+</code></pre>
+<p><code>gzip</code>-compressed files are also accepted.</p>
+<h2 id="optional"><a class="header" href="#optional">Optional</a></h2>
+<h3 id="sample-name"><a class="header" href="#sample-name">Sample name</a></h3>
+<p>Identifier to use for your output files. By default, it will be set to the file name
+prefix (e.g. <code>name</code> for a fastq named <code>name.fq.gz</code>). Provided via the <code>-s/--sample</code>
+option.</p>
+<h3 id="minimum-allele-frequency"><a class="header" href="#minimum-allele-frequency">Minimum allele frequency</a></h3>
+<p>Provided via the <code>-f/--maf</code> option. If an alternate allele has at least this fraction of
+the depth, a minor resistance (&quot;r&quot;) prediction is made. By default, this is set to <code>1.0</code>
+for Nanopore data (i.e. minor allele detection is off) and <code>0.1</code> when using
+the <code>--illumina</code> option. For example, if a variant is called as the reference allele for
+Illumina reads, but an alternate allele has more than 10% of the depth on that position,
+a minor resistance call is made for the alternate allele.</p>
+<h3 id="ignore-synonymous"><a class="header" href="#ignore-synonymous">Ignore synonymous</a></h3>
+<p>Using the <code>-S/--ignore-synonymous</code> option will prevent synonymous mutations from
+appearing as unknown resistance calls. However, any synonymous mutations in the
+catalogue will still be considered.</p>
+<h2 id="quick-usage-2"><a class="header" href="#quick-usage-2">Quick usage</a></h2>
+<pre><code>$ drprg predict -h
+Predict drug resistance
+
+Usage: drprg predict [OPTIONS] --index &lt;DIR&gt; --input &lt;FILE&gt;
+
+Options:
+  -v, --verbose        Use verbose output
+  -t, --threads &lt;INT&gt;  Maximum number of threads to use [default: 1]
+  -h, --help           Print help (see more with '--help')
+
+Input/Output:
+  -x, --index &lt;DIR&gt;      Name of a downloaded index or path to an index
+  -i, --input &lt;FILE&gt;     Reads to predict resistance from
+  -o, --outdir &lt;DIR&gt;     Directory to place output [default: .]
+  -s, --sample &lt;SAMPLE&gt;  Identifier to use for the sample
+  -I, --illumina         Sample reads are from Illumina sequencing
+
+Filter:
+  -S, --ignore-synonymous     Ignore unknown (off-catalogue) variants that cause a synonymous substitution
+  -f, --maf &lt;FLOAT[0.0-1.0]&gt;  Minimum allele frequency to call variants [default: 1]
+</code></pre>
+<h2 id="full-usage-1"><a class="header" href="#full-usage-1">Full usage</a></h2>
+<pre><code>$ drprg predict --help
+Predict drug resistance
+
+Usage: drprg predict [OPTIONS] --index &lt;DIR&gt; --input &lt;FILE&gt;
+
+Options:
+  -p, --pandora &lt;FILE&gt;
+          Path to pandora executable. Will try in src/ext or $PATH if not given
+
+  -v, --verbose
+          Use verbose output
+
+  -m, --makeprg &lt;FILE&gt;
+          Path to make_prg executable. Will try in src/ext or $PATH if not given
+
+  -t, --threads &lt;INT&gt;
+          Maximum number of threads to use
+
+          Use 0 to select the number automatically
+
+          [default: 1]
+
+  -M, --mafft &lt;FILE&gt;
+          Path to MAFFT executable. Will try in src/ext or $PATH if not given
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Input/Output:
+  -x, --index &lt;DIR&gt;
+          Name of a downloaded index or path to an index
+
+  -i, --input &lt;FILE&gt;
+          Reads to predict resistance from
+
+          Both fasta and fastq are accepted, along with compressed or uncompressed.
+
+  -o, --outdir &lt;DIR&gt;
+          Directory to place output
+
+          [default: .]
+
+  -s, --sample &lt;SAMPLE&gt;
+          Identifier to use for the sample
+
+          If not provided, this will be set to the input reads file path prefix
+
+  -I, --illumina
+          Sample reads are from Illumina sequencing
+
+Filter:
+  -S, --ignore-synonymous
+          Ignore unknown (off-catalogue) variants that cause a synonymous substitution
+
+  -f, --maf &lt;FLOAT[0.0-1.0]&gt;
+          Minimum allele frequency to call variants
+
+          If an alternate allele has at least this fraction of the depth, a minor resistance (&quot;r&quot;) prediction is made. Set to 1 to disable. If --illumina is passed, the default is 0.1
+
+          [default: 1]
+
+      --debug
+          Output debugging files. Mostly for development purposes
+
+  -d, --min-covg &lt;INT&gt;
+          Minimum depth of coverage allowed on variants
+
+          [default: 3]
+
+  -D, --max-covg &lt;INT&gt;
+          Maximum depth of coverage allowed on variants
+
+          [default: 2147483647]
+
+  -b, --min-strand-bias &lt;FLOAT&gt;
+          Minimum strand bias ratio allowed on variants
+
+          For example, setting to 0.25 requires &gt;=25% of total (allele) coverage on both strands for an allele.
+
+          [default: 0.01]
+
+  -g, --min-gt-conf &lt;FLOAT&gt;
+          Minimum genotype confidence (GT_CONF) score allow on variants
+
+          [default: 0]
+
+  -L, --max-indel &lt;INT&gt;
+          Maximum (absolute) length of insertions/deletions allowed
+
+  -K, --min-frs &lt;FLOAT&gt;
+          Minimum fraction of read support
+
+          For example, setting to 0.9 requires &gt;=90% of coverage for the variant to be on the called allele
+
+          [default: 0]
+</code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="output"><a class="header" href="#output">Output</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-an-index"><a class="header" href="#build-an-index">Build an index</a></h1>
 <p>The <code>build</code> subcommand is used to build a custom index to <a href="guide/build/../predict.html"><code>predict</code></a>
 from.</p>
 <pre><code>$ drprg build -a annotation.gff3 -i catalogue.tsv -f ref.fa -o outdir
 </code></pre>
-<h2 id="required"><a class="header" href="#required">Required</a></h2>
+<h2 id="required-1"><a class="header" href="#required-1">Required</a></h2>
 <h3 id="catalogue"><a class="header" href="#catalogue">Catalogue</a></h3>
 <p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). See <a href="guide/build/./catalogue.html">the Catalogue docs</a> for more
@@ -315,7 +471,7 @@ Provided via the <code>-a/--gff</code> option.</p>
 <p>A VCF to build the reference graph from. See <a href="guide/build/./vcf.html">VCF</a> for a detailed description
 of this file. Provided via the <code>-b/--vcf</code> option. This option is mutually exclusive
 with <a href="guide/build/build.html#prebuilt-reference-graph"><code>--prebuilt-prg</code></a>.</p>
-<h2 id="optional"><a class="header" href="#optional">Optional</a></h2>
+<h2 id="optional-1"><a class="header" href="#optional-1">Optional</a></h2>
 <h3 id="expert-rules"><a class="header" href="#expert-rules">Expert rules</a></h3>
 <p>These describe a set of rules - rather than a single mutation - that cause resistance.
 See <a href="guide/build/./expert.html">Expert rules</a> for a detailed description of the rules. Provided via
@@ -341,29 +497,31 @@ and <a href="guide/build/build.html#reference-genome">reference sequence</a> pro
 <h3 id="version"><a class="header" href="#version">Version</a></h3>
 <p>The version name for the index. Set to the current date (<code>YYYYMMDD</code>) by default.
 Provided via the <code>--version</code> option.</p>
-<h2 id="quick-usage-2"><a class="header" href="#quick-usage-2">Quick usage</a></h2>
+<h2 id="quick-usage-3"><a class="header" href="#quick-usage-3">Quick usage</a></h2>
 <pre><code>$ drprg build -h
 Build an index to predict resistance from
 
 Usage: drprg build [OPTIONS] --gff &lt;FILE&gt; --panel &lt;FILE&gt; --fasta &lt;FILE&gt;
 
 Options:
-  -v, --verbose             Use verbose output
-  -t, --threads &lt;INT&gt;       Maximum number of threads to use [default: 1]
+  -v, --verbose            Use verbose output
+  -t, --threads &lt;INT&gt;      Maximum number of threads to use [default: 1]
+  -P, --padding &lt;INT&gt;      Number of bases of padding to add to start and end of each gene [default: 100]
+  -I, --no-fai             Don't index --fasta if an index doesn't exist
+  -C, --no-csi             Don't index --vcf if an index doesn't exist
+      --version &lt;VERSION&gt;  Version to use for the index [default: 20230405]
+  -h, --help               Print help (see more with '--help')
+
+Input/Output:
   -a, --gff &lt;FILE&gt;          Annotation file that will be used to gather information about genes in catalogue
   -i, --panel &lt;FILE&gt;        Panel/catalogue to build index for
   -f, --fasta &lt;FILE&gt;        Reference genome in FASTA format (must be indexed with samtools faidx)
   -b, --vcf &lt;FILE&gt;          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
-  -P, --padding &lt;INT&gt;       Number of bases of padding to add to start and end of each gene [default: 100]
   -o, --outdir &lt;DIR&gt;        Directory to place output [default: .]
   -d, --prebuilt-prg &lt;DIR&gt;  A prebuilt PRG to use
   -r, --rules &lt;FILE&gt;        &quot;Expert rules&quot; to be applied in addition to the catalogue
-  -I, --no-fai              Don't index --fasta if an index doesn't exist
-  -C, --no-csi              Don't index --vcf if an index doesn't exist
-      --version &lt;VERSION&gt;   Version to use for the index [default: 20230404]
-  -h, --help                Print help (see more with '--help')
 </code></pre>
-<h2 id="full-usage-1"><a class="header" href="#full-usage-1">Full usage</a></h2>
+<h2 id="full-usage-2"><a class="header" href="#full-usage-2">Full usage</a></h2>
 <pre><code>$ drprg build --help
 Build an index to predict resistance from
 
@@ -392,37 +550,10 @@ Options:
   -B, --bcftools &lt;FILE&gt;
           Path to bcftools executable. Will try in src/ext or $PATH if not given
 
-  -a, --gff &lt;FILE&gt;
-          Annotation file that will be used to gather information about genes in catalogue
-
-  -i, --panel &lt;FILE&gt;
-          Panel/catalogue to build index for
-
-  -f, --fasta &lt;FILE&gt;
-          Reference genome in FASTA format (must be indexed with samtools faidx)
-
-  -b, --vcf &lt;FILE&gt;
-          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
-
   -P, --padding &lt;INT&gt;
           Number of bases of padding to add to start and end of each gene
 
           [default: 100]
-
-  -o, --outdir &lt;DIR&gt;
-          Directory to place output
-
-          [default: .]
-
-  -d, --prebuilt-prg &lt;DIR&gt;
-          A prebuilt PRG to use.
-
-          Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `&lt;gene&gt;.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
-
-  -r, --rules &lt;FILE&gt;
-          &quot;Expert rules&quot; to be applied in addition to the catalogue.
-
-          CSV file with blanket rules that describe resistance (or susceptibility). The columns are &lt;variant type&gt;,&lt;gene&gt;,&lt;start&gt;,&lt;end&gt;,&lt;drug(s)&gt;. See the docs for a detailed explanation.
 
   -l, --match-len &lt;INT&gt;
           Minimum number of consecutive characters which must be identical for a match in make_prg
@@ -453,12 +584,55 @@ Options:
       --version &lt;VERSION&gt;
           Version to use for the index
 
-          [default: 20230404]
+          [default: 20230405]
 
   -h, --help
           Print help (see a summary with '-h')
+
+Input/Output:
+  -a, --gff &lt;FILE&gt;
+          Annotation file that will be used to gather information about genes in catalogue
+
+  -i, --panel &lt;FILE&gt;
+          Panel/catalogue to build index for
+
+  -f, --fasta &lt;FILE&gt;
+          Reference genome in FASTA format (must be indexed with samtools faidx)
+
+  -b, --vcf &lt;FILE&gt;
+          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
+
+  -o, --outdir &lt;DIR&gt;
+          Directory to place output
+
+          [default: .]
+
+  -d, --prebuilt-prg &lt;DIR&gt;
+          A prebuilt PRG to use.
+
+          Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `&lt;gene&gt;.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
+
+  -r, --rules &lt;FILE&gt;
+          &quot;Expert rules&quot; to be applied in addition to the catalogue.
+
+          CSV file with blanket rules that describe resistance (or susceptibility). The columns are &lt;variant type&gt;,&lt;gene&gt;,&lt;start&gt;,&lt;end&gt;,&lt;drug(s)&gt;. See the docs for a detailed explanation.
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="vcf-to-build-reference-graph"><a class="header" href="#vcf-to-build-reference-graph">VCF to build reference graph</a></h1>
+<p>The input VCF (<code>-b/--vcf</code>) for <code>build</code> has some very particular requirements. If you
+aren't very familiar with the <a href="https://samtools.github.io/hts-specs/VCFv4.3.pdf">formal VCF specifications</a>, please read them
+first.</p>
+<p>This VCF file is what <code>drprg</code> uses to construct the reference graph from. Variants from
+it are applied to the <a href="guide/build/./build.html#reference-genome">skeleton reference genome</a>. It
+represents the population variation you would like to build into the reference graph.
+For a greater understanding of these concepts, we recommend
+reading <a href="https://github.com/rmcolq/pandora">this paper</a>.</p>
+<p>To add variants from multiple samples, simply use a multi-sample VCF.</p>
+<p>The <code>CHROM</code> field should be the gene name. As such, the <code>POS</code> is with respect to the
+gene. It's important to ensure the <code>POS</code> takes into account
+the <a href="guide/build/./build.html#padding">padding</a> that will be used when running <code>build</code>. A helper
+script for converting a VCF from reference genome coordinates to gene coordinates can be
+found <a href="https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py">here</a>. In addition, <code>drprg</code> will raise an error if the coordinates
+are incorrect with respect to the annotation and reference genome you provide.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="catalogue-of-mutations"><a class="header" href="#catalogue-of-mutations">Catalogue of mutations</a></h1>
 <p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). Provided via the <code>-i/--panel</code> option.</p>

@@ -155,6 +155,21 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="vcf-to-build-reference-graph"><a class="header" href="#vcf-to-build-reference-graph">VCF to build reference graph</a></h1>
+<p>The input VCF (<code>-b/--vcf</code>) for <code>build</code> has some very particular requirements. If you
+aren't very familiar with the <a href="https://samtools.github.io/hts-specs/VCFv4.3.pdf">formal VCF specifications</a>, please read them
+first.</p>
+<p>This VCF file is what <code>drprg</code> uses to construct the reference graph from. Variants from
+it are applied to the <a href="./build.html#reference-genome">skeleton reference genome</a>. It
+represents the population variation you would like to build into the reference graph.
+For a greater understanding of these concepts, we recommend
+reading <a href="https://github.com/rmcolq/pandora">this paper</a>.</p>
+<p>To add variants from multiple samples, simply use a multi-sample VCF.</p>
+<p>The <code>CHROM</code> field should be the gene name. As such, the <code>POS</code> is with respect to the
+gene. It's important to ensure the <code>POS</code> takes into account
+the <a href="./build.html#padding">padding</a> that will be used when running <code>build</code>. A helper
+script for converting a VCF from reference genome coordinates to gene coordinates can be
+found <a href="https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py">here</a>. In addition, <code>drprg</code> will raise an error if the coordinates
+are incorrect with respect to the annotation and reference genome you provide.</p>
 
                     </main>
 

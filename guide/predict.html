@@ -155,6 +155,162 @@
                 <div id="content" class="content">
                     <main>
                         <h1 id="predict"><a class="header" href="#predict">Predict</a></h1>
+<p>The <code>predict</code> subcommand is used to predict resistance for a sample from an index.</p>
+<p>At its simplest</p>
+<pre><code>drprg predict -i reads.fq -x mtb -o outdir
+</code></pre>
+<p><code>drprg</code> is a bit &quot;new-age&quot; in that it assume the reads are Nanopore. If they're
+Illumina, use the <code>-I/--illumina</code> option.</p>
+<p>See <a href="./predict-output.html">Predict Output</a> documentation for a detailed description of
+what results/output files and formats to expect.</p>
+<h2 id="required"><a class="header" href="#required">Required</a></h2>
+<h3 id="index"><a class="header" href="#index">Index</a></h3>
+<p>The index is provided via the <code>-x/--index</code> option. It can either be a path to an index,
+or the name of a <a href="./download.html">downloaded index</a>. As with the <a href="./download.html"><code>index</code></a>
+subcommmand, you can specify a version if you don't want to use the latest.</p>
+<h3 id="input-reads"><a class="header" href="#input-reads">Input reads</a></h3>
+<p>A fastq (or fasta) file of the reads you want to predict resistance from - provided via
+the <code>-i/--input</code> option. If you have paired reads in two files, simply combine them and
+pass the combined file - interleave order doesn't matter. For example</p>
+<pre><code>cat r1.fq r2.fq &gt; combined.fq
+drprg predict -i combined.fq ...
+</code></pre>
+<p><code>gzip</code>-compressed files are also accepted.</p>
+<h2 id="optional"><a class="header" href="#optional">Optional</a></h2>
+<h3 id="sample-name"><a class="header" href="#sample-name">Sample name</a></h3>
+<p>Identifier to use for your output files. By default, it will be set to the file name
+prefix (e.g. <code>name</code> for a fastq named <code>name.fq.gz</code>). Provided via the <code>-s/--sample</code>
+option.</p>
+<h3 id="minimum-allele-frequency"><a class="header" href="#minimum-allele-frequency">Minimum allele frequency</a></h3>
+<p>Provided via the <code>-f/--maf</code> option. If an alternate allele has at least this fraction of
+the depth, a minor resistance (&quot;r&quot;) prediction is made. By default, this is set to <code>1.0</code>
+for Nanopore data (i.e. minor allele detection is off) and <code>0.1</code> when using
+the <code>--illumina</code> option. For example, if a variant is called as the reference allele for
+Illumina reads, but an alternate allele has more than 10% of the depth on that position,
+a minor resistance call is made for the alternate allele.</p>
+<h3 id="ignore-synonymous"><a class="header" href="#ignore-synonymous">Ignore synonymous</a></h3>
+<p>Using the <code>-S/--ignore-synonymous</code> option will prevent synonymous mutations from
+appearing as unknown resistance calls. However, any synonymous mutations in the
+catalogue will still be considered.</p>
+<h2 id="quick-usage"><a class="header" href="#quick-usage">Quick usage</a></h2>
+<pre><code>$ drprg predict -h
+Predict drug resistance
+
+Usage: drprg predict [OPTIONS] --index &lt;DIR&gt; --input &lt;FILE&gt;
+
+Options:
+  -v, --verbose        Use verbose output
+  -t, --threads &lt;INT&gt;  Maximum number of threads to use [default: 1]
+  -h, --help           Print help (see more with '--help')
+
+Input/Output:
+  -x, --index &lt;DIR&gt;      Name of a downloaded index or path to an index
+  -i, --input &lt;FILE&gt;     Reads to predict resistance from
+  -o, --outdir &lt;DIR&gt;     Directory to place output [default: .]
+  -s, --sample &lt;SAMPLE&gt;  Identifier to use for the sample
+  -I, --illumina         Sample reads are from Illumina sequencing
+
+Filter:
+  -S, --ignore-synonymous     Ignore unknown (off-catalogue) variants that cause a synonymous substitution
+  -f, --maf &lt;FLOAT[0.0-1.0]&gt;  Minimum allele frequency to call variants [default: 1]
+</code></pre>
+<h2 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h2>
+<pre><code>$ drprg predict --help
+Predict drug resistance
+
+Usage: drprg predict [OPTIONS] --index &lt;DIR&gt; --input &lt;FILE&gt;
+
+Options:
+  -p, --pandora &lt;FILE&gt;
+          Path to pandora executable. Will try in src/ext or $PATH if not given
+
+  -v, --verbose
+          Use verbose output
+
+  -m, --makeprg &lt;FILE&gt;
+          Path to make_prg executable. Will try in src/ext or $PATH if not given
+
+  -t, --threads &lt;INT&gt;
+          Maximum number of threads to use
+
+          Use 0 to select the number automatically
+
+          [default: 1]
+
+  -M, --mafft &lt;FILE&gt;
+          Path to MAFFT executable. Will try in src/ext or $PATH if not given
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+Input/Output:
+  -x, --index &lt;DIR&gt;
+          Name of a downloaded index or path to an index
+
+  -i, --input &lt;FILE&gt;
+          Reads to predict resistance from
+
+          Both fasta and fastq are accepted, along with compressed or uncompressed.
+
+  -o, --outdir &lt;DIR&gt;
+          Directory to place output
+
+          [default: .]
+
+  -s, --sample &lt;SAMPLE&gt;
+          Identifier to use for the sample
+
+          If not provided, this will be set to the input reads file path prefix
+
+  -I, --illumina
+          Sample reads are from Illumina sequencing
+
+Filter:
+  -S, --ignore-synonymous
+          Ignore unknown (off-catalogue) variants that cause a synonymous substitution
+
+  -f, --maf &lt;FLOAT[0.0-1.0]&gt;
+          Minimum allele frequency to call variants
+
+          If an alternate allele has at least this fraction of the depth, a minor resistance (&quot;r&quot;) prediction is made. Set to 1 to disable. If --illumina is passed, the default is 0.1
+
+          [default: 1]
+
+      --debug
+          Output debugging files. Mostly for development purposes
+
+  -d, --min-covg &lt;INT&gt;
+          Minimum depth of coverage allowed on variants
+
+          [default: 3]
+
+  -D, --max-covg &lt;INT&gt;
+          Maximum depth of coverage allowed on variants
+
+          [default: 2147483647]
+
+  -b, --min-strand-bias &lt;FLOAT&gt;
+          Minimum strand bias ratio allowed on variants
+
+          For example, setting to 0.25 requires &gt;=25% of total (allele) coverage on both strands for an allele.
+
+          [default: 0.01]
+
+  -g, --min-gt-conf &lt;FLOAT&gt;
+          Minimum genotype confidence (GT_CONF) score allow on variants
+
+          [default: 0]
+
+  -L, --max-indel &lt;INT&gt;
+          Maximum (absolute) length of insertions/deletions allowed
+
+  -K, --min-frs &lt;FLOAT&gt;
+          Minimum fraction of read support
+
+          For example, setting to 0.9 requires &gt;=90% of coverage for the variant to be on the called allele
+
+          [default: 0]
+</code></pre>
 
                     </main>
 
