@@ -1,14 +1,14 @@
+import subprocess
 import sys
 from pathlib import Path
-
-from typing import TextIO, Set, Dict, NamedTuple, Optional, List
 from tempfile import TemporaryDirectory
+from typing import TextIO, Set, Dict, NamedTuple, Optional, List
 
-from loguru import logger
-from intervaltree import IntervalTree
-from cyvcf2 import VCF, Writer
-import subprocess
 import click
+from cyvcf2 import VCF, Writer
+from intervaltree import IntervalTree
+from loguru import logger
+
 TRANSLATE = str.maketrans("ATGC", "TACG")
 
 
@@ -122,21 +122,73 @@ def attributes_dict_from_str(s: str) -> Dict[str, str]:
 # MAIN
 ##########################################################
 @click.command()
-@click.option("-P", '--padding', default=100, type=int, help='Number of bases up and downstream to include for a gene', show_default=True)
-@click.option("-a", "--apply-filters", is_flag=True, help="Whether to skip variants that have a FILTER value that isn't PASS or '.'")
-@click.option("--only-alt", is_flag=True, help="Only output variants that have an alternate allele genotype call. The default behaviour is apply all ALTs regardless of whether they are called by any sample")
-@click.option("--adjust-pos", is_flag=True, help="Only output variants that have an alternate allele genotype call. The default behaviour is apply all ALTs regardless of whether they are called by any sample")
-def main(padding: int, apply_filters: bool, only_alt: bool):
-    adjust_pos: bool = snakemake.params.get("adjust_pos", False)
+@click.option(
+    "-P",
+    "--padding",
+    default=100,
+    type=int,
+    help="Number of bases up and downstream to include for a gene",
+    show_default=True,
+)
+@click.option(
+    "-a",
+    "--apply-filters",
+    is_flag=True,
+    help="Whether to skip variants that have a FILTER value that isn't PASS or '.'",
+)
+@click.option(
+    "--only-alt",
+    is_flag=True,
+    help="Only output variants that have an alternate allele genotype call. The default behaviour is apply all ALTs regardless of whether they are called by any sample",
+)
+@click.option(
+    "--adjust-pos",
+    is_flag=True,
+    help="Adjust the position of variants that occur in reverse strand genes so they are with respect to the forward strand. This will also reverse complement the alleles",
+)
+@click.option(
+    "-i",
+    "--panel",
+    help="The panel/catalogue the VCF will be used for. Only genes found in this panel will be extracted.",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "-g",
+    "--gff",
+    help="The GFF3 annotation for the reference genome",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+)
+@click.option(
+    "-b",
+    "--vcf",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="The VCF to extract genes from",
+)
+@click.option(
+    "-o",
+    "--out-vcf",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="The output VCF path",
+)
+def main(
+    padding: int,
+    apply_filters: bool,
+    only_alt: bool,
+    adjust_pos: bool,
+    panel: Path,
+    gff: Path,
+    vcf: Path,
+    out_vcf: Path,
+):
 
     logger.info("Extracting gene names from panel...")
-    with open(snakemake.input.panel) as istream:
+    with open(panel) as istream:
         genes = extract_genes_from_panel(istream)
 
     logger.success(f"Extracted {len(genes)} genes from the panel")
 
     logger.info("Extracting intervals for genes from GFF...")
-    with open(snakemake.input.annotation) as istream:
+    with open(gff) as istream:
         ivtree = extract_intervals_for_genes_from_gff(genes, istream, padding)
     logger.success(f"Intervals extracted for {len(ivtree)} genes")
 
@@ -144,12 +196,10 @@ def main(padding: int, apply_filters: bool, only_alt: bool):
         "Extracting those VCF records that fall within the gene intervals and altering "
         "their CHROM and POS accordingly..."
     )
-    vcf_reader = VCF(snakemake.input.vcf)
+    vcf_reader = VCF(str(vcf))
 
-    logger.debug("Adding genes to header...")
     for iv in ivtree:
         vcf_reader.add_to_header(f"##contig=<ID={iv.data[0]},length={iv.end-iv.begin}>")
-    logger.debug("Genes added to header")
 
     with TemporaryDirectory() as tmpdirname:
         tmpvcf = str(Path(tmpdirname) / "tmp.vcf")
@@ -198,7 +248,7 @@ def main(padding: int, apply_filters: bool, only_alt: bool):
                 "-T",
                 tmpdirname,
                 "-o",
-                snakemake.output.vcf,
+                str(out_vcf),
                 tmpvcf,
             ],
             check=True,
@@ -208,6 +258,7 @@ def main(padding: int, apply_filters: bool, only_alt: bool):
     vcf_reader.close()
 
     logger.success("Done!")
+
 
 if __name__ == "__main__":
     main()
