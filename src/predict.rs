@@ -161,12 +161,12 @@ pub struct Predict {
     )]
     mafft_exec: Option<PathBuf>,
     /// Name of a downloaded index or path to an index
-    #[clap(short = 'x', long, required = true, value_parser = validate_index, value_name = "DIR")]
+    #[clap(short = 'x', long, required = true, value_parser = validate_index, value_name = "DIR", help_heading="Input/Output")]
     index: PathBuf,
     /// Reads to predict resistance from
     ///
     /// Both fasta and fastq are accepted, along with compressed or uncompressed.
-    #[clap(short, long, required = true, value_parser = check_path_exists, value_name = "FILE")]
+    #[clap(short, long, required = true, value_parser = check_path_exists, value_name = "FILE", help_heading="Input/Output")]
     input: PathBuf,
     /// Directory to place output
     #[clap(
@@ -174,23 +174,22 @@ pub struct Predict {
         long,
         default_value = DEFAULT_OUTDIR,
         value_parser,
-        value_name = "DIR"
+        value_name = "DIR",
+        help_heading="Input/Output"
     )]
     outdir: PathBuf,
     /// Identifier to use for the sample
     ///
     /// If not provided, this will be set to the input reads file path prefix
-    #[clap(short, long)]
+    #[clap(short, long, help_heading = "Input/Output")]
     sample: Option<String>,
     /// Sample reads are from Illumina sequencing
-    #[clap(short = 'I', long = "illumina")]
+    #[clap(short = 'I', long = "illumina", help_heading = "Input/Output")]
     is_illumina: bool,
     /// Ignore unknown (off-catalogue) variants that cause a synonymous substitution
-    #[clap(short = 'S', long)]
+    #[clap(short = 'S', long, help_heading = "Filter")]
     ignore_synonymous: bool,
-    #[clap(flatten)]
-    filterer: Filterer,
-    #[clap(flatten)]
+    #[clap(flatten, next_help_heading = "Filter")]
     maf_checker: MinorAllele,
     /// Set the minimum cluster size in pandora
     #[clap(short = 'C', long, hide = true, default_value_t = 10)]
@@ -198,6 +197,8 @@ pub struct Predict {
     /// Output debugging files. Mostly for development purposes
     #[clap(long, hide_short_help = true)]
     debug: bool,
+    #[clap(flatten, next_help_heading = "Filter")]
+    filterer: Filterer,
 }
 
 impl Runner for Predict {

@@ -86,17 +86,17 @@ pub struct Build {
     )]
     bcftools_exec: Option<PathBuf>,
     /// Annotation file that will be used to gather information about genes in catalogue
-    #[clap(short = 'a', long = "gff", value_parser = check_path_exists, value_name = "FILE")]
+    #[clap(short = 'a', long = "gff", value_parser = check_path_exists, value_name = "FILE", help_heading="Input/Output")]
     gff_file: PathBuf,
     /// Panel/catalogue to build index for
-    #[clap(short = 'i', long = "panel", value_parser = check_path_exists, value_name = "FILE")]
+    #[clap(short = 'i', long = "panel", value_parser = check_path_exists, value_name = "FILE", help_heading="Input/Output")]
     panel_file: PathBuf,
     /// Reference genome in FASTA format (must be indexed with samtools faidx)
-    #[clap(short = 'f', long = "fasta", value_parser = check_path_exists, value_name = "FILE")]
+    #[clap(short = 'f', long = "fasta", value_parser = check_path_exists, value_name = "FILE", help_heading="Input/Output")]
     reference_file: PathBuf,
     /// An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be
     /// given. See `--prebuilt-prg`
-    #[clap(short = 'b', long = "vcf", value_parser = check_path_exists, value_name = "FILE", required_unless_present("prebuilt_prg"))]
+    #[clap(short = 'b', long = "vcf", value_parser = check_path_exists, value_name = "FILE", required_unless_present("prebuilt_prg"), help_heading="Input/Output")]
     input_vcf: Option<PathBuf>,
     /// Number of bases of padding to add to start and end of each gene
     #[clap(
@@ -107,7 +107,7 @@ pub struct Build {
     )]
     padding: u32,
     /// Directory to place output
-    #[clap(short, long, default_value = ".", value_parser, value_name = "DIR")]
+    #[clap(short, long, default_value = ".", value_parser, value_name = "DIR", help_heading="Input/Output")]
     outdir: PathBuf,
     /// A prebuilt PRG to use.
     ///
@@ -117,13 +117,13 @@ pub struct Build {
     /// if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the
     /// reference sequence for each gene according to the annotation and reference genome given
     /// (along with padding) and must be in the forward strand orientation.
-    #[clap(short = 'd', long, value_parser = check_path_exists, value_name = "DIR")]
+    #[clap(short = 'd', long, value_parser = check_path_exists, value_name = "DIR", help_heading="Input/Output")]
     prebuilt_prg: Option<PathBuf>,
     /// "Expert rules" to be applied in addition to the catalogue.
     ///
     /// CSV file with blanket rules that describe resistance (or susceptibility). The columns are
     /// <variant type>,<gene>,<start>,<end>,<drug(s)>. See the docs for a detailed explanation.
-    #[clap(short, long, value_parser = check_path_exists, value_name = "FILE")]
+    #[clap(short, long, value_parser = check_path_exists, value_name = "FILE", help_heading="Input/Output")]
     rules: Option<PathBuf>,
     /// Minimum number of consecutive characters which must be identical for a match in make_prg
     #[clap(
