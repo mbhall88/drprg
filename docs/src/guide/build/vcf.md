@@ -16,7 +16,8 @@ The `CHROM` field should be the gene name. As such, the `POS` is with respect to
 gene. It's important to ensure the `POS` takes into account
 the [padding](./build.md#padding) that will be used when running `build`. A helper
 script for converting a VCF from reference genome coordinates to gene coordinates can be
-found [here][pos-script].
+found [here][pos-script]. In addition, `drprg` will raise an error if the coordinates
+are incorrect with respect to the annotation and reference genome you provide.
 
 [vcf]: https://samtools.github.io/hts-specs/VCFv4.3.pdf
 

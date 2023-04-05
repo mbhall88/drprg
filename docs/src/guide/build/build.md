@@ -76,20 +76,22 @@ Build an index to predict resistance from
 Usage: drprg build [OPTIONS] --gff <FILE> --panel <FILE> --fasta <FILE>
 
 Options:
-  -v, --verbose             Use verbose output
-  -t, --threads <INT>       Maximum number of threads to use [default: 1]
+  -v, --verbose            Use verbose output
+  -t, --threads <INT>      Maximum number of threads to use [default: 1]
+  -P, --padding <INT>      Number of bases of padding to add to start and end of each gene [default: 100]
+  -I, --no-fai             Don't index --fasta if an index doesn't exist
+  -C, --no-csi             Don't index --vcf if an index doesn't exist
+      --version <VERSION>  Version to use for the index [default: 20230405]
+  -h, --help               Print help (see more with '--help')
+
+Input/Output:
   -a, --gff <FILE>          Annotation file that will be used to gather information about genes in catalogue
   -i, --panel <FILE>        Panel/catalogue to build index for
   -f, --fasta <FILE>        Reference genome in FASTA format (must be indexed with samtools faidx)
   -b, --vcf <FILE>          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
-  -P, --padding <INT>       Number of bases of padding to add to start and end of each gene [default: 100]
   -o, --outdir <DIR>        Directory to place output [default: .]
   -d, --prebuilt-prg <DIR>  A prebuilt PRG to use
   -r, --rules <FILE>        "Expert rules" to be applied in addition to the catalogue
-  -I, --no-fai              Don't index --fasta if an index doesn't exist
-  -C, --no-csi              Don't index --vcf if an index doesn't exist
-      --version <VERSION>   Version to use for the index [default: 20230404]
-  -h, --help                Print help (see more with '--help')
 ```
 
 ## Full usage
@@ -123,37 +125,10 @@ Options:
   -B, --bcftools <FILE>
           Path to bcftools executable. Will try in src/ext or $PATH if not given
 
-  -a, --gff <FILE>
-          Annotation file that will be used to gather information about genes in catalogue
-
-  -i, --panel <FILE>
-          Panel/catalogue to build index for
-
-  -f, --fasta <FILE>
-          Reference genome in FASTA format (must be indexed with samtools faidx)
-
-  -b, --vcf <FILE>
-          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
-
   -P, --padding <INT>
           Number of bases of padding to add to start and end of each gene
 
           [default: 100]
-
-  -o, --outdir <DIR>
-          Directory to place output
-
-          [default: .]
-
-  -d, --prebuilt-prg <DIR>
-          A prebuilt PRG to use.
-
-          Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `<gene>.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
-
-  -r, --rules <FILE>
-          "Expert rules" to be applied in addition to the catalogue.
-
-          CSV file with blanket rules that describe resistance (or susceptibility). The columns are <variant type>,<gene>,<start>,<end>,<drug(s)>. See the docs for a detailed explanation.
 
   -l, --match-len <INT>
           Minimum number of consecutive characters which must be identical for a match in make_prg
@@ -184,10 +159,38 @@ Options:
       --version <VERSION>
           Version to use for the index
 
-          [default: 20230404]
+          [default: 20230405]
 
   -h, --help
           Print help (see a summary with '-h')
+
+Input/Output:
+  -a, --gff <FILE>
+          Annotation file that will be used to gather information about genes in catalogue
+
+  -i, --panel <FILE>
+          Panel/catalogue to build index for
+
+  -f, --fasta <FILE>
+          Reference genome in FASTA format (must be indexed with samtools faidx)
+
+  -b, --vcf <FILE>
+          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
+
+  -o, --outdir <DIR>
+          Directory to place output
+
+          [default: .]
+
+  -d, --prebuilt-prg <DIR>
+          A prebuilt PRG to use.
+
+          Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `<gene>.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
+
+  -r, --rules <FILE>
+          "Expert rules" to be applied in addition to the catalogue.
+
+          CSV file with blanket rules that describe resistance (or susceptibility). The columns are <variant type>,<gene>,<start>,<end>,<drug(s)>. See the docs for a detailed explanation.
 ```
 
 [gff]: https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md
