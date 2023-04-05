@@ -36,6 +36,7 @@ fn main() -> Result<()> {
     let mut log_builder = Builder::new();
     log_builder
         .filter(None, log_lvl)
+        .filter_module("reqwest", LevelFilter::Off)
         .format_module_path(false)
         .format_target(false)
         .init();
