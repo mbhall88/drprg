@@ -11,7 +11,7 @@ $ drprg build -a annotation.gff3 -i catalogue.tsv -f ref.fa -o outdir
 
 ### Catalogue
 
-Also referred to as "panel" sometimes. This is the catalogue of mutations that confer
+Also referred to as a "panel" sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). See [the Catalogue docs](./catalogue.md) for more
 details of what format this file must take. Provided via the `-i/--panel` option.
 
