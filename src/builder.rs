@@ -107,7 +107,14 @@ pub struct Build {
     )]
     padding: u32,
     /// Directory to place output
-    #[clap(short, long, default_value = ".", value_parser, value_name = "DIR", help_heading="Input/Output")]
+    #[clap(
+        short,
+        long,
+        default_value = ".",
+        value_parser,
+        value_name = "DIR",
+        help_heading = "Input/Output"
+    )]
     outdir: PathBuf,
     /// A prebuilt PRG to use.
     ///

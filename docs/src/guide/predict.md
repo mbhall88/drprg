@@ -8,10 +8,10 @@ At its simplest
 drprg predict -i reads.fq -x mtb -o outdir
 ```
 
-`drprg` is a bit "new-age" in that it assume the reads are Nanopore. If they're
+`drprg` is a bit "new-age" in that it assumes the reads are Nanopore. If they're
 Illumina, use the `-I/--illumina` option.
 
-See [Predict Output](./predict-output.md) documentation for a detailed description of
+See [Prediction Output](./predict-output.md) documentation for a detailed description of
 what results/output files and formats to expect.
 
 ## Required
