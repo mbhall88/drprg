@@ -94,7 +94,7 @@ This is a trimmmed (toy) example JSON output for a sample
     }
   },
   "version": {
-    "drprg": "0.1.0",
+    "drprg": "0.1.1",
     "index": "20230308"
   }
 }
@@ -153,7 +153,7 @@ in *katG* from [the example](#example) you can use
 
 ```
 $ bcftools view sample.drprg.bcf | grep acaa8ca2
-katG    1044    acaa8ca2        GC      AC,CA,CC        .       PASS    VC=PH_SNPs;GRAPHTYPE=SIMPLE;PDP=0,0.0123457,0,0.987654;VARID=katG_S315T;PREDICT=R       GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF      3:0,1,0,42:0,0,0,38:0,1,0,42:0,0,0,38:0,1,0,127:0,0,0,116:1,1,1,0:-523.019,-514.096,-523.019,-7.87925:506.217
+katG    1044    acaa8ca2        GC      AC,CA,CC        .       PASS    VC=PH_SNPs;GRAPHTYPE=SIMPLE;PDP=0,0.0123457,0,0.987654;VARID=katG_S315T;PREDICT=R       GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF      3:0.1.1,42:0,0,0,38:0.1.1,42:0,0,0,38:0.1.1,127:0,0,0,116:1,1,1,0:-523.019,-514.096,-523.019,-7.87925:506.217
 ```
 
 All `INFO` and `FORMAT` fields are defined in the header of the BCF file. We recommend

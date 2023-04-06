@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## 0.1.0 - 2023-03-06
+## [0.1.1] - 2023-04-06
+
+### Fixed
+
+- CI issue that meant no binaries were built
+
+## 0.1.0 - 2023-04-06
 
 - First release! Everything is new!
+
+[0.1.1]: https://github.com/mbhall88/drprg/compare/0.1.0...0.1.1
