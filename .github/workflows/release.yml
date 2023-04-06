@@ -5,6 +5,9 @@ on:
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
 
+env:
+  CICD_INTERMEDIATES_DIR: "_release-intermediates"
+
 jobs:
   publish:
     name: Publish
@@ -85,7 +88,7 @@ jobs:
           # Let subsequent steps know where to find the binary
           echo "BIN_PATH=${BIN_PATH}" >> $GITHUB_OUTPUT
           echo "BIN_NAME=${BIN_NAME}" >> $GITHUB_OUTPUT
-          
+
       - name: Create tarball
         id: package
         shell: bash
