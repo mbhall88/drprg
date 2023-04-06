@@ -600,7 +600,7 @@ resistance prediction for each drug in the index's catalogue.</p>
     }
   },
   &quot;version&quot;: {
-    &quot;drprg&quot;: &quot;0.1.0&quot;,
+    &quot;drprg&quot;: &quot;0.1.1&quot;,
     &quot;index&quot;: &quot;20230308&quot;
   }
 }
@@ -649,7 +649,7 @@ column of the BCF. Or you can just use <a href="https://www.man7.org/linux/man-p
 Isoniazid S315T mutation
 in <em>katG</em> from <a href="guide/predict-output.html#example">the example</a> you can use</p>
 <pre><code>$ bcftools view sample.drprg.bcf | grep acaa8ca2
-katG    1044    acaa8ca2        GC      AC,CA,CC        .       PASS    VC=PH_SNPs;GRAPHTYPE=SIMPLE;PDP=0,0.0123457,0,0.987654;VARID=katG_S315T;PREDICT=R       GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF      3:0,1,0,42:0,0,0,38:0,1,0,42:0,0,0,38:0,1,0,127:0,0,0,116:1,1,1,0:-523.019,-514.096,-523.019,-7.87925:506.217
+katG    1044    acaa8ca2        GC      AC,CA,CC        .       PASS    VC=PH_SNPs;GRAPHTYPE=SIMPLE;PDP=0,0.0123457,0,0.987654;VARID=katG_S315T;PREDICT=R       GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF      3:0.1.1,42:0,0,0,38:0.1.1,42:0,0,0,38:0.1.1,127:0,0,0,116:1,1,1,0:-523.019,-514.096,-523.019,-7.87925:506.217
 </code></pre>
 <p>All <code>INFO</code> and <code>FORMAT</code> fields are defined in the header of the BCF file. We recommend
 reading the <a href="https://samtools.github.io/hts-specs/VCFv4.4.pdf">VCF/BCF</a> specifications for help with how to interpret data in a VCF
@@ -945,7 +945,12 @@ to https://github.com/mbhall88/drprg-index</p>
 <p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
 and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
 <h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
-<h2 id="010---2023-03-06"><a class="header" href="#010---2023-03-06">0.1.0 - 2023-03-06</a></h2>
+<h2 id="011---2023-04-06"><a class="header" href="#011---2023-04-06"><a href="https://github.com/mbhall88/drprg/compare/0.1.0...0.1.1">0.1.1</a> - 2023-04-06</a></h2>
+<h3 id="fixed"><a class="header" href="#fixed">Fixed</a></h3>
+<ul>
+<li>CI issue that meant no binaries were built</li>
+</ul>
+<h2 id="010---2023-04-06"><a class="header" href="#010---2023-04-06">0.1.0 - 2023-04-06</a></h2>
 <ul>
 <li>First release! Everything is new!</li>
 </ul>
