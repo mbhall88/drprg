@@ -24,6 +24,27 @@ Predict resistance from an Illumina fastq
 drprg predict -x mtb -i reads.fq --illumina -o outdir/
 ```
 
+### Help
+
+```
+$ drprg -h
+Drug Resistance Prediction with Reference Graphs
+
+Usage: drprg [OPTIONS] <COMMAND>
+
+Commands:
+  build    Build an index to predict resistance from
+  predict  Predict drug resistance
+  index    Download and interact with indices
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose        Use verbose output
+  -t, --threads <INT>  Maximum number of threads to use [default: 1]
+  -h, --help           Print help (see more with '--help')
+  -V, --version        Print version
+```
+
 ## Citation
 
 Preprint coming soon...

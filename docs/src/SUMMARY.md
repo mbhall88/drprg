@@ -5,7 +5,6 @@
 # Getting Started
 
 - [Installation](./installation.md)
-- [Quick Usage](./quick-usage.md)
 
 # User Guide
 
