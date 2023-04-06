@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded "><a href="quick-usage.html"><strong aria-hidden="true">2.</strong> Quick Usage</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">3.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">4.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">4.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">5.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">5.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">5.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">5.3.</strong> Expert rules</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -167,6 +167,24 @@ for how to create your own.</p>
 <p>Predict resistance from an Illumina fastq</p>
 <pre><code>drprg predict -x mtb -i reads.fq --illumina -o outdir/
 </code></pre>
+<h3 id="help"><a class="header" href="#help">Help</a></h3>
+<pre><code>$ drprg -h
+Drug Resistance Prediction with Reference Graphs
+
+Usage: drprg [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  build    Build an index to predict resistance from
+  predict  Predict drug resistance
+  index    Download and interact with indices
+  help     Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose        Use verbose output
+  -t, --threads &lt;INT&gt;  Maximum number of threads to use [default: 1]
+  -h, --help           Print help (see more with '--help')
+  -V, --version        Print version
+</code></pre>
 <h2 id="citation"><a class="header" href="#citation">Citation</a></h2>
 <p>Preprint coming soon...</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
@@ -219,7 +237,6 @@ $ just bcftools
 changed by specifying a path to <code>EXTDIR</code> when installing the external dependencies.</p>
 <pre><code class="language-shell script">$ just deps EXTDIR=&quot;some/other/dir&quot;
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="quick-usage-1"><a class="header" href="#quick-usage-1">Quick Usage</a></h1>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="download-prebuilt-index"><a class="header" href="#download-prebuilt-index">Download prebuilt index</a></h1>
 <p>The <code>index</code> subcommand can be used to download or list available indices.</p>
 <p>To download the latest index version for all species</p>
@@ -331,7 +348,7 @@ a minor resistance call is made for the alternate allele.</p>
 <p>Using the <code>-S/--ignore-synonymous</code> option will prevent synonymous mutations from
 appearing as unknown resistance calls. However, any synonymous mutations in the
 catalogue will still be considered.</p>
-<h2 id="quick-usage-2"><a class="header" href="#quick-usage-2">Quick usage</a></h2>
+<h2 id="quick-usage-1"><a class="header" href="#quick-usage-1">Quick usage</a></h2>
 <pre><code>$ drprg predict -h
 Predict drug resistance
 
@@ -450,7 +467,148 @@ Filter:
 
           [default: 0]
 </code></pre>
-<div style="break-before: page; page-break-before: always;"></div><h1 id="output"><a class="header" href="#output">Output</a></h1>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="prediction-output"><a class="header" href="#prediction-output">Prediction Output</a></h1>
+<p>Inside the <code>predict</code> output directory (<code>-o/--outdir</code>) you'll find a collection of files
+and directories. We outline the files that are likely to be of interest to most users.</p>
+<h2 id="prediction-json"><a class="header" href="#prediction-json">Prediction JSON</a></h2>
+<p>This is <code>&lt;sample&gt;.drprg.json</code>. The value given to the <code>-s/--sample</code>
+option dictates the name - i.e. <code>&lt;sample&gt;.drprg.json</code>.</p>
+<p>This is <strong>the only file most users will want/need to interact with</strong>. It contains the
+resistance prediction for each drug in the index's catalogue.</p>
+<h4 id="example"><a class="header" href="#example">Example</a></h4>
+<p>This is a trimmmed (toy) example JSON output for a sample</p>
+<pre><code class="language-json">{
+  &quot;genes&quot;: {
+    &quot;absent&quot;: [
+      &quot;ahpC&quot;
+    ],
+    &quot;present&quot;: [
+      &quot;embA&quot;,
+      &quot;embB&quot;,
+      &quot;ethA&quot;,
+      &quot;fabG1&quot;,
+      &quot;gid&quot;,
+      &quot;gyrA&quot;,
+      &quot;gyrB&quot;,
+      &quot;inhA&quot;,
+      &quot;katG&quot;,
+      &quot;pncA&quot;,
+      &quot;rpoB&quot;,
+      &quot;rrs&quot;
+    ]
+  },
+  &quot;sample&quot;: &quot;toy&quot;,
+  &quot;susceptibility&quot;: {
+    &quot;Amikacin&quot;: {
+      &quot;evidence&quot;: [
+        {
+          &quot;gene&quot;: &quot;rrs&quot;,
+          &quot;residue&quot;: &quot;DNA&quot;,
+          &quot;variant&quot;: &quot;A1401X&quot;,
+          &quot;vcfid&quot;: &quot;b815ed3f&quot;
+        }
+      ],
+      &quot;predict&quot;: &quot;F&quot;
+    },
+    &quot;Ethambutol&quot;: {
+      &quot;evidence&quot;: [
+        {
+          &quot;gene&quot;: &quot;embB&quot;,
+          &quot;residue&quot;: &quot;PROT&quot;,
+          &quot;variant&quot;: &quot;M306I&quot;,
+          &quot;vcfid&quot;: &quot;a290b118&quot;
+        }
+      ],
+      &quot;predict&quot;: &quot;r&quot;
+    },
+    &quot;Ethionamide&quot;: {
+      &quot;evidence&quot;: [
+        {
+          &quot;gene&quot;: &quot;ethA&quot;,
+          &quot;residue&quot;: &quot;PROT&quot;,
+          &quot;variant&quot;: &quot;A381P&quot;,
+          &quot;vcfid&quot;: &quot;169f75d4&quot;
+        }
+      ],
+      &quot;predict&quot;: &quot;U&quot;
+    },
+    &quot;Isoniazid&quot;: {
+      &quot;evidence&quot;: [
+        {
+          &quot;gene&quot;: &quot;fabG1&quot;,
+          &quot;residue&quot;: &quot;DNA&quot;,
+          &quot;variant&quot;: &quot;G-17T&quot;,
+          &quot;vcfid&quot;: &quot;de9b689e&quot;
+        },
+        {
+          &quot;gene&quot;: &quot;katG&quot;,
+          &quot;residue&quot;: &quot;PROT&quot;,
+          &quot;variant&quot;: &quot;S315T&quot;,
+          &quot;vcfid&quot;: &quot;acaa8ca2&quot;
+        }
+      ],
+      &quot;predict&quot;: &quot;R&quot;
+    },
+    &quot;Levofloxacin&quot;: {
+      &quot;evidence&quot;: [],
+      &quot;predict&quot;: &quot;S&quot;
+    }
+  },
+  &quot;version&quot;: {
+    &quot;drprg&quot;: &quot;0.1.0&quot;,
+    &quot;index&quot;: &quot;20230308&quot;
+  }
+}
+</code></pre>
+<p>The keys of the JSON are</p>
+<ul>
+<li><code>genes</code>: This contains a list of genes in the index reference graph which are present
+and absent</li>
+<li><code>sample</code>: The value passed to the <code>-s/--sample</code> option</li>
+<li><code>susceptibility</code>: The keys of this entry are the drugs in the index catalogue. Each
+drug's entry contains <a href="guide/predict-output.html#evidence"><code>evidence</code></a> supporting the value in
+the <a href="guide/predict-output.html#predict"><code>predict</code></a> section.</li>
+</ul>
+<h3 id="predict-1"><a class="header" href="#predict-1">Predict</a></h3>
+<p>The <code>predict</code> entry for a drug is the resistance prediction for the sample. Possible
+values are</p>
+<ul>
+<li><code>S</code>: susceptible. This is the &quot;default&quot; prediction. If no mutations are detected for
+the sample, it is assumed to be susceptible</li>
+<li><code>F</code>: failed. Genotyping failed for one or more mutations for this drug. See
+the <a href="guide/predict-output.html#prediction-vcf">prediction VCF</a> for more information</li>
+<li><code>U</code>: unknown. One or more mutations that are not present in the index catalogue were
+detected in a gene associated with this drug</li>
+<li><code>R</code>: resistant. One or more mutations from the index catalogue that confer resistance
+were detected</li>
+<li><code>u</code> or <code>r</code>: The same as the uppercase versions, but the mutation(s) were detected in
+a <a href="guide/./predict.html#minimum-allele-frequency">minor allele</a>.</li>
+</ul>
+<h3 id="evidence"><a class="header" href="#evidence">Evidence</a></h3>
+<p>This is a list of the mutations supporting the prediction. The <code>residue</code> is one of <code>DNA</code>
+or <code>PROT</code> indicating whether the mutation describes a nucleotide or amino acid change,
+respectively.</p>
+<p>The <code>variant</code> is of the form <code>&lt;ref&gt;&lt;pos&gt;&lt;alt&gt;</code>; where <code>&lt;ref&gt;</code> is the reference sequence
+at position <code>&lt;pos&gt;</code> and <code>&lt;alt&gt;</code> is the nucleotide/amino acid the reference is changed
+to. See the <a href="guide/./build/catalogue.html">catalogue docs</a> for more information.</p>
+<p>The <code>vcfid</code> is the value in <a href="guide/predict-output.html#prediction-vcf">the VCF</a> <code>ID</code> column for this mutation,
+making it easier to find a mutation in <a href="guide/predict-output.html#prediction-vcf">the VCF</a>.</p>
+<h2 id="prediction-vcf"><a class="header" href="#prediction-vcf">Prediction VCF</a></h2>
+<p>This is <code>&lt;sample&gt;.drprg.bcf</code>. As this file is a <a href="https://samtools.github.io/hts-specs/VCFv4.4.pdf">BCF</a>, you will need to
+use <a href="https://github.com/samtools/bcftools/"><code>bcftools</code></a> to view it - e.g. <code>bcftools view sample.drprg.bcf</code>.</p>
+<p>You should only need to interact with this file if you want further information about
+the exact evidence supporting a mutation being called, why a mutation was called as
+failed (<code>F</code>), or why a mutation <em>wasn't</em> called. For those mutations in the JSON, you
+can easily look them up using the <code>vcfid</code>, which can be found in the <code>ID</code> (third)
+column of the BCF. Or you can just use <a href="https://www.man7.org/linux/man-pages/man1/grep.1.html"><code>grep</code></a>. For example, to look up the
+Isoniazid S315T mutation
+in <em>katG</em> from <a href="guide/predict-output.html#example">the example</a> you can use</p>
+<pre><code>$ bcftools view sample.drprg.bcf | grep acaa8ca2
+katG    1044    acaa8ca2        GC      AC,CA,CC        .       PASS    VC=PH_SNPs;GRAPHTYPE=SIMPLE;PDP=0,0.0123457,0,0.987654;VARID=katG_S315T;PREDICT=R       GT:MEAN_FWD_COVG:MEAN_REV_COVG:MED_FWD_COVG:MED_REV_COVG:SUM_FWD_COVG:SUM_REV_COVG:GAPS:LIKELIHOOD:GT_CONF      3:0,1,0,42:0,0,0,38:0,1,0,42:0,0,0,38:0,1,0,127:0,0,0,116:1,1,1,0:-523.019,-514.096,-523.019,-7.87925:506.217
+</code></pre>
+<p>All <code>INFO</code> and <code>FORMAT</code> fields are defined in the header of the BCF file. We recommend
+reading the <a href="https://samtools.github.io/hts-specs/VCFv4.4.pdf">VCF/BCF</a> specifications for help with how to interpret data in a VCF
+file.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="build-an-index"><a class="header" href="#build-an-index">Build an index</a></h1>
 <p>The <code>build</code> subcommand is used to build a custom index to <a href="guide/build/../predict.html"><code>predict</code></a>
 from.</p>
@@ -497,7 +655,7 @@ and <a href="guide/build/build.html#reference-genome">reference sequence</a> pro
 <h3 id="version"><a class="header" href="#version">Version</a></h3>
 <p>The version name for the index. Set to the current date (<code>YYYYMMDD</code>) by default.
 Provided via the <code>--version</code> option.</p>
-<h2 id="quick-usage-3"><a class="header" href="#quick-usage-3">Quick usage</a></h2>
+<h2 id="quick-usage-2"><a class="header" href="#quick-usage-2">Quick usage</a></h2>
 <pre><code>$ drprg build -h
 Build an index to predict resistance from
 
@@ -650,7 +808,7 @@ the gene. One-letter codes are to be used for amino acids.</li>
 <li>Comma-separated list of the drug(s) the mutation confers resistance to. Use <code>NONE</code> if
 the mutation is not associated with resistance. </li>
 </ol>
-<h2 id="example"><a class="header" href="#example">Example</a></h2>
+<h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
 <pre><code>pncA    TCG196TAG   DNA Pyrazinamide
 pncA    T142R   PROT    Pyrazinamide
 tlyA    S159*   PROT    Capreomycin
@@ -692,7 +850,7 @@ confers susceptibility, use <code>NONE</code> for this column.</li>
 </ol>
 <p>If there are certain rules you need for your
 species-of-interest, <a href="https://github.com/mbhall88/drprg/issues/new/choose">raise an issue</a>, and we can look at implementing it.</p>
-<h3 id="example-1"><a class="header" href="#example-1">Example</a></h3>
+<h3 id="example-2"><a class="header" href="#example-2">Example</a></h3>
 <p>This is an example of the <em>M. tuberculosis</em> expert rules file used in our paper.</p>
 <pre><code class="language-csv">missense,rpoB,426,452,Rifampicin
 nonsense,rpoB,426,452,Rifampicin
