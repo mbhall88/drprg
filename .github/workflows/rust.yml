@@ -9,20 +9,19 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - uses: taiki-e/install-action@just
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: src/ext
           key: ${{ runner.os }}-ext-deps-${{ hashFiles('**/justfile') }}
 
-      - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          components: rustfmt,clippy
 
       - name: Format
         run: cargo fmt -- --check
@@ -36,7 +35,7 @@ jobs:
             just deps
           fi
 
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         with:
           path: |
             ~/.cargo/registry
