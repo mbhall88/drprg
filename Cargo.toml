@@ -3,6 +3,13 @@ name = "drprg"
 version = "0.1.0"
 authors = ["Michael Hall <michael@mbh.sh>"]
 edition = "2018"
+license = "MIT"
+description = "Drug resistance prediction with reference graphs"
+repository = "https://github.com/mbhall88/drprg"
+homepage = "https://github.com/mbhall88/drprg"
+readme = "README.md"
+keywords = ["bioinformatics", "drug-resistance", "genome-graphs"]
+categories = ["science", "command-line-utilities"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

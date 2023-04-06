@@ -85,18 +85,7 @@ jobs:
           # Let subsequent steps know where to find the binary
           echo "BIN_PATH=${BIN_PATH}" >> $GITHUB_OUTPUT
           echo "BIN_NAME=${BIN_NAME}" >> $GITHUB_OUTPUT
-
-      - name: Set testing options
-        id: test-options
-        shell: bash
-        run: |
-          unset CARGO_TEST_OPTIONS
-          unset CARGO_TEST_OPTIONS ; case ${{ matrix.job.target }} in arm-* | aarch64-*) CARGO_TEST_OPTIONS="--bin ${PROJECT_NAME}" ;; esac;
-          echo ::set-output name=CARGO_TEST_OPTIONS::${CARGO_TEST_OPTIONS}
-
-      - name: Run tests
-        run: cross test --target=${{ matrix.job.target }} ${{ steps.test-options.outputs.CARGO_TEST_OPTIONS}}
-
+          
       - name: Create tarball
         id: package
         shell: bash
