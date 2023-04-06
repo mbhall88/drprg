@@ -84,7 +84,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../CHANGELOG.html">Changes</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -154,7 +154,9 @@
                     <main>
                         <p>👩‍⚕Dr. PRG - <strong>D</strong>rug <strong>r</strong>esistance <strong>P</strong>rediction with <strong>R</strong>eference <strong>G</strong>raphs️👨‍⚕️</p>
 <p><a href="https://codecov.io/gh/mbhall88/drprg"><img src="https://codecov.io/gh/mbhall88/drprg/branch/main/graph/badge.svg?token=2WAA6MZRKK" alt="codecov" /></a>
-<a href="https://github.com/mbhall88/drprg/actions/workflows/rust.yml"><img src="https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main" alt="Rust" /></a></p>
+<a href="https://github.com/mbhall88/drprg/actions/workflows/rust.yml"><img src="https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main" alt="Rust" /></a>
+<a href="https://github.com/mbhall88/drprg/releases"><img src="https://img.shields.io/github/v/release/mbhall88/drprg" alt="github release version" /></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a></p>
 <p>Full documentation: <a href="https://mbh.sh/drprg/">https://mbh.sh/drprg/</a></p>
 <p>As the name suggests, DrPRG is a tool for predicting drug resistance from sequencing
 data. It can be used for any species, provided an index is available for that species.
@@ -189,6 +191,9 @@ Options:
 <p>Preprint coming soon...</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
 <h2 id="conda"><a class="header" href="#conda">Conda</a></h2>
+<p><a href="https://anaconda.org/bioconda/drprg"><img src="https://img.shields.io/conda/vn/bioconda/drprg" alt="Conda (channel only)" /></a>
+<a href="https://anaconda.org/bioconda/drprg"><img src="https://anaconda.org/bioconda/drprg/badges/platforms.svg" alt="bioconda version" /></a>
+<img src="https://img.shields.io/conda/dn/bioconda/drprg" alt="Conda" /></p>
 <pre><code>conda install drprg
 </code></pre>
 <h2 id="container"><a class="header" href="#container">Container</a></h2>
@@ -207,6 +212,46 @@ $ docker run -it &quot;$URI&quot; drprg --help
 <h3 id="singularity"><a class="header" href="#singularity">Singularity</a></h3>
 <p>To run <code>drprg</code> using the above container with <a href="https://sylabs.io/">Singularity</a></p>
 <pre><code>$ singularity exec &quot;docker://$URI&quot; drprg --help
+</code></pre>
+<h2 id="prebuilt-binary"><a class="header" href="#prebuilt-binary">Prebuilt binary</a></h2>
+<p>If you use the prebuilt binary, you must have the <a href="installation.html#dependencies">external dependecies</a> installed separately.</p>
+<pre><code class="language-shell">curl -sSL drprg.mbh.sh | sh
+# or with wget
+wget -nv -O - drprg.mbh.sh | sh
+</code></pre>
+<p>You can also pass options to the script like so</p>
+<pre><code>$ curl -sSL drprg.mbh.sh | sh -s -- --help
+install.sh [option]
+
+Fetch and install the latest version of drprg, if drprg is already
+installed it will be updated to the latest version.
+
+Options
+        -V, --verbose
+                Enable verbose output for the installer
+
+        -f, -y, --force, --yes
+                Skip the confirmation prompt during installation
+
+        -p, --platform
+                Override the platform identified by the installer
+
+        -b, --bin-dir
+                Override the bin installation directory [default: /usr/local/bin]
+
+        -a, --arch
+                Override the architecture identified by the installer [default: x86_64]
+
+        -B, --base-url
+                Override the base URL used for downloading releases [default: https://github.com/mbhall88/drprg/releases]
+
+        -h, --help
+                Display this help message
+</code></pre>
+<h2 id="cargo"><a class="header" href="#cargo">Cargo</a></h2>
+<p><a href="https://crates.io/crates/drprg"><img src="https://img.shields.io/crates/v/drprg.svg" alt="Crates.io" /></a></p>
+<p>If install via cargo, you must have the <a href="installation.html#dependencies">external dependecies</a> installed separately.</p>
+<pre><code>$ cargo install drprg
 </code></pre>
 <h2 id="local"><a class="header" href="#local">Local</a></h2>
 <p><strong>Minimum supported Rust version</strong>: <code>1.65.0</code></p>
@@ -890,6 +935,20 @@ the <a href="https://doi.org/10.1016/j.cmi.2016.09.006">RRDR</a>)</p>
 <pre><code class="language-csv">missense,katG,315,315,Isoniazid
 </code></pre>
 <p>describes any missense mutation at position 315 in <em>katG</em> causing isoniazid resistance.</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="contributing"><a class="header" href="#contributing">Contributing</a></h1>
+<p>If you would like to contribute to Dr. PRG, feel free to open a pull request with
+suggested changes, or even raise an issue to discuss potential contributions.</p>
+<p>If you would like to contribute a prebuilt index for a species, head on over
+to https://github.com/mbhall88/drprg-index</p>
+<div style="break-before: page; page-break-before: always;"></div><h1 id="changelog"><a class="header" href="#changelog">Changelog</a></h1>
+<p>All notable changes to this project will be documented in this file.</p>
+<p>The format is based on <a href="https://keepachangelog.com/en/1.0.0/">Keep a Changelog</a>,
+and this project adheres to <a href="https://semver.org/spec/v2.0.0.html">Semantic Versioning</a>.</p>
+<h2 id="unreleased"><a class="header" href="#unreleased">[Unreleased]</a></h2>
+<h2 id="010---2023-03-06"><a class="header" href="#010---2023-03-06">0.1.0 - 2023-03-06</a></h2>
+<ul>
+<li>First release! Everything is new!</li>
+</ul>
 
                     </main>
 
