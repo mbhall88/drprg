@@ -2,6 +2,8 @@
 
 [![codecov](https://codecov.io/gh/mbhall88/drprg/branch/main/graph/badge.svg?token=2WAA6MZRKK)](https://codecov.io/gh/mbhall88/drprg)
 [![Rust](https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/mbhall88/drprg/actions/workflows/rust.yml)
+[![github release version](https://img.shields.io/github/v/release/mbhall88/drprg)](https://github.com/mbhall88/drprg/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Full documentation: <https://mbh.sh/drprg/>
 

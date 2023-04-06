@@ -15,3 +15,6 @@
   - [VCF to build reference graph](./guide/build/vcf.md)
   - [Catalogue of mutations](./guide/build/catalogue.md)
   - [Expert rules](./guide/build/expert.md)
+
+[Contributing](./contributing.md)
+[Changes](../../CHANGELOG.md)

@@ -2,6 +2,10 @@
 
 ## Conda
 
+[![Conda (channel only)](https://img.shields.io/conda/vn/bioconda/drprg)](https://anaconda.org/bioconda/drprg)
+[![bioconda version](https://anaconda.org/bioconda/drprg/badges/platforms.svg)](https://anaconda.org/bioconda/drprg)
+![Conda](https://img.shields.io/conda/dn/bioconda/drprg)
+
 ```
 conda install drprg
 ```
@@ -35,6 +39,59 @@ To run `drprg` using the above container with [Singularity]
 
 ```
 $ singularity exec "docker://$URI" drprg --help
+```
+
+## Prebuilt binary
+
+If you use the prebuilt binary, you must have the [external dependecies](#dependencies) installed separately.
+
+```shell
+curl -sSL drprg.mbh.sh | sh
+# or with wget
+wget -nv -O - drprg.mbh.sh | sh
+```
+
+You can also pass options to the script like so
+
+```
+$ curl -sSL drprg.mbh.sh | sh -s -- --help
+install.sh [option]
+
+Fetch and install the latest version of drprg, if drprg is already
+installed it will be updated to the latest version.
+
+Options
+        -V, --verbose
+                Enable verbose output for the installer
+
+        -f, -y, --force, --yes
+                Skip the confirmation prompt during installation
+
+        -p, --platform
+                Override the platform identified by the installer
+
+        -b, --bin-dir
+                Override the bin installation directory [default: /usr/local/bin]
+
+        -a, --arch
+                Override the architecture identified by the installer [default: x86_64]
+
+        -B, --base-url
+                Override the base URL used for downloading releases [default: https://github.com/mbhall88/drprg/releases]
+
+        -h, --help
+                Display this help message
+```
+
+
+## Cargo
+
+[![Crates.io](https://img.shields.io/crates/v/drprg.svg)](https://crates.io/crates/drprg)
+
+If install via cargo, you must have the [external dependecies](#dependencies) installed separately.
+
+```
+$ cargo install drprg
 ```
 
 ## Local
@@ -75,7 +132,6 @@ changed by specifying a path to `EXTDIR` when installing the external dependenci
 ```shell script
 $ just deps EXTDIR="some/other/dir"
 ```
-
 
 [pandora]: https://github.com/rmcolq/pandora
 [mafft]: https://mafft.cbrc.jp/alignment/software/
