@@ -18,6 +18,8 @@ drprg index --download mtb
 drprg index --download mtb@latest
 ```
 
+## Available indices
+
 If you want to see what indices are available in the first place
 
 ```
@@ -36,6 +38,8 @@ drprg index --download mtb@<version>
 ```
 
 where `<version>` is the version you want. If no version is provided, `latest` is used.
+
+To see more information about each prebuilt index, head over to <https://github.com/mbhall88/drprg-index>.
 
 ## Output directory
 
