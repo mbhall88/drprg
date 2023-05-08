@@ -4,6 +4,7 @@
 [![Rust](https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/mbhall88/drprg/actions/workflows/rust.yml)
 [![github release version](https://img.shields.io/github/v/release/mbhall88/drprg)](https://github.com/mbhall88/drprg/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![DOI:10.1101/2023.05.04.539481](http://img.shields.io/badge/DOI-10.1101/2023.05.04.539481-B31B1B.svg)](https://doi.org/10.1101/2023.05.04.539481)
 
 Full documentation: <https://mbh.sh/drprg/>
 
@@ -49,7 +50,22 @@ Options:
 
 ## Citation
 
-Preprint coming soon...
+> Michael B Hall, Leandro Lima, Lachlan J M Coin, Zamin Iqbal. Drug resistance prediction for Mycobacterium tuberculosis with reference graphs. bioRxiv 2023.05.04.539481 [Preprint]. 2023. doi: [10.1101/2023.05.04.539481](https://doi.org/10.1101/2023.05.04.539481)
+
+
+```bib
+@article {Hall2023.05.04.539481,
+        author = {Michael B Hall and Leandro Lima and Lachlan J M Coin and Zamin Iqbal},
+        title = {Drug resistance prediction for Mycobacterium tuberculosis with reference graphs},
+        elocation-id = {2023.05.04.539481},
+        year = {2023},
+        doi = {10.1101/2023.05.04.539481},
+        publisher = {Cold Spring Harbor Laboratory},
+        URL = {https://www.biorxiv.org/content/early/2023/05/04/2023.05.04.539481},
+        eprint = {https://www.biorxiv.org/content/early/2023/05/04/2023.05.04.539481.full.pdf},
+        journal = {bioRxiv}
+}
+```
 
 [docs]: https://mbh.sh/drprg/
 
