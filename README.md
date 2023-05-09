@@ -8,10 +8,18 @@
 
 Full documentation: <https://mbh.sh/drprg/>
 
-As the name suggests, DrPRG is a tool for predicting drug resistance from sequencing
+As the name suggests, Dr. PRG (pronounced "Doctor P-R-G") is a tool for predicting drug resistance from sequencing
 data. It can be used for any species, provided an index is available for that species.
 The [documentation][docs] outlines which species have prebuilt indices and also a guide
 for how to create your own.
+
+## Quick Installation
+
+```
+conda install drprg
+```
+
+See the [installation guide][install] for more options.
 
 ## Quick usage
 
@@ -70,3 +78,4 @@ Options:
 [docs]: https://mbh.sh/drprg/
 
 [guide]: https://mbh.sh/drprg/guide/build/build.html
+[install]: https://mbh.sh/drprg/installation.html
