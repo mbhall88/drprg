@@ -269,7 +269,7 @@ Options
 </code></pre>
 <h2 id="cargo"><a class="header" href="#cargo">Cargo</a></h2>
 <p><a href="https://crates.io/crates/drprg"><img src="https://img.shields.io/crates/v/drprg.svg" alt="Crates.io" /></a></p>
-<p>If install via cargo, you must have the <a href="installation.html#dependencies">external dependecies</a> installed separately.</p>
+<p>If installing via cargo, you must have the <a href="installation.html#dependencies">external dependecies</a> installed separately.</p>
 <pre><code>$ cargo install drprg
 </code></pre>
 <h2 id="local"><a class="header" href="#local">Local</a></h2>
@@ -288,12 +288,16 @@ $ target/release/drprg -h
 <p>You can install the dependencies using the provided <a href="https://github.com/casey/just"><code>justfile</code></a></p>
 <pre><code class="language-shell script"># all dependencies
 $ just deps
+
 # pandora only
 $ just pandora
+
 # make_prg only
 $ just makeprg
+
 # mafft only
 $ just mafft
+
 # bcftools only
 $ just bcftools
 </code></pre>
