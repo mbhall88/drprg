@@ -88,7 +88,7 @@ Options
 
 [![Crates.io](https://img.shields.io/crates/v/drprg.svg)](https://crates.io/crates/drprg)
 
-If install via cargo, you must have the [external dependecies](#dependencies) installed separately.
+If installing via cargo, you must have the [external dependecies](#dependencies) installed separately.
 
 ```
 $ cargo install drprg
@@ -116,12 +116,16 @@ You can install the dependencies using the provided [`justfile`][just]
 ```shell script
 # all dependencies
 $ just deps
+
 # pandora only
 $ just pandora
+
 # make_prg only
 $ just makeprg
+
 # mafft only
 $ just mafft
+
 # bcftools only
 $ just bcftools
 ```
