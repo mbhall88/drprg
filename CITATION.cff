@@ -1,0 +1,95 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: >-
+  Drug resistance prediction for Mycobacterium tuberculosis
+  with reference graphs
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Michael
+    name-particle: B
+    family-names: Hall
+    email: michael.hall2@unimelb.edu.au
+    affiliation: University of Melbourne
+    orcid: 'https://orcid.org/0000-0003-3683-6208'
+  - given-names: Leandro
+    family-names: Lima
+    affiliation: EMBL-EBI
+    orcid: 'https://orcid.org/0000-0001-8976-2762'
+  - given-names: Lachlan
+    name-particle: J.M
+    family-names: Coin
+    orcid: 'https://orcid.org/0000-0002-4300-455X'
+    affiliation: University of Melbourne
+  - given-names: Zamin
+    family-names: Iqbal
+    affiliation: EMBL-EBI
+    orcid: 'https://orcid.org/0000-0001-8466-7547'
+identifiers:
+  - type: doi
+    value: 10.1101/2023.05.04.539481
+    description: The bioRxiv deposit of the accompanying paper
+repository-code: 'https://github.com/mbhall88/drprg/'
+url: 'https://mbh.sh/drprg/'
+abstract: >-
+  The dominant paradigm for analysing genetic variation
+  relies on a central idea: all genomes in a species can be
+  described as minor differences from a single reference
+  genome. However, this approach can be problematic or
+  inadequate for bacteria, where there can be significant
+  sequence divergence within a species.
+
+
+  Reference graphs are an emerging solution to the reference
+  bias issues implicit in the “single-reference” model. Such
+  a graph represents variation at multiple scales within a
+  population – e.g., nucleotide- and locus-level.
+
+
+  The genetic causes of drug resistance in bacteria have
+  proven comparatively easy to decode compared with studies
+  of human diseases. For example, it is possible to predict
+  resistance to numerous anti-tuberculosis drugs by simply
+  testing for the presence of a list of single nucleotide
+  polymorphisms and insertion/deletions, commonly referred
+  to as a catalogue.
+
+
+  We developed DrPRG (Drug resistance Prediction with
+  Reference Graphs) using the bacterial reference graph
+  method Pandora. First, we outline the construction of a
+  Mycobacterium tuberculosis drug resistance reference
+  graph, a process that can be replicated for other species.
+  The graph is built from a global dataset of isolates with
+  varying drug susceptibility profiles, thus capturing
+  common and rare resistance- and susceptible-associated
+  haplotypes. We benchmark DrPRG against the existing
+  graph-based tool Mykrobe and the pileup-based approach of
+  TBProfiler using 44,709 and 138 publicly available
+  Illumina and Nanopore datasets with associated phenotypes.
+  We find DrPRG has significantly improved sensitivity and
+  specificity for some drugs compared to these tools, with
+  no significant decreases. It uses significantly less
+  computational memory than both tools, and provides
+  significantly faster runtimes, except when runtime is
+  compared to Mykrobe on Illumina data.
+
+
+  We discover and discuss novel insights into
+  resistance-conferring variation for M. tuberculosis -
+  including deletion of genes katG and pncA – and suggest
+  mutations that may warrant reclassification as associated
+  with resistance.
+keywords:
+  - bioinformatics
+  - genome graphs
+  - antimicrobial resistance
+  - resistance prediction
+  - software
+license: MIT
+version: 0.1.1
+date-released: '2023-04-06'
