@@ -164,8 +164,9 @@ data. It can be used for any species, provided an index is available for that sp
 The <a href="https://mbh.sh/drprg/">documentation</a> outlines which species have prebuilt indices and also a guide
 for how to create your own.</p>
 <h2 id="quick-installation"><a class="header" href="#quick-installation">Quick Installation</a></h2>
-<pre><code>conda install drprg
+<pre><code>conda install -c bioconda drprg
 </code></pre>
+<p>Linux is currently the only supported platform; however, there is a Docker container that can be used on other platforms. </p>
 <p>See the <a href="https://mbh.sh/drprg/installation.html">installation guide</a> for more options.</p>
 <h2 id="quick-usage"><a class="header" href="#quick-usage">Quick usage</a></h2>
 <p>Download the latest <em>M. tuberculosis</em> prebuilt index</p>
@@ -209,11 +210,12 @@ Options:
 }
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="installation"><a class="header" href="#installation">Installation</a></h1>
+<p>Linux is currently the only supported platform (due to <a href="installation.html#dependencies"><code>pandora</code></a>). For other platforms, the <a href="installation.html#docker">Docker container</a> is the only option.</p>
 <h2 id="conda"><a class="header" href="#conda">Conda</a></h2>
 <p><a href="https://anaconda.org/bioconda/drprg"><img src="https://img.shields.io/conda/vn/bioconda/drprg" alt="Conda (channel only)" /></a>
 <a href="https://anaconda.org/bioconda/drprg"><img src="https://anaconda.org/bioconda/drprg/badges/platforms.svg" alt="bioconda version" /></a>
 <img src="https://img.shields.io/conda/dn/bioconda/drprg" alt="Conda" /></p>
-<pre><code>conda install drprg
+<pre><code>conda install -c bioconda drprg
 </code></pre>
 <h2 id="container"><a class="header" href="#container">Container</a></h2>
 <p><a href="https://quay.io/repository/mbhall88/drprg"><img src="https://quay.io/repository/mbhall88/drprg/status" alt="Docker Repository on Quay" title="Docker Repository on Quay" /></a></p>
