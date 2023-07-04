@@ -1,5 +1,7 @@
 # Installation
 
+Linux is currently the only supported platform (due to [`pandora`](#dependencies)). For other platforms, the [Docker container](#docker) is the only option.
+
 ## Conda
 
 [![Conda (channel only)](https://img.shields.io/conda/vn/bioconda/drprg)](https://anaconda.org/bioconda/drprg)
@@ -7,7 +9,7 @@
 ![Conda](https://img.shields.io/conda/dn/bioconda/drprg)
 
 ```
-conda install drprg
+conda install -c bioconda drprg
 ```
 
 ## Container

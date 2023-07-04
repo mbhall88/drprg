@@ -16,8 +16,10 @@ for how to create your own.
 ## Quick Installation
 
 ```
-conda install drprg
+conda install -c bioconda drprg
 ```
+
+Linux is currently the only supported platform; however, there is a Docker container that can be used on other platforms. 
 
 See the [installation guide][install] for more options.
 
