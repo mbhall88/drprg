@@ -170,6 +170,52 @@ the <a href="./build.html#padding">padding</a> that will be used when running <c
 script for converting a VCF from reference genome coordinates to gene coordinates can be
 found <a href="https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py">here</a>. In addition, <code>drprg</code> will raise an error if the coordinates
 are incorrect with respect to the annotation and reference genome you provide.</p>
+<h2 id="example-from-mycobacterium-tuberculosis"><a class="header" href="#example-from-mycobacterium-tuberculosis">Example from <em>Mycobacterium</em> tuberculosis</a></h2>
+<p>We provide an example of how the VCF for the <a href="https://doi.org/10.1101/2023.05.04.539481">work on <em>M. tuberculosis</em></a> (MTB) was generated.</p>
+<h3 id="call-variants-for-population"><a class="header" href="#call-variants-for-population">Call variants for population</a></h3>
+<p>The first step is to select the population of samples you want variation from. For the MTB reference graph, we took a subset of the <a href="https://doi.org/10.1371/journal.pbio.3001721">15,211 global MTB isolates published by the CRyPTIC consortium</a>. Briefly, the 15,211 samples were individually variant-called using <a href="https://github.com/iqbal-lab-org/clockwork"><code>clockwork</code></a> and then joint-genotyped using <a href="https://github.com/iqbal-lab-org/minos"><code>minos</code></a>. The &quot;wide&quot; VCF obtained at the end contains genotypes for all 15,211 samples against all variants discovered across the population. </p>
+<p><strong>Note</strong>: the reference genome you call these variants against must be the same the <a href="./build.html#reference-genome">skeleton reference</a>.</p>
+<h3 id="optional-subset-population"><a class="header" href="#optional-subset-population">(Optional) subset population</a></h3>
+<p>In our running example, we have 15,211 samples in our VCF. This is far too much to be useful for building a reference graph. <a href="https://doi.org/10.1186/s13059-018-1595-x">This paper</a> illustrates the problem nicely. In addition, Figure 3.2 and Sections 3.6.4 and 3.6.5 in <a href="https://doi.org/10.17863/CAM.81350">this thesis</a> show that using too many samples does not provide any benefit to variant precision or recall, but costs increased memory usage and CPU time.</p>
+<p>To create a representative subset, we split the VCF file into separate lineage VCFs, where all samples in a VCF are of the same lineage. We randomly chose 20 samples from each lineage 1 through 4, as well as 20 samples from all other lineages combined. In addition, we included <a href="https://doi.org/10.1186/s13059-021-02474-0">17 clinical samples</a> representing MTB global diversity (lineages 1-6) to give a total of 117 samples.</p>
+<p>We generated the subsets by listing all samples in the VCF file</p>
+<pre><code>bcftools query --list-samples &gt; samples.txt
+</code></pre>
+<p>and then splitting this list by lineage based on lineage classifications. If we have a list of Lineage 1 samples in a text file, we can get 20 random samples from it with</p>
+<pre><code>shuf -n 20 L1.txt &gt; L1.subsampled.txt
+</code></pre>
+<p>we then combine all of these text files of sample names into a single text file, extract the 117 samples, and filter the remaining variants with</p>
+<pre><code>bcftools view -S samples.subsampled.txt wide.vcf.gz |
+  bcftools view -a -U -c=1:nref -o MTB.vcf.gz
+</code></pre>
+<p><code>-a</code> trims ALT alleles not seen in the genotype fields, <code>-U</code> excludes sites without a called genotype, and <code>-c=1:nref</code> removes positions there is no non-reference alleles.</p>
+<p>You can find the resulting VCF (<code>MTB.vcf.gz</code>) we generated <a href="https://doi.org/10.6084/m9.figshare.23625327">here</a>.</p>
+<h3 id="optional-manually-add-orphan-mutations"><a class="header" href="#optional-manually-add-orphan-mutations">(Optional) Manually add &quot;orphan&quot; mutations</a></h3>
+<p>We also manually added ~50 mutations that were commonly found in minor frequencies but were not contained in the population VCF.</p>
+<p>This is done by creating a file of mutations of the form <code>&lt;gene&gt;_&lt;mutation&gt;</code> - this is effectively column 1 and 2 from <a href="./catalogue.html">the catalogue</a> separated by an underscore. For example</p>
+<pre><code>rpoB_I491F
+rplC_C154R
+ddn_L49P
+gid_Q125*
+rrs_g1484t
+embB_L74R
+</code></pre>
+<p>the difference between this and the catalogue though is that DNA mutations should have the nucleotides in lowercase (e.g. <code>rrs_g1484t</code>). A VCF can be generated for this list of mutations using <a href="https://github.com/mbhall88/drprg/blob/main/scripts/create_orphan_mutations.py">this script</a>.</p>
+<pre><code>python create_orphan_mutations.py -r ref.fa -m orphan_mutations.txt \
+  -g annotation.gff -o orphan.vcf
+</code></pre>
+<p>We then merge this VCF of &quot;orphan&quot; mutations into the population VCF with</p>
+<pre><code>bcftools merge MTB.vcf.gz orphan.vcf |
+  bcftools norm -c e -f reference.fa -o merged.vcf
+</code></pre>
+<p><code>-c e</code> just tells <code>bcftools norm</code> to error if the REF alleles in the VCFs do not match the reference.</p>
+<h3 id="extract-catalogue-genes-from-vcf"><a class="header" href="#extract-catalogue-genes-from-vcf">Extract catalogue genes from VCF</a></h3>
+<p>DrPRG expects the VCF <code>CHROM</code> field to be the name of the gene, rather than the reference contig/chromosome name - which is what we currently have. As such, the <code>POS</code> must be with respect to the gene. It's important to ensure the <code>POS</code> takes into account the <a href="./build.html#padding">padding</a> that will be used when running <code>build</code>. </p>
+<p>A helper script for converting a VCF from reference genome coordinates to gene coordinates can be found <a href="https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py">here</a>. In addition, <code>drprg</code> will raise an error if the coordinates are incorrect with respect to the annotation and reference genome you provide. By providing this script with the <a href="./catalogue.html">catalogue/panel</a> you will use in <a href="./build.html"><code>build</code></a>, it will extract only those variants that fall within the genes in your catalogue.</p>
+<pre><code>python extract_panel_genes_from_vcf.py --padding 100 \
+  -i catalogue.tsv -g annotation.gff --vcf merged.vcf -o final.vcf
+</code></pre>
+<p><code>final.vcf</code> can now be used as the <a href="./build.html#vcf">input VCF for <code>build</code></a>.</p>
 
                     </main>
 
