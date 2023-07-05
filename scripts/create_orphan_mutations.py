@@ -1,3 +1,5 @@
+"""Requires bcftools to be available on $PATH and the python library click"""
+
 import sys
 import re
 import shlex
