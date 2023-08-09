@@ -108,7 +108,7 @@ python extract_panel_genes_from_vcf.py --padding 100 \
 
 [pandora]: https://github.com/rmcolq/pandora
 
-[paper]: https://doi.org/10.1101/2023.05.04.539481
+[paper]: https://doi.org/10.1099/mgen.0.001081
 
 [pos-script]: https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py
 

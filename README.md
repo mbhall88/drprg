@@ -4,7 +4,7 @@
 [![Rust](https://github.com/mbhall88/drprg/actions/workflows/rust.yml/badge.svg?branch=main)](https://github.com/mbhall88/drprg/actions/workflows/rust.yml)
 [![github release version](https://img.shields.io/github/v/release/mbhall88/drprg)](https://github.com/mbhall88/drprg/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![DOI:10.1101/2023.05.04.539481](http://img.shields.io/badge/DOI-10.1101/2023.05.04.539481-B31B1B.svg)](https://doi.org/10.1101/2023.05.04.539481)
+[![10.1099/mgen.0.001081](https://img.shields.io/badge/doi-10.1099%2Fmgen.0.001081-blue)](https://doi.org/10.1099/mgen.0.001081)
 
 Full documentation: <https://mbh.sh/drprg/>
 
@@ -60,20 +60,22 @@ Options:
 
 ## Citation
 
-> Michael B Hall, Leandro Lima, Lachlan J M Coin, Zamin Iqbal. Drug resistance prediction for Mycobacterium tuberculosis with reference graphs. bioRxiv 2023.05.04.539481 [Preprint]. 2023. doi: [10.1101/2023.05.04.539481](https://doi.org/10.1101/2023.05.04.539481)
+> Hall MB, Lima L, Coin LJM, Iqbal Z (2023) Drug resistance prediction for Mycobacterium tuberculosis with reference graphs. Microbial Genomics 9:001081. doi: [10.1099/mgen.0.001081](https://doi.org/10.1099/mgen.0.001081) 
 
 
 ```bib
-@article {Hall2023.05.04.539481,
-        author = {Michael B Hall and Leandro Lima and Lachlan J M Coin and Zamin Iqbal},
-        title = {Drug resistance prediction for Mycobacterium tuberculosis with reference graphs},
-        elocation-id = {2023.05.04.539481},
-        year = {2023},
-        doi = {10.1101/2023.05.04.539481},
-        publisher = {Cold Spring Harbor Laboratory},
-        URL = {https://www.biorxiv.org/content/early/2023/05/04/2023.05.04.539481},
-        eprint = {https://www.biorxiv.org/content/early/2023/05/04/2023.05.04.539481.full.pdf},
-        journal = {bioRxiv}
+@article{hall_drug_2023,
+	title = {Drug resistance prediction for {Mycobacterium} tuberculosis with reference graphs},
+	volume = {9},
+	copyright = {All rights reserved},
+	issn = {2057-5858},
+	url = {https://www.microbiologyresearch.org/content/journal/mgen/10.1099/mgen.0.001081},
+	doi = {10.1099/mgen.0.001081},
+	number = {8},
+	journal = {Microbial Genomics},
+	author = {Hall, Michael B. and Lima, Leandro and Coin, Lachlan J. M. and Iqbal, Zamin},
+	year = {2023},
+	pages = {001081},
 }
 ```
 
