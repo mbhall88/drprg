@@ -361,7 +361,7 @@ impl Predict {
     }
 
     fn index_vcf_index_path(&self) -> PathBuf {
-        self.index_vcf_path().add_extension(".csi".as_ref())
+        PathExt::add_extension(self.index_vcf_path().as_path(), ".csi".as_ref())
     }
 
     fn index_vcf_ref_path(&self) -> PathBuf {
@@ -384,8 +384,8 @@ impl Predict {
     }
 
     fn predict_vcf_filename(&self) -> PathBuf {
-        let path = PathBuf::from(self.sample_name());
-        path.add_extension(".drprg.bcf".as_ref())
+        let path = Path::new(self.sample_name());
+        PathExt::add_extension(path, ".drprg.bcf".as_ref())
     }
 
     fn discover_dir(&self) -> PathBuf {
@@ -393,8 +393,8 @@ impl Predict {
     }
 
     fn json_filename(&self) -> PathBuf {
-        let path = PathBuf::from(self.sample_name());
-        path.add_extension(".drprg.json".as_ref())
+        let path = Path::new(self.sample_name());
+        PathExt::add_extension(path, ".drprg.json".as_ref())
     }
 
     fn validate_index(&self) -> Result<(), PredictError> {

@@ -262,13 +262,13 @@ impl Build {
     }
     fn prg_index_path(&self) -> PathBuf {
         let ext = format!("k{}.w{}.idx", self.pandora_k, self.pandora_w);
-        self.prg_path().add_extension(ext.as_str().as_ref())
+        PathExt::add_extension(self.prg_path().as_path(), ext.as_str().as_ref())
     }
     fn prg_index_kmer_prgs_path(&self) -> PathBuf {
         self.outdir.join("kmer_prgs")
     }
     fn reference_index_file(&self) -> PathBuf {
-        self.reference_file.add_extension(".fai".as_ref())
+        PathExt::add_extension(self.reference_file.as_path(), ".fai".as_ref())
     }
     fn organise_prebuilt_prg(&self) -> Result<(), BuildError> {
         let prebuilt_dir = match &self.prebuilt_prg {
