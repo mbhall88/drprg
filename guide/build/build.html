@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="../../installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="../../guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="../../guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="../../guide/build/build.html" class="active"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="../../guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="../../guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../../../CHANGELOG.html">Changes</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../CHANGELOG.html">Changes</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -91,7 +91,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -161,11 +161,11 @@ from.</p>
 </code></pre>
 <h2 id="required"><a class="header" href="#required">Required</a></h2>
 <h3 id="catalogue"><a class="header" href="#catalogue">Catalogue</a></h3>
-<p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
+<p>Also referred to as a "panel" sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). See <a href="./catalogue.html">the Catalogue docs</a> for more
 details of what format this file must take. Provided via the <code>-i/--panel</code> option.</p>
 <h3 id="reference-genome"><a class="header" href="#reference-genome">Reference genome</a></h3>
-<p>A FASTA file of the reference genome that will act as the &quot;skeleton&quot; for the reference
+<p>A FASTA file of the reference genome that will act as the "skeleton" for the reference
 graph. Provided via the <code>-f/--fasta</code> option.</p>
 <h3 id="annotation"><a class="header" href="#annotation">Annotation</a></h3>
 <p>The annotation is a <a href="https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md">GFF3</a> file for the species you are building the index for.
@@ -222,7 +222,7 @@ Input/Output:
   -b, --vcf &lt;FILE&gt;          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
   -o, --outdir &lt;DIR&gt;        Directory to place output [default: .]
   -d, --prebuilt-prg &lt;DIR&gt;  A prebuilt PRG to use
-  -r, --rules &lt;FILE&gt;        &quot;Expert rules&quot; to be applied in addition to the catalogue
+  -r, --rules &lt;FILE&gt;        "Expert rules" to be applied in addition to the catalogue
 </code></pre>
 <h2 id="full-usage"><a class="header" href="#full-usage">Full usage</a></h2>
 <pre><code>$ drprg build --help
@@ -316,7 +316,7 @@ Input/Output:
           Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `&lt;gene&gt;.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
 
   -r, --rules &lt;FILE&gt;
-          &quot;Expert rules&quot; to be applied in addition to the catalogue.
+          "Expert rules" to be applied in addition to the catalogue.
 
           CSV file with blanket rules that describe resistance (or susceptibility). The columns are &lt;variant type&gt;,&lt;gene&gt;,&lt;start&gt;,&lt;end&gt;,&lt;drug(s)&gt;. See the docs for a detailed explanation.
 </code></pre>

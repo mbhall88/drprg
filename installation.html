@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html" class="active"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../CHANGELOG.html">Changes</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../CHANGELOG.html">Changes</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -91,7 +91,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -167,17 +167,17 @@
 <p>A Docker container is available for all commits/branches/versions. To view the available
 tags, visit <a href="https://quay.io/repository/mbhall88/drprg?tab=tags">https://quay.io/repository/mbhall88/drprg?tab=tags</a></p>
 <p>For example, to use the latest commit on the <code>main</code> branch, the URI is</p>
-<pre><code>$ TAG=&quot;latest&quot;
-$ URI=&quot;quay.io/mbhall88/drprg:$TAG&quot;
+<pre><code>$ TAG="latest"
+$ URI="quay.io/mbhall88/drprg:$TAG"
 </code></pre>
 <h3 id="docker"><a class="header" href="#docker">Docker</a></h3>
 <p>To run <code>drprg</code> using the above container with Docker</p>
-<pre><code>$ docker pull &quot;$URI&quot;
-$ docker run -it &quot;$URI&quot; drprg --help
+<pre><code>$ docker pull "$URI"
+$ docker run -it "$URI" drprg --help
 </code></pre>
 <h3 id="singularity"><a class="header" href="#singularity">Singularity</a></h3>
 <p>To run <code>drprg</code> using the above container with <a href="https://sylabs.io/">Singularity</a></p>
-<pre><code>$ singularity exec &quot;docker://$URI&quot; drprg --help
+<pre><code>$ singularity exec "docker://$URI" drprg --help
 </code></pre>
 <h2 id="prebuilt-binary"><a class="header" href="#prebuilt-binary">Prebuilt binary</a></h2>
 <p>If you use the prebuilt binary, you must have the <a href="#dependencies">external dependecies</a> installed separately.</p>
@@ -250,7 +250,7 @@ $ just bcftools
 </code></pre>
 <p>By default, the external dependencies will be downloaded to <code>src/ext</code>. This can be
 changed by specifying a path to <code>EXTDIR</code> when installing the external dependencies.</p>
-<pre><code class="language-shell script">$ just deps EXTDIR=&quot;some/other/dir&quot;
+<pre><code class="language-shell script">$ just deps EXTDIR="some/other/dir"
 </code></pre>
 
                     </main>

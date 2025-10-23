@@ -8,7 +8,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -92,7 +92,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -159,14 +159,14 @@
 <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
 <a href="https://doi.org/10.1099/mgen.0.001081"><img src="https://img.shields.io/badge/doi-10.1099%2Fmgen.0.001081-blue" alt="10.1099/mgen.0.001081" /></a></p>
 <p>Full documentation: <a href="https://mbh.sh/drprg/">https://mbh.sh/drprg/</a></p>
-<p>As the name suggests, Dr. PRG (pronounced &quot;Doctor P-R-G&quot;) is a tool for predicting drug resistance from sequencing
+<p>As the name suggests, Dr. PRG (pronounced "Doctor P-R-G") is a tool for predicting drug resistance from sequencing
 data. It can be used for any species, provided an index is available for that species.
 The <a href="https://mbh.sh/drprg/">documentation</a> outlines which species have prebuilt indices and also a guide
 for how to create your own.</p>
 <h2 id="quick-installation"><a class="header" href="#quick-installation">Quick Installation</a></h2>
 <pre><code>conda install -c bioconda drprg
 </code></pre>
-<p>Linux is currently the only supported platform; however, there is a Docker container that can be used on other platforms. </p>
+<p>Linux is currently the only supported platform; however, there is a Docker container that can be used on other platforms.</p>
 <p>See the <a href="https://mbh.sh/drprg/installation.html">installation guide</a> for more options.</p>
 <h2 id="quick-usage"><a class="header" href="#quick-usage">Quick usage</a></h2>
 <p>Download the latest <em>M. tuberculosis</em> prebuilt index</p>
@@ -195,7 +195,7 @@ Options:
 </code></pre>
 <h2 id="citation"><a class="header" href="#citation">Citation</a></h2>
 <blockquote>
-<p>Hall MB, Lima L, Coin LJM, Iqbal Z (2023) Drug resistance prediction for Mycobacterium tuberculosis with reference graphs. Microbial Genomics 9:001081. doi: <a href="https://doi.org/10.1099/mgen.0.001081">10.1099/mgen.0.001081</a> </p>
+<p>Hall MB, Lima L, Coin LJM, Iqbal Z (2023) Drug resistance prediction for Mycobacterium tuberculosis with reference graphs. Microbial Genomics 9:001081. doi: <a href="https://doi.org/10.1099/mgen.0.001081">10.1099/mgen.0.001081</a></p>
 </blockquote>
 <pre><code class="language-bib">@article{hall_drug_2023,
 	title = {Drug resistance prediction for {Mycobacterium} tuberculosis with reference graphs},
@@ -224,17 +224,17 @@ Options:
 <p>A Docker container is available for all commits/branches/versions. To view the available
 tags, visit <a href="https://quay.io/repository/mbhall88/drprg?tab=tags">https://quay.io/repository/mbhall88/drprg?tab=tags</a></p>
 <p>For example, to use the latest commit on the <code>main</code> branch, the URI is</p>
-<pre><code>$ TAG=&quot;latest&quot;
-$ URI=&quot;quay.io/mbhall88/drprg:$TAG&quot;
+<pre><code>$ TAG="latest"
+$ URI="quay.io/mbhall88/drprg:$TAG"
 </code></pre>
 <h3 id="docker"><a class="header" href="#docker">Docker</a></h3>
 <p>To run <code>drprg</code> using the above container with Docker</p>
-<pre><code>$ docker pull &quot;$URI&quot;
-$ docker run -it &quot;$URI&quot; drprg --help
+<pre><code>$ docker pull "$URI"
+$ docker run -it "$URI" drprg --help
 </code></pre>
 <h3 id="singularity"><a class="header" href="#singularity">Singularity</a></h3>
 <p>To run <code>drprg</code> using the above container with <a href="https://sylabs.io/">Singularity</a></p>
-<pre><code>$ singularity exec &quot;docker://$URI&quot; drprg --help
+<pre><code>$ singularity exec "docker://$URI" drprg --help
 </code></pre>
 <h2 id="prebuilt-binary"><a class="header" href="#prebuilt-binary">Prebuilt binary</a></h2>
 <p>If you use the prebuilt binary, you must have the <a href="installation.html#dependencies">external dependecies</a> installed separately.</p>
@@ -307,7 +307,7 @@ $ just bcftools
 </code></pre>
 <p>By default, the external dependencies will be downloaded to <code>src/ext</code>. This can be
 changed by specifying a path to <code>EXTDIR</code> when installing the external dependencies.</p>
-<pre><code class="language-shell script">$ just deps EXTDIR=&quot;some/other/dir&quot;
+<pre><code class="language-shell script">$ just deps EXTDIR="some/other/dir"
 </code></pre>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="download-prebuilt-index"><a class="header" href="#download-prebuilt-index">Download prebuilt index</a></h1>
 <p>The <code>index</code> subcommand can be used to download or list available indices.</p>
@@ -389,7 +389,7 @@ Options:
 <p>At its simplest</p>
 <pre><code>drprg predict -i reads.fq -x mtb -o outdir
 </code></pre>
-<p><code>drprg</code> is a bit &quot;new-age&quot; in that it assumes the reads are Nanopore. If they're
+<p><code>drprg</code> is a bit "new-age" in that it assumes the reads are Nanopore. If they're
 Illumina, use the <code>-I/--illumina</code> option.</p>
 <p>See <a href="guide/./predict-output.html">Prediction Output</a> documentation for a detailed description of
 what results/output files and formats to expect.</p>
@@ -413,7 +413,7 @@ prefix (e.g. <code>name</code> for a fastq named <code>name.fq.gz</code>). Provi
 option.</p>
 <h3 id="minimum-allele-frequency"><a class="header" href="#minimum-allele-frequency">Minimum allele frequency</a></h3>
 <p>Provided via the <code>-f/--maf</code> option. If an alternate allele has at least this fraction of
-the depth, a minor resistance (&quot;r&quot;) prediction is made. By default, this is set to <code>1.0</code>
+the depth, a minor resistance ("r") prediction is made. By default, this is set to <code>1.0</code>
 for Nanopore data (i.e. minor allele detection is off) and <code>0.1</code> when using
 the <code>--illumina</code> option. For example, if a variant is called as the reference allele for
 Illumina reads, but an alternate allele has more than 10% of the depth on that position,
@@ -502,7 +502,7 @@ Filter:
   -f, --maf &lt;FLOAT[0.0-1.0]&gt;
           Minimum allele frequency to call variants
 
-          If an alternate allele has at least this fraction of the depth, a minor resistance (&quot;r&quot;) prediction is made. Set to 1 to disable. If --illumina is passed, the default is 0.1
+          If an alternate allele has at least this fraction of the depth, a minor resistance ("r") prediction is made. Set to 1 to disable. If --illumina is passed, the default is 0.1
 
           [default: 1]
 
@@ -552,85 +552,85 @@ resistance prediction for each drug in the index's catalogue.</p>
 <h4 id="example"><a class="header" href="#example">Example</a></h4>
 <p>This is a trimmmed (toy) example JSON output for a sample</p>
 <pre><code class="language-json">{
-  &quot;genes&quot;: {
-    &quot;absent&quot;: [
-      &quot;ahpC&quot;
+  "genes": {
+    "absent": [
+      "ahpC"
     ],
-    &quot;present&quot;: [
-      &quot;embA&quot;,
-      &quot;embB&quot;,
-      &quot;ethA&quot;,
-      &quot;fabG1&quot;,
-      &quot;gid&quot;,
-      &quot;gyrA&quot;,
-      &quot;gyrB&quot;,
-      &quot;inhA&quot;,
-      &quot;katG&quot;,
-      &quot;pncA&quot;,
-      &quot;rpoB&quot;,
-      &quot;rrs&quot;
+    "present": [
+      "embA",
+      "embB",
+      "ethA",
+      "fabG1",
+      "gid",
+      "gyrA",
+      "gyrB",
+      "inhA",
+      "katG",
+      "pncA",
+      "rpoB",
+      "rrs"
     ]
   },
-  &quot;sample&quot;: &quot;toy&quot;,
-  &quot;susceptibility&quot;: {
-    &quot;Amikacin&quot;: {
-      &quot;evidence&quot;: [
+  "sample": "toy",
+  "susceptibility": {
+    "Amikacin": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;rrs&quot;,
-          &quot;residue&quot;: &quot;DNA&quot;,
-          &quot;variant&quot;: &quot;A1401X&quot;,
-          &quot;vcfid&quot;: &quot;b815ed3f&quot;
+          "gene": "rrs",
+          "residue": "DNA",
+          "variant": "A1401X",
+          "vcfid": "b815ed3f"
         }
       ],
-      &quot;predict&quot;: &quot;F&quot;
+      "predict": "F"
     },
-    &quot;Ethambutol&quot;: {
-      &quot;evidence&quot;: [
+    "Ethambutol": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;embB&quot;,
-          &quot;residue&quot;: &quot;PROT&quot;,
-          &quot;variant&quot;: &quot;M306I&quot;,
-          &quot;vcfid&quot;: &quot;a290b118&quot;
+          "gene": "embB",
+          "residue": "PROT",
+          "variant": "M306I",
+          "vcfid": "a290b118"
         }
       ],
-      &quot;predict&quot;: &quot;r&quot;
+      "predict": "r"
     },
-    &quot;Ethionamide&quot;: {
-      &quot;evidence&quot;: [
+    "Ethionamide": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;ethA&quot;,
-          &quot;residue&quot;: &quot;PROT&quot;,
-          &quot;variant&quot;: &quot;A381P&quot;,
-          &quot;vcfid&quot;: &quot;169f75d4&quot;
+          "gene": "ethA",
+          "residue": "PROT",
+          "variant": "A381P",
+          "vcfid": "169f75d4"
         }
       ],
-      &quot;predict&quot;: &quot;U&quot;
+      "predict": "U"
     },
-    &quot;Isoniazid&quot;: {
-      &quot;evidence&quot;: [
+    "Isoniazid": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;fabG1&quot;,
-          &quot;residue&quot;: &quot;DNA&quot;,
-          &quot;variant&quot;: &quot;G-17T&quot;,
-          &quot;vcfid&quot;: &quot;de9b689e&quot;
+          "gene": "fabG1",
+          "residue": "DNA",
+          "variant": "G-17T",
+          "vcfid": "de9b689e"
         },
         {
-          &quot;gene&quot;: &quot;katG&quot;,
-          &quot;residue&quot;: &quot;PROT&quot;,
-          &quot;variant&quot;: &quot;S315T&quot;,
-          &quot;vcfid&quot;: &quot;acaa8ca2&quot;
+          "gene": "katG",
+          "residue": "PROT",
+          "variant": "S315T",
+          "vcfid": "acaa8ca2"
         }
       ],
-      &quot;predict&quot;: &quot;R&quot;
+      "predict": "R"
     },
-    &quot;Levofloxacin&quot;: {
-      &quot;evidence&quot;: [],
-      &quot;predict&quot;: &quot;S&quot;
+    "Levofloxacin": {
+      "evidence": [],
+      "predict": "S"
     }
   },
-  &quot;version&quot;: {
-    &quot;drprg&quot;: &quot;0.1.1&quot;,
-    &quot;index&quot;: &quot;20230308&quot;
+  "version": {
+    "drprg": "0.1.1",
+    "index": "20230308"
   }
 }
 </code></pre>
@@ -647,7 +647,7 @@ the <a href="guide/predict-output.html#predict"><code>predict</code></a> section
 <p>The <code>predict</code> entry for a drug is the resistance prediction for the sample. Possible
 values are</p>
 <ul>
-<li><code>S</code>: susceptible. This is the &quot;default&quot; prediction. If no mutations are detected for
+<li><code>S</code>: susceptible. This is the "default" prediction. If no mutations are detected for
 the sample, it is assumed to be susceptible</li>
 <li><code>F</code>: failed. Genotyping failed for one or more mutations for this drug. See
 the <a href="guide/predict-output.html#prediction-vcf">prediction VCF</a> for more information</li>
@@ -690,11 +690,11 @@ from.</p>
 </code></pre>
 <h2 id="required-1"><a class="header" href="#required-1">Required</a></h2>
 <h3 id="catalogue"><a class="header" href="#catalogue">Catalogue</a></h3>
-<p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
+<p>Also referred to as a "panel" sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). See <a href="guide/build/./catalogue.html">the Catalogue docs</a> for more
 details of what format this file must take. Provided via the <code>-i/--panel</code> option.</p>
 <h3 id="reference-genome"><a class="header" href="#reference-genome">Reference genome</a></h3>
-<p>A FASTA file of the reference genome that will act as the &quot;skeleton&quot; for the reference
+<p>A FASTA file of the reference genome that will act as the "skeleton" for the reference
 graph. Provided via the <code>-f/--fasta</code> option.</p>
 <h3 id="annotation"><a class="header" href="#annotation">Annotation</a></h3>
 <p>The annotation is a <a href="https://github.com/The-Sequence-Ontology/Specifications/blob/master/gff3.md">GFF3</a> file for the species you are building the index for.
@@ -751,7 +751,7 @@ Input/Output:
   -b, --vcf &lt;FILE&gt;          An indexed VCF to build the index PRG from. If not provided, then a prebuilt PRG must be given. See `--prebuilt-prg`
   -o, --outdir &lt;DIR&gt;        Directory to place output [default: .]
   -d, --prebuilt-prg &lt;DIR&gt;  A prebuilt PRG to use
-  -r, --rules &lt;FILE&gt;        &quot;Expert rules&quot; to be applied in addition to the catalogue
+  -r, --rules &lt;FILE&gt;        "Expert rules" to be applied in addition to the catalogue
 </code></pre>
 <h2 id="full-usage-2"><a class="header" href="#full-usage-2">Full usage</a></h2>
 <pre><code>$ drprg build --help
@@ -845,7 +845,7 @@ Input/Output:
           Only build the panel VCF and reference sequences - not the PRG. This directory MUST contain a PRG file named `dr.prg`, along, with a directory called `msas/` that contains an MSA fasta file for each gene `&lt;gene&gt;.fa`. There can optionally also be a pandora index file, but if not, the indexing will be performed by drprg. Note: the PRG is expected to contain the reference sequence for each gene according to the annotation and reference genome given (along with padding) and must be in the forward strand orientation.
 
   -r, --rules &lt;FILE&gt;
-          &quot;Expert rules&quot; to be applied in addition to the catalogue.
+          "Expert rules" to be applied in addition to the catalogue.
 
           CSV file with blanket rules that describe resistance (or susceptibility). The columns are &lt;variant type&gt;,&lt;gene&gt;,&lt;start&gt;,&lt;end&gt;,&lt;drug(s)&gt;. See the docs for a detailed explanation.
 </code></pre>
@@ -868,7 +868,7 @@ are incorrect with respect to the annotation and reference genome you provide.</
 <h2 id="example-from-mycobacterium-tuberculosis"><a class="header" href="#example-from-mycobacterium-tuberculosis">Example from <em>Mycobacterium</em> tuberculosis</a></h2>
 <p>We provide an example of how the VCF for the <a href="https://doi.org/10.1099/mgen.0.001081">work on <em>M. tuberculosis</em></a> (MTB) was generated.</p>
 <h3 id="call-variants-for-population"><a class="header" href="#call-variants-for-population">Call variants for population</a></h3>
-<p>The first step is to select the population of samples you want variation from. For the MTB reference graph, we took a subset of the <a href="https://doi.org/10.1371/journal.pbio.3001721">15,211 global MTB isolates published by the CRyPTIC consortium</a>. Briefly, the 15,211 samples were individually variant-called using <a href="https://github.com/iqbal-lab-org/clockwork"><code>clockwork</code></a> and then joint-genotyped using <a href="https://github.com/iqbal-lab-org/minos"><code>minos</code></a>. The &quot;wide&quot; VCF obtained at the end contains genotypes for all 15,211 samples against all variants discovered across the population. </p>
+<p>The first step is to select the population of samples you want variation from. For the MTB reference graph, we took a subset of the <a href="https://doi.org/10.1371/journal.pbio.3001721">15,211 global MTB isolates published by the CRyPTIC consortium</a>. Briefly, the 15,211 samples were individually variant-called using <a href="https://github.com/iqbal-lab-org/clockwork"><code>clockwork</code></a> and then joint-genotyped using <a href="https://github.com/iqbal-lab-org/minos"><code>minos</code></a>. The "wide" VCF obtained at the end contains genotypes for all 15,211 samples against all variants discovered across the population.</p>
 <p><strong>Note</strong>: the reference genome you call these variants against must be the same the <a href="guide/build/./build.html#reference-genome">skeleton reference</a>.</p>
 <h3 id="optional-subset-population"><a class="header" href="#optional-subset-population">(Optional) subset population</a></h3>
 <p>In our running example, we have 15,211 samples in our VCF. This is far too much to be useful for building a reference graph. <a href="https://doi.org/10.1186/s13059-018-1595-x">This paper</a> illustrates the problem nicely. In addition, Figure 3.2 and Sections 3.6.4 and 3.6.5 in <a href="https://doi.org/10.17863/CAM.81350">this thesis</a> show that using too many samples does not provide any benefit to variant precision or recall, but costs increased memory usage and CPU time.</p>
@@ -885,7 +885,7 @@ are incorrect with respect to the annotation and reference genome you provide.</
 </code></pre>
 <p><code>-a</code> trims ALT alleles not seen in the genotype fields, <code>-U</code> excludes sites without a called genotype, and <code>-c=1:nref</code> removes positions there is no non-reference alleles.</p>
 <p>You can find the resulting VCF (<code>MTB.vcf.gz</code>) we generated <a href="https://doi.org/10.6084/m9.figshare.23625327">here</a>.</p>
-<h3 id="optional-manually-add-orphan-mutations"><a class="header" href="#optional-manually-add-orphan-mutations">(Optional) Manually add &quot;orphan&quot; mutations</a></h3>
+<h3 id="optional-manually-add-orphan-mutations"><a class="header" href="#optional-manually-add-orphan-mutations">(Optional) Manually add "orphan" mutations</a></h3>
 <p>We also manually added ~50 mutations that were commonly found in minor frequencies but were not contained in the population VCF.</p>
 <p>This is done by creating a file of mutations of the form <code>&lt;gene&gt;_&lt;mutation&gt;</code> - this is effectively column 1 and 2 from <a href="guide/build/./catalogue.html">the catalogue</a> separated by an underscore. For example</p>
 <pre><code>rpoB_I491F
@@ -899,20 +899,20 @@ embB_L74R
 <pre><code>python create_orphan_mutations.py -r ref.fa -m orphan_mutations.txt \
   -g annotation.gff -o orphan.vcf
 </code></pre>
-<p>We then merge this VCF of &quot;orphan&quot; mutations into the population VCF with</p>
+<p>We then merge this VCF of "orphan" mutations into the population VCF with</p>
 <pre><code>bcftools merge MTB.vcf.gz orphan.vcf |
   bcftools norm -c e -f reference.fa -o merged.vcf
 </code></pre>
 <p><code>-c e</code> just tells <code>bcftools norm</code> to error if the REF alleles in the VCFs do not match the reference.</p>
 <h3 id="extract-catalogue-genes-from-vcf"><a class="header" href="#extract-catalogue-genes-from-vcf">Extract catalogue genes from VCF</a></h3>
-<p>DrPRG expects the VCF <code>CHROM</code> field to be the name of the gene, rather than the reference contig/chromosome name - which is what we currently have. As such, the <code>POS</code> must be with respect to the gene. It's important to ensure the <code>POS</code> takes into account the <a href="guide/build/./build.html#padding">padding</a> that will be used when running <code>build</code>. </p>
+<p>DrPRG expects the VCF <code>CHROM</code> field to be the name of the gene, rather than the reference contig/chromosome name - which is what we currently have. As such, the <code>POS</code> must be with respect to the gene. It's important to ensure the <code>POS</code> takes into account the <a href="guide/build/./build.html#padding">padding</a> that will be used when running <code>build</code>.</p>
 <p>A helper script for converting a VCF from reference genome coordinates to gene coordinates can be found <a href="https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py">here</a>. In addition, <code>drprg</code> will raise an error if the coordinates are incorrect with respect to the annotation and reference genome you provide. By providing this script with the <a href="guide/build/./catalogue.html">catalogue/panel</a> you will use in <a href="guide/build/./build.html"><code>build</code></a>, it will extract only those variants that fall within the genes in your catalogue.</p>
 <pre><code>python extract_panel_genes_from_vcf.py --padding 100 \
   -i catalogue.tsv -g annotation.gff --vcf merged.vcf -o final.vcf
 </code></pre>
 <p><code>final.vcf</code> can now be used as the <a href="guide/build/./build.html#vcf">input VCF for <code>build</code></a>.</p>
 <div style="break-before: page; page-break-before: always;"></div><h1 id="catalogue-of-mutations"><a class="header" href="#catalogue-of-mutations">Catalogue of mutations</a></h1>
-<p>Also referred to as a &quot;panel&quot; sometimes. This is the catalogue of mutations that confer
+<p>Also referred to as a "panel" sometimes. This is the catalogue of mutations that confer
 resistance (or susceptibility). Provided via the <code>-i/--panel</code> option.</p>
 <p>This file is a tab-delimited (TSV) file with four columns</p>
 <ol>
@@ -926,7 +926,7 @@ with a negative symbol - e.g. -10 means 10 nucleotide before the first position 
 the gene. One-letter codes are to be used for amino acids.</li>
 <li>The residue type - <code>DNA</code> (nucleotide change) or <code>PROT</code> (amino acid change).</li>
 <li>Comma-separated list of the drug(s) the mutation confers resistance to. Use <code>NONE</code> if
-the mutation is not associated with resistance. </li>
+the mutation is not associated with resistance.</li>
 </ol>
 <h2 id="example-1"><a class="header" href="#example-1">Example</a></h2>
 <pre><code>pncA    TCG196TAG   DNA Pyrazinamide

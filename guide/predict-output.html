@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="../installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="../guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="../guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../guide/predict-output.html" class="active"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="../guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="../guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="../guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="../contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../../CHANGELOG.html">Changes</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../CHANGELOG.html">Changes</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -91,7 +91,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -165,85 +165,85 @@ resistance prediction for each drug in the index's catalogue.</p>
 <h4 id="example"><a class="header" href="#example">Example</a></h4>
 <p>This is a trimmmed (toy) example JSON output for a sample</p>
 <pre><code class="language-json">{
-  &quot;genes&quot;: {
-    &quot;absent&quot;: [
-      &quot;ahpC&quot;
+  "genes": {
+    "absent": [
+      "ahpC"
     ],
-    &quot;present&quot;: [
-      &quot;embA&quot;,
-      &quot;embB&quot;,
-      &quot;ethA&quot;,
-      &quot;fabG1&quot;,
-      &quot;gid&quot;,
-      &quot;gyrA&quot;,
-      &quot;gyrB&quot;,
-      &quot;inhA&quot;,
-      &quot;katG&quot;,
-      &quot;pncA&quot;,
-      &quot;rpoB&quot;,
-      &quot;rrs&quot;
+    "present": [
+      "embA",
+      "embB",
+      "ethA",
+      "fabG1",
+      "gid",
+      "gyrA",
+      "gyrB",
+      "inhA",
+      "katG",
+      "pncA",
+      "rpoB",
+      "rrs"
     ]
   },
-  &quot;sample&quot;: &quot;toy&quot;,
-  &quot;susceptibility&quot;: {
-    &quot;Amikacin&quot;: {
-      &quot;evidence&quot;: [
+  "sample": "toy",
+  "susceptibility": {
+    "Amikacin": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;rrs&quot;,
-          &quot;residue&quot;: &quot;DNA&quot;,
-          &quot;variant&quot;: &quot;A1401X&quot;,
-          &quot;vcfid&quot;: &quot;b815ed3f&quot;
+          "gene": "rrs",
+          "residue": "DNA",
+          "variant": "A1401X",
+          "vcfid": "b815ed3f"
         }
       ],
-      &quot;predict&quot;: &quot;F&quot;
+      "predict": "F"
     },
-    &quot;Ethambutol&quot;: {
-      &quot;evidence&quot;: [
+    "Ethambutol": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;embB&quot;,
-          &quot;residue&quot;: &quot;PROT&quot;,
-          &quot;variant&quot;: &quot;M306I&quot;,
-          &quot;vcfid&quot;: &quot;a290b118&quot;
+          "gene": "embB",
+          "residue": "PROT",
+          "variant": "M306I",
+          "vcfid": "a290b118"
         }
       ],
-      &quot;predict&quot;: &quot;r&quot;
+      "predict": "r"
     },
-    &quot;Ethionamide&quot;: {
-      &quot;evidence&quot;: [
+    "Ethionamide": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;ethA&quot;,
-          &quot;residue&quot;: &quot;PROT&quot;,
-          &quot;variant&quot;: &quot;A381P&quot;,
-          &quot;vcfid&quot;: &quot;169f75d4&quot;
+          "gene": "ethA",
+          "residue": "PROT",
+          "variant": "A381P",
+          "vcfid": "169f75d4"
         }
       ],
-      &quot;predict&quot;: &quot;U&quot;
+      "predict": "U"
     },
-    &quot;Isoniazid&quot;: {
-      &quot;evidence&quot;: [
+    "Isoniazid": {
+      "evidence": [
         {
-          &quot;gene&quot;: &quot;fabG1&quot;,
-          &quot;residue&quot;: &quot;DNA&quot;,
-          &quot;variant&quot;: &quot;G-17T&quot;,
-          &quot;vcfid&quot;: &quot;de9b689e&quot;
+          "gene": "fabG1",
+          "residue": "DNA",
+          "variant": "G-17T",
+          "vcfid": "de9b689e"
         },
         {
-          &quot;gene&quot;: &quot;katG&quot;,
-          &quot;residue&quot;: &quot;PROT&quot;,
-          &quot;variant&quot;: &quot;S315T&quot;,
-          &quot;vcfid&quot;: &quot;acaa8ca2&quot;
+          "gene": "katG",
+          "residue": "PROT",
+          "variant": "S315T",
+          "vcfid": "acaa8ca2"
         }
       ],
-      &quot;predict&quot;: &quot;R&quot;
+      "predict": "R"
     },
-    &quot;Levofloxacin&quot;: {
-      &quot;evidence&quot;: [],
-      &quot;predict&quot;: &quot;S&quot;
+    "Levofloxacin": {
+      "evidence": [],
+      "predict": "S"
     }
   },
-  &quot;version&quot;: {
-    &quot;drprg&quot;: &quot;0.1.1&quot;,
-    &quot;index&quot;: &quot;20230308&quot;
+  "version": {
+    "drprg": "0.1.1",
+    "index": "20230308"
   }
 }
 </code></pre>
@@ -260,7 +260,7 @@ the <a href="#predict"><code>predict</code></a> section.</li>
 <p>The <code>predict</code> entry for a drug is the resistance prediction for the sample. Possible
 values are</p>
 <ul>
-<li><code>S</code>: susceptible. This is the &quot;default&quot; prediction. If no mutations are detected for
+<li><code>S</code>: susceptible. This is the "default" prediction. If no mutations are detected for
 the sample, it is assumed to be susceptible</li>
 <li><code>F</code>: failed. Genotyping failed for one or more mutations for this drug. See
 the <a href="#prediction-vcf">prediction VCF</a> for more information</li>

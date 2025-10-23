@@ -7,7 +7,7 @@
 
 
         <!-- Custom HTML head -->
-        
+
         <meta content="text/html; charset=utf-8" http-equiv="Content-Type">
         <meta name="description" content="">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -83,7 +83,7 @@
 
         <nav id="sidebar" class="sidebar" aria-label="Table of contents">
             <div class="sidebar-scrollbox">
-                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="../../installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="../../guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="../../guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="../../guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../../guide/build/vcf.html" class="active"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="../../guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="../../guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="../../contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../../../CHANGELOG.html">Changes</a></li></ol>
+                <ol class="chapter"><li class="chapter-item expanded affix "><a href="../../index.html">Introduction</a></li><li class="chapter-item expanded affix "><li class="part-title">Getting Started</li><li class="chapter-item expanded "><a href="installation.html"><strong aria-hidden="true">1.</strong> Installation</a></li><li class="chapter-item expanded affix "><li class="part-title">User Guide</li><li class="chapter-item expanded "><a href="guide/download.html"><strong aria-hidden="true">2.</strong> Download prebuilt index</a></li><li class="chapter-item expanded "><a href="guide/predict.html"><strong aria-hidden="true">3.</strong> Predict</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/predict-output.html"><strong aria-hidden="true">3.1.</strong> Prediction output</a></li></ol></li><li class="chapter-item expanded "><a href="guide/build/build.html"><strong aria-hidden="true">4.</strong> Build an index</a></li><li><ol class="section"><li class="chapter-item expanded "><a href="guide/build/vcf.html"><strong aria-hidden="true">4.1.</strong> VCF to build reference graph</a></li><li class="chapter-item expanded "><a href="guide/build/catalogue.html"><strong aria-hidden="true">4.2.</strong> Catalogue of mutations</a></li><li class="chapter-item expanded "><a href="guide/build/expert.html"><strong aria-hidden="true">4.3.</strong> Expert rules</a></li></ol></li><li class="chapter-item expanded "><a href="contributing.html">Contributing</a></li><li class="chapter-item expanded affix "><a href="../../CHANGELOG.html">Changes</a></li></ol>
             </div>
             <div id="sidebar-resize-handle" class="sidebar-resize-handle"></div>
         </nav>
@@ -91,7 +91,7 @@
         <div id="page-wrapper" class="page-wrapper">
 
             <div class="page">
-                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar-hover-placeholder"></div>
                 <div id="menu-bar" class="menu-bar sticky bordered">
                     <div class="left-buttons">
                         <button id="sidebar-toggle" class="icon-button" type="button" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
@@ -173,7 +173,7 @@ are incorrect with respect to the annotation and reference genome you provide.</
 <h2 id="example-from-mycobacterium-tuberculosis"><a class="header" href="#example-from-mycobacterium-tuberculosis">Example from <em>Mycobacterium</em> tuberculosis</a></h2>
 <p>We provide an example of how the VCF for the <a href="https://doi.org/10.1099/mgen.0.001081">work on <em>M. tuberculosis</em></a> (MTB) was generated.</p>
 <h3 id="call-variants-for-population"><a class="header" href="#call-variants-for-population">Call variants for population</a></h3>
-<p>The first step is to select the population of samples you want variation from. For the MTB reference graph, we took a subset of the <a href="https://doi.org/10.1371/journal.pbio.3001721">15,211 global MTB isolates published by the CRyPTIC consortium</a>. Briefly, the 15,211 samples were individually variant-called using <a href="https://github.com/iqbal-lab-org/clockwork"><code>clockwork</code></a> and then joint-genotyped using <a href="https://github.com/iqbal-lab-org/minos"><code>minos</code></a>. The &quot;wide&quot; VCF obtained at the end contains genotypes for all 15,211 samples against all variants discovered across the population. </p>
+<p>The first step is to select the population of samples you want variation from. For the MTB reference graph, we took a subset of the <a href="https://doi.org/10.1371/journal.pbio.3001721">15,211 global MTB isolates published by the CRyPTIC consortium</a>. Briefly, the 15,211 samples were individually variant-called using <a href="https://github.com/iqbal-lab-org/clockwork"><code>clockwork</code></a> and then joint-genotyped using <a href="https://github.com/iqbal-lab-org/minos"><code>minos</code></a>. The "wide" VCF obtained at the end contains genotypes for all 15,211 samples against all variants discovered across the population.</p>
 <p><strong>Note</strong>: the reference genome you call these variants against must be the same the <a href="./build.html#reference-genome">skeleton reference</a>.</p>
 <h3 id="optional-subset-population"><a class="header" href="#optional-subset-population">(Optional) subset population</a></h3>
 <p>In our running example, we have 15,211 samples in our VCF. This is far too much to be useful for building a reference graph. <a href="https://doi.org/10.1186/s13059-018-1595-x">This paper</a> illustrates the problem nicely. In addition, Figure 3.2 and Sections 3.6.4 and 3.6.5 in <a href="https://doi.org/10.17863/CAM.81350">this thesis</a> show that using too many samples does not provide any benefit to variant precision or recall, but costs increased memory usage and CPU time.</p>
@@ -190,7 +190,7 @@ are incorrect with respect to the annotation and reference genome you provide.</
 </code></pre>
 <p><code>-a</code> trims ALT alleles not seen in the genotype fields, <code>-U</code> excludes sites without a called genotype, and <code>-c=1:nref</code> removes positions there is no non-reference alleles.</p>
 <p>You can find the resulting VCF (<code>MTB.vcf.gz</code>) we generated <a href="https://doi.org/10.6084/m9.figshare.23625327">here</a>.</p>
-<h3 id="optional-manually-add-orphan-mutations"><a class="header" href="#optional-manually-add-orphan-mutations">(Optional) Manually add &quot;orphan&quot; mutations</a></h3>
+<h3 id="optional-manually-add-orphan-mutations"><a class="header" href="#optional-manually-add-orphan-mutations">(Optional) Manually add "orphan" mutations</a></h3>
 <p>We also manually added ~50 mutations that were commonly found in minor frequencies but were not contained in the population VCF.</p>
 <p>This is done by creating a file of mutations of the form <code>&lt;gene&gt;_&lt;mutation&gt;</code> - this is effectively column 1 and 2 from <a href="./catalogue.html">the catalogue</a> separated by an underscore. For example</p>
 <pre><code>rpoB_I491F
@@ -204,13 +204,13 @@ embB_L74R
 <pre><code>python create_orphan_mutations.py -r ref.fa -m orphan_mutations.txt \
   -g annotation.gff -o orphan.vcf
 </code></pre>
-<p>We then merge this VCF of &quot;orphan&quot; mutations into the population VCF with</p>
+<p>We then merge this VCF of "orphan" mutations into the population VCF with</p>
 <pre><code>bcftools merge MTB.vcf.gz orphan.vcf |
   bcftools norm -c e -f reference.fa -o merged.vcf
 </code></pre>
 <p><code>-c e</code> just tells <code>bcftools norm</code> to error if the REF alleles in the VCFs do not match the reference.</p>
 <h3 id="extract-catalogue-genes-from-vcf"><a class="header" href="#extract-catalogue-genes-from-vcf">Extract catalogue genes from VCF</a></h3>
-<p>DrPRG expects the VCF <code>CHROM</code> field to be the name of the gene, rather than the reference contig/chromosome name - which is what we currently have. As such, the <code>POS</code> must be with respect to the gene. It's important to ensure the <code>POS</code> takes into account the <a href="./build.html#padding">padding</a> that will be used when running <code>build</code>. </p>
+<p>DrPRG expects the VCF <code>CHROM</code> field to be the name of the gene, rather than the reference contig/chromosome name - which is what we currently have. As such, the <code>POS</code> must be with respect to the gene. It's important to ensure the <code>POS</code> takes into account the <a href="./build.html#padding">padding</a> that will be used when running <code>build</code>.</p>
 <p>A helper script for converting a VCF from reference genome coordinates to gene coordinates can be found <a href="https://github.com/mbhall88/drprg/blob/main/scripts/extract_panel_genes_from_vcf.py">here</a>. In addition, <code>drprg</code> will raise an error if the coordinates are incorrect with respect to the annotation and reference genome you provide. By providing this script with the <a href="./catalogue.html">catalogue/panel</a> you will use in <a href="./build.html"><code>build</code></a>, it will extract only those variants that fall within the genes in your catalogue.</p>
 <pre><code>python extract_panel_genes_from_vcf.py --padding 100 \
   -i catalogue.tsv -g annotation.gff --vcf merged.vcf -o final.vcf
