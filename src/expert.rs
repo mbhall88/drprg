@@ -140,9 +140,7 @@ impl RuleExt for ExpertRules {
         for result in reader.deserialize() {
             n_records += 1;
             let record: Rule = result?;
-            let set_of_records = rules
-                .entry(record.gene.to_owned())
-                .or_insert_with(HashSet::new);
+            let set_of_records = rules.entry(record.gene.to_owned()).or_default();
             let seen_before = !set_of_records.insert(record);
 
             if seen_before {

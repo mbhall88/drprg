@@ -33,9 +33,7 @@ impl PanelExt for Panel {
         for result in reader.deserialize() {
             n_records += 1;
             let record: PanelRecord = result?;
-            let set_of_records = panel
-                .entry(record.gene.to_owned())
-                .or_insert_with(HashSet::new);
+            let set_of_records = panel.entry(record.gene.to_owned()).or_default();
             let seen_before = !set_of_records.insert(record);
 
             if seen_before {

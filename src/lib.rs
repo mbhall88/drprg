@@ -24,7 +24,7 @@ use regex::Regex;
 use std::cmp::{max, min};
 use std::collections::HashSet;
 use std::fs;
-use std::io::{BufReader, BufWriter, ErrorKind};
+use std::io::{BufReader, BufWriter};
 
 pub mod filter;
 pub mod interval;
@@ -128,8 +128,7 @@ impl Bcftools {
 
         if !cmd_output.status.success() {
             let exit_code = cmd_output.status.to_string();
-            Err(DependencyError::ProcessError(std::io::Error::new(
-                ErrorKind::Other,
+            Err(DependencyError::ProcessError(std::io::Error::other(
                 format!(
                     "{} with stderr: {}",
                     exit_code,
@@ -171,8 +170,7 @@ impl Bcftools {
 
         if !cmd_output.status.success() {
             let exit_code = cmd_output.status.to_string();
-            Err(DependencyError::ProcessError(std::io::Error::new(
-                ErrorKind::Other,
+            Err(DependencyError::ProcessError(std::io::Error::other(
                 format!(
                     "{} with stderr: {}",
                     exit_code,
@@ -1174,7 +1172,9 @@ impl VcfExt for bcf::Record {
     }
 
     fn has_no_depth(&self) -> bool {
-        let Some((fc, rc)) = self.coverage() else { return true };
+        let Some((fc, rc)) = self.coverage() else {
+            return true;
+        };
         let total_depth: i32 = fc.iter().chain(rc.iter()).sum();
         total_depth == 0
     }

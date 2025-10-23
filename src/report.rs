@@ -48,7 +48,7 @@ impl Evidence {
             .reference
             .len()
             .abs_diff(self.variant.new.len());
-        self.residue == Residue::Nucleic && len_diff % 3 != 0
+        self.residue == Residue::Nucleic && !len_diff.is_multiple_of(3)
     }
     pub fn atomise(&self) -> Vec<Self> {
         if self.variant.is_snp() || self.variant.is_indel() {

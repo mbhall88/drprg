@@ -444,7 +444,7 @@ impl Predict {
             }
             self.filterer.filter(&mut record)?;
             record
-                .set_id(Uuid::new_v4().to_string()[..8].as_bytes())
+                .set_id(&Uuid::new_v4().to_string().as_bytes()[..8])
                 .context("Duplicate ID found - 1/270,000,000 chance of this happening - buy a lottery ticket!")?;
             let chrom = record.contig().into_bytes();
             let idx_rid = unwrap_or_continue!(vcfidx.header().name2rid(&chrom));
@@ -728,9 +728,7 @@ impl Predict {
             let (chrom, _) = var
                 .split_once('_')
                 .context(format!("Couldn't split variant ID {var} at underscore"))?;
-            let entry = gene2drugs
-                .entry(chrom.to_string())
-                .or_insert_with(HashSet::new);
+            let entry = gene2drugs.entry(chrom.to_string()).or_default();
             drugs.iter().for_each(|d| {
                 entry.insert(d.to_owned());
             });
@@ -739,9 +737,7 @@ impl Predict {
             .load_rules()
             .context("Failed to load expert rules in index")?;
         for (gene, rules) in &expert_rules {
-            let entry = gene2drugs
-                .entry(gene.to_owned())
-                .or_insert_with(HashSet::new);
+            let entry = gene2drugs.entry(gene.to_owned()).or_default();
             rules.iter().for_each(|r| {
                 for d in &r.drugs {
                     entry.insert(d.to_owned());
@@ -782,9 +778,7 @@ impl Predict {
                                 residue: Residue::Nucleic,
                                 vcfid: "".to_string(),
                             };
-                            let entry = json
-                                .entry(drug.to_string())
-                                .or_insert_with(Susceptibility::default);
+                            let entry = json.entry(drug.to_string()).or_default();
                             if entry.predict == Prediction::Resistant {
                                 entry.evidence.push(evidence);
                             } else {
@@ -800,8 +794,15 @@ impl Predict {
         // check if any genes have lost their start and have an absent expert rule type
         let mut check_for_start_loss: HashMap<String, Vec<String>> = HashMap::new();
         for gene in &present_genes {
-            let Some(gene_rules) = expert_rules.get(gene) else { continue };
-            let Some(rule) = gene_rules.iter().find(|r| r.variant_type == VariantType::Absence) else {continue};
+            let Some(gene_rules) = expert_rules.get(gene) else {
+                continue;
+            };
+            let Some(rule) = gene_rules
+                .iter()
+                .find(|r| r.variant_type == VariantType::Absence)
+            else {
+                continue;
+            };
             check_for_start_loss
                 .insert(gene.to_owned(), Vec::from_iter(rule.drugs.to_owned()));
         }
@@ -930,9 +931,7 @@ impl Predict {
                     vcfid: String::from_utf8_lossy(&record.id()).into_owned(),
                 };
                 for drug in drugs.iter().filter(|d| *d != NONE_DRUG) {
-                    let entry = json
-                        .entry(drug.to_string())
-                        .or_insert_with(Susceptibility::default);
+                    let entry = json.entry(drug.to_string()).or_default();
                     match (entry.predict, *prediction) {
                         (existing_pred, current_pred)
                             if existing_pred < current_pred =>
@@ -1008,9 +1007,7 @@ impl Predict {
                             residue: Residue::Nucleic,
                             vcfid: vcfid.to_owned(),
                         };
-                        let entry = json
-                            .entry(drug.to_string())
-                            .or_insert_with(Susceptibility::default);
+                        let entry = json.entry(drug.to_string()).or_default();
                         if entry.predict == Prediction::Resistant {
                             entry.evidence.push(evidence);
                         } else {
@@ -1035,9 +1032,7 @@ impl Predict {
                             residue: Residue::Nucleic,
                             vcfid: vcfid.to_owned(),
                         };
-                        let entry = json
-                            .entry(drug.to_string())
-                            .or_insert_with(Susceptibility::default);
+                        let entry = json.entry(drug.to_string()).or_default();
                         match entry.predict {
                             Prediction::Unknown => {
                                 entry.evidence.push(evidence);
@@ -1056,7 +1051,7 @@ impl Predict {
         for (_, (drugs, _)) in var2drugs {
             for d in drugs {
                 if d != NONE_DRUG {
-                    json.entry(d).or_insert_with(Susceptibility::default);
+                    json.entry(d).or_default();
                 }
             }
         }
@@ -1224,7 +1219,7 @@ mod tests {
         assert!(Prediction::Failed < Prediction::Resistant);
         assert!(Prediction::Unknown < Prediction::Resistant);
 
-        let v = vec![
+        let v = [
             Prediction::Susceptible,
             Prediction::Unknown,
             Prediction::Failed,
